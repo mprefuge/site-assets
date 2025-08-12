@@ -33,7 +33,6 @@ const style = `<style>
                 color: #fff;
                 box-shadow: 0 0 0 2px #BD213533;
             }
-            .payment-method-btn.selected svg,
             .payment-method-btn.selected img {
                 filter: brightness(0) invert(1);
             }
@@ -43,6 +42,17 @@ const style = `<style>
                 display: inline-block;
                 vertical-align: middle;
                 transition: filter 0.2s;
+            }
+            /* Wallet SVG color swap on selection */
+            .payment-method-btn.selected .wallet-svg-main {
+                fill: #fff !important;
+                stroke: #fff !important;
+            }
+            .payment-method-btn.selected .wallet-svg-circle {
+                fill: #BD2135 !important;
+            }
+            .payment-method-btn.selected .wallet-svg-bar {
+                fill: #BD2135 !important;
             }
             .payment-method-label {
                 margin-top: 4px;
@@ -354,7 +364,12 @@ const formData = `<div class="header-row">
                             <span class="payment-method-fee">0.8% (max $5)</span>
                         </button>
                         <button type="button" class="payment-method-btn" data-method="wallet" aria-label="Wallet">
-                            <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#000"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><circle cx="32" cy="14" r="4" fill="#fff"/><rect x="6" y="10" width="18" height="4" rx="2" fill="#fff"/></svg>
+                            <svg viewBox="0 0 40 28" fill="none">
+                                <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
+                                <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
+                                <circle class="wallet-svg-circle" cx="32" cy="14" r="4" fill="#fff"/>
+                                <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
+                            </svg>
                             <span class="payment-method-label">Wallet</span>
                             <span class="payment-method-fee">2.2% + $0.30</span>
                         </button>
@@ -577,7 +592,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let formDataEmbedded = formData.replaceAll("popup-", "embedded-");
         formDataEmbedded = formDataEmbedded.replace(
             /<div class=\"checkbox-row\"[\s\S]*?<\/div>/,
-            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Card\">\n<img src=\"https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg\" alt=\"Card\" />\n<span class=\"payment-method-label\">Card</span>\n<span class=\"payment-method-fee\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"US Bank Account\">\n<img src=\"https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg\" alt=\"US Bank Account\" />\n<span class=\"payment-method-label\">US Bank Account</span>\n<span class=\"payment-method-fee\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Wallet\">\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n<span class=\"payment-method-label\">Wallet</span>\n<span class=\"payment-method-fee\">2.2% + $0.30</span>\n</button>\n</div>`
+            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Card\">\n<img src=\"https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg\" alt=\"Card\" />\n<span class=\"payment-method-label\">Card</span>\n<span class=\"payment-method-fee\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"US Bank Account\">\n<img src=\"https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg\" alt=\"US Bank Account\" />\n<span class=\"payment-method-label\">US Bank Account</span>\n<span class=\"payment-method-fee\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Wallet\">\n<svg viewBox=\"0 0 40 28\" fill=\"none\">\n<rect class=\"wallet-svg-main\" x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/>\n<rect class=\"wallet-svg-main\" x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/>\n<circle class=\"wallet-svg-circle\" cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/>\n<rect class=\"wallet-svg-bar\" x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/>\n</svg>\n<span class=\"payment-method-label\">Wallet</span>\n<span class=\"payment-method-fee\">2.2% + $0.30</span>\n</button>\n</div>`
         );
         donationForm.innerHTML = `${styleEmbedded}${formDataEmbedded}`;
     }
