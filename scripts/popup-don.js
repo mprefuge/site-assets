@@ -24,6 +24,12 @@ const style = `<style>
                 outline: none;
             }
             .payment-method-btn.selected, .payment-method-btn:focus {
+            .payment-method-note {
+                font-size: 13px;
+                color: #555;
+                margin: 4px 0 12px 0;
+                display: block;
+            }
                 border-color: #635bff;
                 box-shadow: 0 0 0 2px #635bff33;
             }
@@ -308,23 +314,24 @@ const formData = `<div class="header-row">
                         <input type="checkbox" id="popup-cover-fee" name="cover-fee" checked>
                         <label for="popup-cover-fee">I would like to cover the processing fees</label>
                     </div>
-                    <div class="payment-method-row" id="popup-payment-method-row">
+                    <div class="payment-method-row" id="popup-payment-method-row" style="display: flex;">
                         <button type="button" class="payment-method-btn selected" data-method="card" aria-label="Credit or Debit Card">
                             <span>
                                 <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#635bff"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="6" y="10" width="28" height="4" rx="2" fill="#fff"/><rect x="6" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
-                            </span>Card
+                            </span>Card <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
                         </button>
                         <button type="button" class="payment-method-btn" data-method="ach" aria-label="ACH Bank Transfer">
                             <span>
                                 <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#00b86b"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="10" y="12" width="20" height="4" rx="2" fill="#fff"/><rect x="10" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
-                            </span>ACH
+                            </span>ACH <span style="font-size:12px;color:#888;">0.8% (max $5)</span>
                         </button>
                         <button type="button" class="payment-method-btn" data-method="wallet" aria-label="Digital Wallet">
                             <span>
                                 <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#000"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><circle cx="32" cy="14" r="4" fill="#fff"/><rect x="6" y="10" width="18" height="4" rx="2" fill="#fff"/></svg>
-                            </span>Wallet
+                            </span>Wallet <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
                         </button>
                     </div>
+                    <span class="payment-method-note">Please select your payment method to accurately calculate the fees.</span>
                     <div><button type="submit" id="popup-total-amount-display">Donate</button></div>
                     <div style="text-align: center;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
                 </form>
@@ -379,10 +386,13 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("popup-frequency").onchange = updateTotalAmount;
 
     // Show/hide payment method row when cover fee is checked
-    document.getElementById("popup-cover-fee").onchange = function() {
-        const coverFeeChecked = this.checked;
-        const paymentRow = document.getElementById("popup-payment-method-row");
-        paymentRow.style.display = coverFeeChecked ? "flex" : "none";
+    // Show/hide payment method row when cover fee is checked
+    const coverFeeCheckbox = document.getElementById("popup-cover-fee");
+    const paymentRow = document.getElementById("popup-payment-method-row");
+    // On load, show if checked
+    paymentRow.style.display = coverFeeCheckbox.checked ? "flex" : "none";
+    coverFeeCheckbox.onchange = function() {
+        paymentRow.style.display = this.checked ? "flex" : "none";
         updateTotalAmount();
     };
 
@@ -438,12 +448,11 @@ document.addEventListener("DOMContentLoaded", function () {
         };
 
         if (jsonData.coverFee) {
-            // Stripe fee calculation based on payment method
-            // Card: 2.9% + $0.30, ACH: 0.8% (max $5), Wallet: 2.9% + $0.30
+            // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
             let fee = 0;
             let baseAmount = jsonData.amount / 100;
             if (paymentMethod === 'card' || paymentMethod === 'wallet') {
-                fee = baseAmount * 0.029 + 0.30;
+                fee = baseAmount * 0.022 + 0.30;
             } else if (paymentMethod === 'ach') {
                 fee = Math.min(baseAmount * 0.008, 5.00);
             }
@@ -495,8 +504,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let paymentMethod = selectedPaymentMethod;
         let fee = 0;
         if (coverFee) {
+            // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
             if (paymentMethod === 'card' || paymentMethod === 'wallet') {
-                fee = amountInDollars * 0.029 + 0.30;
+                fee = amountInDollars * 0.022 + 0.30;
             } else if (paymentMethod === 'ach') {
                 fee = Math.min(amountInDollars * 0.008, 5.00);
             }
@@ -540,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let formDataEmbedded = formData.replaceAll("popup-", "embedded-");
         formDataEmbedded = formDataEmbedded.replace(
             /<div class=\"checkbox-row\"[\s\S]*?<\/div>/,
-            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#635bff\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"6\" y=\"10\" width=\"28\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"6\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>Card\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#00b86b\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"10\" y=\"12\" width=\"20\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"10\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>ACH\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n</span>Wallet\n</button>\n</div>`
+            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#635bff\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"6\" y=\"10\" width=\"28\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"6\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>Card <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#00b86b\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"10\" y=\"12\" width=\"20\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"10\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>ACH <span style=\"font-size:12px;color:#888;\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n</span>Wallet <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n</div>\n<span class=\"payment-method-note\">Please select your payment method to accurately calculate the fees.</span>`
         );
         donationForm.innerHTML = `${styleEmbedded}${formDataEmbedded}`;
     }
@@ -573,11 +583,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const coverFeeInput = document.getElementById("embedded-cover-fee");
+    const paymentRow = document.getElementById("embedded-payment-method-row");
     if (coverFeeInput) {
+        // On load, show if checked
+        paymentRow.style.display = coverFeeInput.checked ? "flex" : "none";
         coverFeeInput.oninput = function() {
-            const coverFeeChecked = this.checked;
-            const paymentRow = document.getElementById("embedded-payment-method-row");
-            paymentRow.style.display = coverFeeChecked ? "flex" : "none";
+            paymentRow.style.display = this.checked ? "flex" : "none";
             updateTotalAmount();
         };
     }
@@ -629,10 +640,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 category: document.getElementById("embedded-category").value
             };
             if (jsonData.coverFee) {
+                // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
                 let fee = 0;
                 let baseAmount = jsonData.amount / 100;
                 if (paymentMethod === 'card' || paymentMethod === 'wallet') {
-                    fee = baseAmount * 0.029 + 0.30;
+                    fee = baseAmount * 0.022 + 0.30;
                 } else if (paymentMethod === 'ach') {
                     fee = Math.min(baseAmount * 0.008, 5.00);
                 }
@@ -675,8 +687,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let paymentMethod = selectedPaymentMethod;
         let fee = 0;
         if (coverFee) {
+            // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
             if (paymentMethod === 'card' || paymentMethod === 'wallet') {
-                fee = amountInDollars * 0.029 + 0.30;
+                fee = amountInDollars * 0.022 + 0.30;
             } else if (paymentMethod === 'ach') {
                 fee = Math.min(amountInDollars * 0.008, 5.00);
             }
