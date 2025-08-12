@@ -247,98 +247,92 @@ const formData = `<div class="header-row">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div>
+                        <div style="flex:2;">
                             <label for="popup-address-line1">Address Line 1:</label>
-                            <input type="text" id="popup-address-line1" name="address_line1" required>
+                            <input type="text" id="popup-address-line1" name="address_line1" required autocomplete="off">
+                            <div id="popup-address-suggestions" style="position:relative;z-index:10001;"></div>
                         </div>
-                        <div>
-                            <label for="popup-address-line2">Address Line 2 (optional):</label>
-                            <input type="text" id="popup-address-line2" name="address_line2">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div>
-                            <label for="popup-city">City:</label>
-                            <input type="text" id="popup-city" name="city" required>
-                        </div>
-                        <div>
-                            <label for="popup-state">State:</label>
-                            <select id="popup-state" name="state" class="field-element" required></select>
-                        </div>
-                        <div>
-                            <label for="popup-postal_code">Zip Code:</label>
-                            <input type="text" id="popup-postal_code" name="postal_code" required>
-                        </div>
-                        <div>
-                            <label for="popup-country">Country:</label>
-                            <select id="popup-country" name="country" class="field-element" required></select>
+                        <div style="flex:1;align-self:end;">
+                            <a href="#" id="popup-toggle-manual-address" style="font-size:13px;">Enter Address Manually</a>
                         </div>
                     </div>
-                    <label>Select Donation Amount:</label>
-                    <div id="popup-amount-buttons">
-                        <div class="popup-amount-btn" data-value="500">$500</div>
-                        <div class="popup-amount-btn" data-value="100">$100</div>
-                        <div class="popup-amount-btn" data-value="50">$50</div>
-                        <div class="popup-amount-btn" data-value="25">$25</div>
-                        <div class="popup-amount-btn" data-value="10">$10</div>
-                        <div class="popup-amount-btn" data-value="custom">Other</div>
-                    </div>
-                    <div id="popup-custom-amount-container" style="display: none;">
-                        <label for="popup-custom-amount">Enter your custom amount:</label>
-                        <input type="number" id="popup-custom-amount" name="custom-amount" min="1" step="0.01">
-                    </div>
-                    <div class="form-row">
-                        <div>
-                            <label for="popup-frequency">Donation Frequency:</label>
-                            <select id="popup-frequency" name="frequency" required>
-                                <option value="onetime">One-time</option>
-                                <option value="week">Weekly</option>
-                                <option value="biweek">Bi-Weekly</option>
-                                <option value="month">Monthly</option>
-                                <option value="year">Yearly</option>
-                            </select>
+                    <div id="popup-manual-address-fields" style="display:none;">
+                        <div class="form-row">
+                            <div>
+                                <label for="popup-address-line2">Address Line 2 (optional):</label>
+                                <input type="text" id="popup-address-line2" name="address_line2">
+                            </div>
                         </div>
-                        <div>
-                            <label for="popup-category">Category:</label>
-                            <select id="popup-category" name="category" required>
-                                <option value="General Giving">General Giving</option>
-                                <option value="Cooking and Culture">Cooking and Culture</option>
-                                <option value="Corporate Sponsor">Corporate Sponsor</option>
-                                <option value="Ministry Support Dinner">Ministry Support Dinner</option>
-                                <option value="TNND Payment">TNND</option>
-                                <option value="Volunteer Application">Volunteer Application</option>
-                            </select>
+                        <div class="form-row">
+                            <div>
+                                <label for="popup-city">City:</label>
+                                <input type="text" id="popup-city" name="city">
+                            </div>
+                            <div>
+                                <label for="popup-state">State:</label>
+                                <select id="popup-state" name="state" class="field-element"></select>
+                            </div>
+                            <div>
+                                <label for="popup-postal_code">Zip Code:</label>
+                                <input type="text" id="popup-postal_code" name="postal_code">
+                            </div>
+                            <div>
+                                <label for="popup-country">Country:</label>
+                                <select id="popup-country" name="country" class="field-element"></select>
+                            </div>
                         </div>
-                    </div>
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="popup-cover-fee" name="cover-fee" checked>
-                        <label for="popup-cover-fee">I would like to cover the processing fees</label>
-                    </div>
-                    <div class="payment-method-row" id="popup-payment-method-row" style="display: flex;">
-                        <img class="stripe-logo" src="https://cdn.jsdelivr.net/gh/stripe/brand@master/logo/stripe-logo-blue.svg" alt="Powered by Stripe" title="Powered by Stripe" />
-                        <button type="button" class="payment-method-btn selected" data-method="card" aria-label="Credit or Debit Card">
-                            <span>
-                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/card.svg" alt="Card" style="height:24px;width:36px;vertical-align:middle;" />
-                            </span>Card <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
-                        </button>
-                        <button type="button" class="payment-method-btn" data-method="ach" aria-label="ACH Bank Transfer">
-                            <span>
-                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/bank.svg" alt="ACH" style="height:24px;width:36px;vertical-align:middle;" />
-                            </span>ACH <span style="font-size:12px;color:#888;">0.8% (max $5)</span>
-                        </button>
-                        <button type="button" class="payment-method-btn" data-method="wallet" aria-label="Digital Wallet">
-                            <span>
-                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/wallet.svg" alt="Wallet" style="height:24px;width:36px;vertical-align:middle;" />
-                            </span>Wallet <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
-                        </button>
-                    </div>
-                    <div><button type="submit" id="popup-total-amount-display">Donate</button></div>
-                    <div style="text-align: center;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
-                </form>
-            </div>`
+                    </div>\
+`;
+
+// Address lookup and manual toggle logic
+(async function() {
+        const addressLine1 = document.getElementById("popup-address-line1");
+        const suggestionsBox = document.getElementById("popup-address-suggestions");
+        const manualFields = document.getElementById("popup-manual-address-fields");
+        const toggleManual = document.getElementById("popup-toggle-manual-address");
+        let manualMode = false;
+        manualFields.style.display = "none";
+        toggleManual.onclick = function(e) {
+            e.preventDefault();
+            manualMode = !manualMode;
+            manualFields.style.display = manualMode ? "block" : "none";
+            toggleManual.innerText = manualMode ? "Hide Manual Fields" : "Enter Address Manually";
+        };
+        addressLine1.addEventListener("input", async function() {
+            if (manualMode || !addressLine1.value.trim()) {
+                suggestionsBox.innerHTML = "";
+                return;
+            }
+            const q = encodeURIComponent(addressLine1.value.trim());
+            const url = `https://photon.komoot.io/api/?q=${q}&limit=5`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (!data.features || !data.features.length) {
+                    suggestionsBox.innerHTML = "";
+                    return;
+                }
+                suggestionsBox.innerHTML = `<div style='position:absolute;top:100%;left:0;width:100%;background:#fff;border:1px solid #ccc;border-radius:0 0 8px 8px;box-shadow:0 2px 8px #0001;'>${data.features.map(f => `<div class='popup-address-suggestion' style='padding:8px;cursor:pointer;'>${f.properties.label}</div>`).join('')}</div>`;
+                Array.from(suggestionsBox.querySelectorAll('.popup-address-suggestion')).forEach((el, idx) => {
+                    el.onclick = function() {
+                        const feat = data.features[idx];
+                        addressLine1.value = feat.properties.street || feat.properties.name || '';
+                        document.getElementById("popup-city").value = feat.properties.city || feat.properties.town || feat.properties.village || '';
+                        document.getElementById("popup-state").value = states.find(s => s.startsWith((feat.properties.state || '').slice(0,2))) || '';
+                        document.getElementById("popup-postal_code").value = feat.properties.postcode || '';
+                        document.getElementById("popup-country").value = countries.find(c => c.toLowerCase().includes((feat.properties.country || '').toLowerCase())) || '';
+                        suggestionsBox.innerHTML = "";
+                    };
+                });
+            } catch (e) { suggestionsBox.innerHTML = ""; }
+        });
+        addressLine1.addEventListener("blur", function() {
+            setTimeout(() => { suggestionsBox.innerHTML = ""; }, 200);
+        });
+    })();
 
 document.addEventListener("DOMContentLoaded", function () {
-
     const donationPopup = document.getElementById("donation-popup");
     donationPopup.innerHTML = `${style}<div class="modal" id="donation-modal">
             <div class="modal-content">
@@ -350,15 +344,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById("donation-modal");
 
     checkHashParameter();
-
     window.addEventListener('hashchange', checkHashParameter);
-
     const span = modal.getElementsByClassName("close-button")[0];
     span.onclick = function () {
         modal.style.display = "none";
         history.pushState("", document.title, window.location.pathname + window.location.search);
     };
-
     window.onclick = function (event) {
         if (event.target == modal) {
             modal.style.display = "none";
@@ -381,21 +372,16 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         };
     });
-
     document.getElementById("popup-custom-amount").oninput = updateTotalAmount;
     document.getElementById("popup-frequency").onchange = updateTotalAmount;
-
-    // Show/hide payment method row when cover fee is checked
     // Show/hide payment method row when cover fee is checked
     const coverFeeCheckbox = document.getElementById("popup-cover-fee");
     const paymentRow = document.getElementById("popup-payment-method-row");
-    // On load, show if checked
     paymentRow.style.display = coverFeeCheckbox.checked ? "flex" : "none";
     coverFeeCheckbox.onchange = function() {
         paymentRow.style.display = this.checked ? "flex" : "none";
         updateTotalAmount();
     };
-
     // Payment method button group logic
     const paymentBtns = document.querySelectorAll('#popup-payment-method-row .payment-method-btn');
     let selectedPaymentMethod = 'card';
@@ -407,16 +393,12 @@ document.addEventListener("DOMContentLoaded", function () {
             updateTotalAmount();
         };
     });
-
     document.getElementById("popup-donation-form").onsubmit = async function (event) {
         event.preventDefault();
-
-        //const submitButton = document.querySelector('button[type="submit"]');
         const submitButton = document.querySelector('#popup-total-amount-display');
         submitButton.disabled = true;
-
-    let paymentMethod = selectedPaymentMethod;
-    let jsonData = {
+        let paymentMethod = selectedPaymentMethod;
+        let jsonData = {
             firstname: document.getElementById("popup-firstname").value,
             lastname: document.getElementById("popup-lastname").value,
             livemode: document.getElementById("popup-firstname").value.toLowerCase() === 'test' ? false : true,
@@ -431,11 +413,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 country: document.getElementById("popup-country").value
             },
             amount: (() => {
-                
-    let selectedButton = document.querySelector('.popup-amount-btn.selected');
-    if (!selectedButton) return; // Exit if no button is selected
-    let amount = selectedButton.getAttribute('data-value');
-    
+                let selectedButton = document.querySelector('.popup-amount-btn.selected');
+                if (!selectedButton) return; // Exit if no button is selected
+                let amount = selectedButton.getAttribute('data-value');
                 if (amount === "custom") {
                     amount = document.getElementById("popup-custom-amount").value;
                 }
@@ -446,7 +426,6 @@ document.addEventListener("DOMContentLoaded", function () {
             frequency: document.getElementById("popup-frequency").value,
             category: document.getElementById("popup-category").value
         };
-
         if (jsonData.coverFee) {
             // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
             let fee = 0;
@@ -458,7 +437,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             jsonData.amount = Math.ceil((baseAmount + fee) * 100);
         }
-
         try {
             const response = await fetch(processDonationAPI, {
                 method: 'POST',
@@ -467,13 +445,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
                 body: JSON.stringify(jsonData),
             });
-
             const session = await response.json();
-            //const stripe = Stripe('pk_live_fJSacHhPB2h0mJfsFowRm8lQ');
             const key = jsonData.firstname.toLowerCase() === 'test' ? 'pk_test_y47nraQZ5IFgnTMlwbDvfj8D' : 'pk_live_fJSacHhPB2h0mJfsFowRm8lQ';
             const stripe = Stripe(key);
             const result = await stripe.redirectToCheckout({ sessionId: session.id });
-
             if (result.error) {
                 console.error(result.error.message);
             }
@@ -483,15 +458,12 @@ document.addEventListener("DOMContentLoaded", function () {
             submitButton.disabled = false;
         }
     };
-
     updateTotalAmount();
-
     function checkHashParameter() {
         if (window.location.hash === '#donate') {
             modal.style.display = "flex";
         }
     }
-
     function updateTotalAmount() {
         let selectedButton = document.querySelector('.popup-amount-btn.selected');
         if (!selectedButton) return;
@@ -501,7 +473,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         let amountInDollars = parseFloat(amount);
         const coverFee = document.getElementById("popup-cover-fee").checked;
-    let paymentMethod = selectedPaymentMethod;
+        let paymentMethod = selectedPaymentMethod;
         let fee = 0;
         if (coverFee) {
             // Stripe nonprofit rates: Card/Wallet 2.2% + $0.30, ACH 0.8% (max $5)
@@ -525,6 +497,54 @@ document.addEventListener("DOMContentLoaded", function () {
             displayElement.innerHTML = `Donate $${amountInDollars.toFixed(2)} ${frequencyText}`;
         }
     }
+
+    // Address lookup and manual toggle logic
+    (function() {
+        const addressLine1 = document.getElementById("popup-address-line1");
+        const suggestionsBox = document.getElementById("popup-address-suggestions");
+        const manualFields = document.getElementById("popup-manual-address-fields");
+        const toggleManual = document.getElementById("popup-toggle-manual-address");
+        let manualMode = false;
+        manualFields.style.display = "none";
+        toggleManual.onclick = function(e) {
+            e.preventDefault();
+            manualMode = !manualMode;
+            manualFields.style.display = manualMode ? "block" : "none";
+            toggleManual.innerText = manualMode ? "Hide Manual Fields" : "Enter Address Manually";
+        };
+        addressLine1.addEventListener("input", async function() {
+            if (manualMode || !addressLine1.value.trim()) {
+                suggestionsBox.innerHTML = "";
+                return;
+            }
+            const q = encodeURIComponent(addressLine1.value.trim());
+            const url = `https://photon.komoot.io/api/?q=${q}&limit=5`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (!data.features || !data.features.length) {
+                    suggestionsBox.innerHTML = "";
+                    return;
+                }
+                suggestionsBox.innerHTML = `<div style='position:absolute;top:100%;left:0;width:100%;background:#fff;border:1px solid #ccc;border-radius:0 0 8px 8px;box-shadow:0 2px 8px #0001;'>${data.features.map(f => `<div class='popup-address-suggestion' style='padding:8px;cursor:pointer;'>${f.properties.label}</div>`).join('')}</div>`;
+                Array.from(suggestionsBox.querySelectorAll('.popup-address-suggestion')).forEach((el, idx) => {
+                    el.onclick = function() {
+                        const feat = data.features[idx];
+                        addressLine1.value = feat.properties.street || feat.properties.name || '';
+                        document.getElementById("popup-city").value = feat.properties.city || feat.properties.town || feat.properties.village || '';
+                        document.getElementById("popup-state").value = states.find(s => s.startsWith((feat.properties.state || '').slice(0,2))) || '';
+                        document.getElementById("popup-postal_code").value = feat.properties.postcode || '';
+                        document.getElementById("popup-country").value = countries.find(c => c.toLowerCase().includes((feat.properties.country || '').toLowerCase())) || '';
+                        suggestionsBox.innerHTML = "";
+                    };
+                });
+            } catch (e) { suggestionsBox.innerHTML = ""; }
+        });
+        addressLine1.addEventListener("blur", function() {
+            setTimeout(() => { suggestionsBox.innerHTML = ""; }, 200);
+        });
+    })();
 });
 
 function populateSelect(elementId, options) {
@@ -550,7 +570,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let formDataEmbedded = formData.replaceAll("popup-", "embedded-");
         formDataEmbedded = formDataEmbedded.replace(
             /<div class=\"checkbox-row\"[\s\S]*?<\/div>/,
-            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<img class=\"stripe-logo\" src=\"https://cdn.jsdelivr.net/gh/stripe/brand@master/logo/stripe-logo-blue.svg\" alt=\"Powered by Stripe\" title=\"Powered by Stripe\" />\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/card.svg\" alt=\"Card\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>Card <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/bank.svg\" alt=\"ACH\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>ACH <span style=\"font-size:12px;color:#888;\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/wallet.svg\" alt=\"Wallet\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>Wallet <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n</div>`
+            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#635bff\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"6\" y=\"10\" width=\"28\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"6\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>Card <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#00b86b\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"10\" y=\"12\" width=\"20\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"10\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>ACH <span style=\"font-size:12px;color:#888;\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n</span>Wallet <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n</div>`
         );
         donationForm.innerHTML = `${styleEmbedded}${formDataEmbedded}`;
     }
