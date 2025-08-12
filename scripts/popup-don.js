@@ -291,7 +291,7 @@ const style = `<style>
                 margin-bottom: 18px;
             }
             button[type="submit"], #popup-total-amount-display, #embedded-total-amount-display {
-                background: linear-gradient(90deg, #BD2135 0%, #000 100%);
+                background: #BD2135;
                 color: #fff;
                 padding: 18px 0;
                 border: none;
@@ -304,8 +304,9 @@ const style = `<style>
                 box-shadow: 0 2px 8px 0 rgba(189,33,53,0.10);
                 transition: background 0.2s, color 0.2s;
             }
-            button[type="submit"]:hover, #popup-total-amount-display:hover, #embedded-total-amount-display:hover {
-                background: linear-gradient(90deg, #a11d2d 0%, #222 100%);
+                button[type="submit"]:hover, #popup-total-amount-display:hover, #embedded-total-amount-display:hover {
+                    background: #000;
+                    color: #fff;
             }
             button[type="submit"]:disabled, #popup-total-amount-display:disabled, #embedded-total-amount-display:disabled {
                 background: #e0e0e0;
@@ -539,8 +540,14 @@ const formData = `<div class="header-row">
                             <span class="payment-method-fee">2.2% + $0.30</span>
                         </button>
                     </div>
+                    <div style="margin-top: 8px; text-align: center;">
+                        <span style="display: inline-flex; align-items: center; gap: 6px; color: #222; font-size: 15px; font-weight: 500;">
+                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;"><circle cx="10" cy="10" r="9" stroke="#BD2135" stroke-width="2" fill="#fff"/><path d="M6.5 10.5L9 13L14 8" stroke="#BD2135" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Secure payment
+                        </span>
+                    </div>
                     <div><button type="submit" id="popup-total-amount-display">Donate</button></div>
-                    <div style="text-align: center;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
+                    <div style="text-align: center; margin-top: 6px;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
                 </form>
             </div>`
 
