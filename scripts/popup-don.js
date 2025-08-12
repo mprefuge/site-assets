@@ -6,8 +6,14 @@ const style = `<style>
             .payment-method-row {
                 display: none;
                 margin: 10px 0 20px 0;
+                align-items: center;
                 justify-content: flex-start;
                 gap: 16px;
+            }
+            .stripe-logo {
+                height: 28px;
+                margin-right: 10px;
+                vertical-align: middle;
             }
             .payment-method-btn {
                 display: flex;
@@ -24,12 +30,6 @@ const style = `<style>
                 outline: none;
             }
             .payment-method-btn.selected, .payment-method-btn:focus {
-            .payment-method-note {
-                font-size: 13px;
-                color: #555;
-                margin: 4px 0 12px 0;
-                display: block;
-            }
                 border-color: #635bff;
                 box-shadow: 0 0 0 2px #635bff33;
             }
@@ -315,23 +315,23 @@ const formData = `<div class="header-row">
                         <label for="popup-cover-fee">I would like to cover the processing fees</label>
                     </div>
                     <div class="payment-method-row" id="popup-payment-method-row" style="display: flex;">
+                        <img class="stripe-logo" src="https://cdn.jsdelivr.net/gh/stripe/brand@master/logo/stripe-logo-blue.svg" alt="Powered by Stripe" title="Powered by Stripe" />
                         <button type="button" class="payment-method-btn selected" data-method="card" aria-label="Credit or Debit Card">
                             <span>
-                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#635bff"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="6" y="10" width="28" height="4" rx="2" fill="#fff"/><rect x="6" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
+                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/card.svg" alt="Card" style="height:24px;width:36px;vertical-align:middle;" />
                             </span>Card <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
                         </button>
                         <button type="button" class="payment-method-btn" data-method="ach" aria-label="ACH Bank Transfer">
                             <span>
-                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#00b86b"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="10" y="12" width="20" height="4" rx="2" fill="#fff"/><rect x="10" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
+                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/bank.svg" alt="ACH" style="height:24px;width:36px;vertical-align:middle;" />
                             </span>ACH <span style="font-size:12px;color:#888;">0.8% (max $5)</span>
                         </button>
                         <button type="button" class="payment-method-btn" data-method="wallet" aria-label="Digital Wallet">
                             <span>
-                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#000"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><circle cx="32" cy="14" r="4" fill="#fff"/><rect x="6" y="10" width="18" height="4" rx="2" fill="#fff"/></svg>
+                                <img src="https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/wallet.svg" alt="Wallet" style="height:24px;width:36px;vertical-align:middle;" />
                             </span>Wallet <span style="font-size:12px;color:#888;">2.2% + $0.30</span>
                         </button>
                     </div>
-                    <span class="payment-method-note">Please select your payment method to accurately calculate the fees.</span>
                     <div><button type="submit" id="popup-total-amount-display">Donate</button></div>
                     <div style="text-align: center;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
                 </form>
@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let formDataEmbedded = formData.replaceAll("popup-", "embedded-");
         formDataEmbedded = formDataEmbedded.replace(
             /<div class=\"checkbox-row\"[\s\S]*?<\/div>/,
-            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#635bff\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"6\" y=\"10\" width=\"28\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"6\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>Card <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#00b86b\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"10\" y=\"12\" width=\"20\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"10\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>ACH <span style=\"font-size:12px;color:#888;\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n</span>Wallet <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n</div>\n<span class=\"payment-method-note\">Please select your payment method to accurately calculate the fees.</span>`
+            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\" style=\"display: flex;\">\n<img class=\"stripe-logo\" src=\"https://cdn.jsdelivr.net/gh/stripe/brand@master/logo/stripe-logo-blue.svg\" alt=\"Powered by Stripe\" title=\"Powered by Stripe\" />\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/card.svg\" alt=\"Card\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>Card <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/bank.svg\" alt=\"ACH\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>ACH <span style=\"font-size:12px;color:#888;\">0.8% (max $5)</span>\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<img src=\"https://cdn.jsdelivr.net/gh/stripe/stripe-payments-demo@master/public/images/wallet.svg\" alt=\"Wallet\" style=\"height:24px;width:36px;vertical-align:middle;\" />\n</span>Wallet <span style=\"font-size:12px;color:#888;\">2.2% + $0.30</span>\n</button>\n</div>`
         );
         donationForm.innerHTML = `${styleEmbedded}${formDataEmbedded}`;
     }
