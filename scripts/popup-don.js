@@ -428,9 +428,17 @@ const style = `<style>
         </style>`
 const formData = `<div class="header-row">
     <h2>Please Provide the Following Information</h2>
-    <span style="position:absolute;top:18px;right:32px;font-size:15px;font-weight:600;cursor:pointer;color:#BD2135;z-index:10;" id="popup-enter-manually-link">Enter Manually</span>
 </div>
 <form id="popup-donation-form">
+    <div class="form-row" id="popup-address-lookup-row">
+        <div style="width:100%;position:relative;">
+            <label for="popup-address-lookup" style="display:block;">Address:
+                <span style="position:absolute;top:0;right:0;font-size:15px;font-weight:600;cursor:pointer;color:#BD2135;z-index:10;" id="popup-enter-manually-link">Enter Manually</span>
+            </label>
+            <input type="text" id="popup-address-lookup" name="address_lookup" autocomplete="off" placeholder="Start typing your address..." required style="margin-top:2px;">
+            <div id="popup-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ccc;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:none;"></div>
+        </div>
+    </div>
     <div class="form-row">
         <div>
             <label for="popup-firstname">First Name:</label>
@@ -449,13 +457,6 @@ const formData = `<div class="header-row">
         <div>
             <label for="popup-phone">Phone:</label>
             <input type="tel" id="popup-phone" name="phone" required>
-        </div>
-    </div>
-    <div class="form-row" id="popup-address-lookup-row">
-        <div style="width:100%;position:relative;">
-            <label for="popup-address-lookup">Address:</label>
-            <input type="text" id="popup-address-lookup" name="address_lookup" autocomplete="off" placeholder="Start typing your address..." required>
-            <div id="popup-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ccc;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:none;"></div>
         </div>
     </div>
     <div id="popup-manual-address-fields" style="display:none;">
