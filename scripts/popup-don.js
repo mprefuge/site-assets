@@ -637,52 +637,52 @@ document.addEventListener("DOMContentLoaded", function () {
     manualFields.style.display = 'none';
     addressLookupRow.style.display = '';
     let addressTimeout = null;
-    addressLookupInput.addEventListener('input', function() {
-        const val = addressLookupInput.value.trim();
-        if (val.length < 5) {
-            addressSuggestions.style.display = 'none';
-            addressSuggestions.innerHTML = '';
-            return;
-        }
-        if (addressTimeout) clearTimeout(addressTimeout);
-        addressTimeout = setTimeout(() => {
-            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&addressdetails=1&limit=5`)
-                .then(r => r.json())
-                .then(results => {
-                    addressSuggestions.innerHTML = '';
-                    if (results.length === 0) {
-                        addressSuggestions.style.display = 'none';
-                        return;
-                    }
-                    results.forEach(item => {
-                        const div = document.createElement('div');
-                        div.textContent = item.display_name;
-                        div.style.padding = '8px 12px';
-                        div.style.cursor = 'pointer';
-                        div.onmouseover = () => div.style.background = '#f4f4f4';
-                        div.onmouseout = () => div.style.background = '#fff';
-                        div.onclick = () => {
-                            addressLookupInput.value = item.display_name;
+        addressLookupInput.addEventListener('input', function() {
+            const val = addressLookupInput.value.trim();
+            if (val.length < 5) {
+                addressSuggestions.style.display = 'none';
+                addressSuggestions.innerHTML = '';
+                return;
+            }
+            if (addressTimeout) clearTimeout(addressTimeout);
+            addressTimeout = setTimeout(() => {
+                fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&addressdetails=1&limit=5&countrycodes=us`)
+                    .then(r => r.json())
+                    .then(results => {
+                        addressSuggestions.innerHTML = '';
+                        if (results.length === 0) {
                             addressSuggestions.style.display = 'none';
-                            // Populate address fields
-                            const addr = item.address || {};
-                            document.getElementById('popup-address-line1').value = (addr.house_number ? addr.house_number + ' ' : '') + (addr.road || addr.pedestrian || addr.footway || addr.cycleway || addr.path || '');
-                            document.getElementById('popup-address-line2').value = '';
-                            document.getElementById('popup-city').value = addr.city || addr.town || addr.village || addr.hamlet || '';
-                            document.getElementById('popup-state').value = states.find(s => s.includes(addr.state)) || '';
-                            document.getElementById('popup-postal_code').value = addr.postcode || '';
-                            document.getElementById('popup-country').value = countries.find(c => c === addr.country) || '';
-                            // Show manual fields for review
-                            manualFields.style.display = '';
-                            addressLookupRow.style.display = 'none';
-                            enterManuallyLink.style.display = 'none';
-                        };
-                        addressSuggestions.appendChild(div);
+                            return;
+                        }
+                        results.forEach(item => {
+                            const div = document.createElement('div');
+                            div.textContent = item.display_name;
+                            div.style.padding = '8px 12px';
+                            div.style.cursor = 'pointer';
+                            div.onmouseover = () => div.style.background = '#f4f4f4';
+                            div.onmouseout = () => div.style.background = '#fff';
+                            div.onclick = () => {
+                                addressLookupInput.value = item.display_name;
+                                addressSuggestions.style.display = 'none';
+                                // Populate address fields
+                                const addr = item.address || {};
+                                document.getElementById('popup-address-line1').value = (addr.house_number ? addr.house_number + ' ' : '') + (addr.road || addr.pedestrian || addr.footway || addr.cycleway || addr.path || '');
+                                document.getElementById('popup-address-line2').value = '';
+                                document.getElementById('popup-city').value = addr.city || addr.town || addr.village || addr.hamlet || '';
+                                document.getElementById('popup-state').value = states.find(s => s.includes(addr.state)) || '';
+                                document.getElementById('popup-postal_code').value = addr.postcode || '';
+                                document.getElementById('popup-country').value = countries.find(c => c === addr.country) || '';
+                                // Show manual fields for review
+                                manualFields.style.display = '';
+                                addressLookupRow.style.display = 'none';
+                                enterManuallyLink.style.display = 'none';
+                            };
+                            addressSuggestions.appendChild(div);
+                        });
+                        addressSuggestions.style.display = 'block';
                     });
-                    addressSuggestions.style.display = 'block';
-                });
-        }, 300);
-    });
+            }, 300);
+        });
     // Hide suggestions on click outside
     document.addEventListener('click', function(e) {
         if (!addressLookupRow.contains(e.target)) {
