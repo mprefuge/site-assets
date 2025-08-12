@@ -5,12 +5,32 @@ const countries = ["United States", "Afghanistan", "Akrotiri", "Albania", "Alger
 const style = `<style>
             .payment-method-row {
                 display: none;
-                align-items: center;
-                margin: 15px 0;
+                margin: 10px 0 20px 0;
+                justify-content: flex-start;
+                gap: 16px;
             }
-            .payment-method-row label {
-                margin-right: 10px;
-                font-weight: normal;
+            .payment-method-btn {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: 2px solid #ccc;
+                background: #fff;
+                border-radius: 8px;
+                padding: 8px 18px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: border-color 0.2s, box-shadow 0.2s;
+                min-width: 120px;
+                outline: none;
+            }
+            .payment-method-btn.selected, .payment-method-btn:focus {
+                border-color: #635bff;
+                box-shadow: 0 0 0 2px #635bff33;
+            }
+            .payment-method-btn svg {
+                width: 28px;
+                height: 28px;
+                display: inline-block;
             }
             body {
                 font-family: Arial, sans-serif;
@@ -197,14 +217,6 @@ const style = `<style>
             }
         </style>`
 const formData = `<div class="header-row">
-                    <div class="payment-method-row" id="popup-payment-method-row">
-                        <label for="popup-payment-method">Payment Method:</label>
-                        <select id="popup-payment-method" name="payment-method">
-                            <option value="card">Credit/Debit Card</option>
-                            <option value="ach">ACH Bank Transfer</option>
-                            <option value="wallet">Digital Wallet (Apple Pay, Google Pay, etc.)</option>
-                        </select>
-                    </div>
                     <h2>Please Provide the Following Information</h2>
                 </div>
                 <form id="popup-donation-form">
@@ -296,6 +308,23 @@ const formData = `<div class="header-row">
                         <input type="checkbox" id="popup-cover-fee" name="cover-fee" checked>
                         <label for="popup-cover-fee">I would like to cover the processing fees</label>
                     </div>
+                    <div class="payment-method-row" id="popup-payment-method-row">
+                        <button type="button" class="payment-method-btn selected" data-method="card" aria-label="Credit or Debit Card">
+                            <span>
+                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#635bff"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="6" y="10" width="28" height="4" rx="2" fill="#fff"/><rect x="6" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
+                            </span>Card
+                        </button>
+                        <button type="button" class="payment-method-btn" data-method="ach" aria-label="ACH Bank Transfer">
+                            <span>
+                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#00b86b"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><rect x="10" y="12" width="20" height="4" rx="2" fill="#fff"/><rect x="10" y="18" width="8" height="2" rx="1" fill="#fff"/></svg>
+                            </span>ACH
+                        </button>
+                        <button type="button" class="payment-method-btn" data-method="wallet" aria-label="Digital Wallet">
+                            <span>
+                                <svg viewBox="0 0 40 28" fill="none"><rect x="2" y="4" width="36" height="20" rx="4" fill="#000"/><rect x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/><circle cx="32" cy="14" r="4" fill="#fff"/><rect x="6" y="10" width="18" height="4" rx="2" fill="#fff"/></svg>
+                            </span>Wallet
+                        </button>
+                    </div>
                     <div><button type="submit" id="popup-total-amount-display">Donate</button></div>
                     <div style="text-align: center;"><small>Upon clicking "Donate", you will be taken to our donation processing platform, Stripe, to enter your payment information.</small></div>
                 </form>
@@ -357,7 +386,17 @@ document.addEventListener("DOMContentLoaded", function () {
         updateTotalAmount();
     };
 
-    document.getElementById("popup-payment-method").onchange = updateTotalAmount;
+    // Payment method button group logic
+    const paymentBtns = document.querySelectorAll('#popup-payment-method-row .payment-method-btn');
+    let selectedPaymentMethod = 'card';
+    paymentBtns.forEach(btn => {
+        btn.onclick = function() {
+            paymentBtns.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedPaymentMethod = btn.getAttribute('data-method');
+            updateTotalAmount();
+        };
+    });
 
     document.getElementById("popup-donation-form").onsubmit = async function (event) {
         event.preventDefault();
@@ -366,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const submitButton = document.querySelector('#popup-total-amount-display');
         submitButton.disabled = true;
 
-    const paymentMethod = document.getElementById("popup-payment-method").value;
+    let paymentMethod = selectedPaymentMethod;
     let jsonData = {
             firstname: document.getElementById("popup-firstname").value,
             lastname: document.getElementById("popup-lastname").value,
@@ -453,9 +492,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         let amountInDollars = parseFloat(amount);
         const coverFee = document.getElementById("popup-cover-fee").checked;
-        let paymentMethod = 'card';
-        const paymentMethodElem = document.getElementById("popup-payment-method");
-        if (paymentMethodElem) paymentMethod = paymentMethodElem.value;
+    let paymentMethod = selectedPaymentMethod;
         let fee = 0;
         if (coverFee) {
             if (paymentMethod === 'card' || paymentMethod === 'wallet') {
@@ -498,13 +535,12 @@ function populateSelect(elementId, options) {
 document.addEventListener("DOMContentLoaded", function () {
     const donationForm = document.getElementById("donation-form-embedded");
     if (donationForm) {
-        // Add payment method row to embedded form markup
+        // Add payment method button group with icons after cover fee checkbox
         let styleEmbedded = style.replaceAll("popup-", "embedded-");
         let formDataEmbedded = formData.replaceAll("popup-", "embedded-");
-        // Insert payment method row after cover fee checkbox
         formDataEmbedded = formDataEmbedded.replace(
             /<div class=\"checkbox-row\"[\s\S]*?<\/div>/,
-            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\">\n<label for=\"embedded-payment-method\">Payment Method:</label>\n<select id=\"embedded-payment-method\" name=\"payment-method\">\n<option value=\"card\">Credit/Debit Card</option>\n<option value=\"ach\">ACH Bank Transfer</option>\n<option value=\"wallet\">Digital Wallet (Apple Pay, Google Pay, etc.)</option>\n</select>\n</div>`
+            match => match + `\n<div class=\"payment-method-row\" id=\"embedded-payment-method-row\">\n<button type=\"button\" class=\"payment-method-btn selected\" data-method=\"card\" aria-label=\"Credit or Debit Card\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#635bff\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"6\" y=\"10\" width=\"28\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"6\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>Card\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"ach\" aria-label=\"ACH Bank Transfer\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#00b86b\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><rect x=\"10\" y=\"12\" width=\"20\" height=\"4\" rx=\"2\" fill=\"#fff\"/><rect x=\"10\" y=\"18\" width=\"8\" height=\"2\" rx=\"1\" fill=\"#fff\"/></svg>\n</span>ACH\n</button>\n<button type=\"button\" class=\"payment-method-btn\" data-method=\"wallet\" aria-label=\"Digital Wallet\">\n<span>\n<svg viewBox=\"0 0 40 28\" fill=\"none\"><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" fill=\"#000\"/><rect x=\"2\" y=\"4\" width=\"36\" height=\"20\" rx=\"4\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"14\" r=\"4\" fill=\"#fff\"/><rect x=\"6\" y=\"10\" width=\"18\" height=\"4\" rx=\"2\" fill=\"#fff\"/></svg>\n</span>Wallet\n</button>\n</div>`
         );
         donationForm.innerHTML = `${styleEmbedded}${formDataEmbedded}`;
     }
@@ -546,10 +582,18 @@ document.addEventListener("DOMContentLoaded", function () {
         };
     }
 
-    const paymentMethodInput = document.getElementById("embedded-payment-method");
-    if (paymentMethodInput) {
-        paymentMethodInput.onchange = updateTotalAmount;
-    }
+
+    // Payment method button group logic for embedded
+    const paymentBtns = document.querySelectorAll('#embedded-payment-method-row .payment-method-btn');
+    let selectedPaymentMethod = 'card';
+    paymentBtns.forEach(btn => {
+        btn.onclick = function() {
+            paymentBtns.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedPaymentMethod = btn.getAttribute('data-method');
+            updateTotalAmount();
+        };
+    });
 
     const donationFormToSubmit = document.getElementById("embedded-donation-form");
     if (donationFormToSubmit) {
@@ -557,7 +601,7 @@ document.addEventListener("DOMContentLoaded", function () {
             event.preventDefault();
             const submitButton = document.querySelector('#embedded-total-amount-display');
             submitButton.disabled = true;
-            const paymentMethod = document.getElementById("embedded-payment-method").value;
+            let paymentMethod = selectedPaymentMethod;
             let jsonData = {
                 firstname: document.getElementById("embedded-firstname").value,
                 lastname: document.getElementById("embedded-lastname").value,
@@ -628,9 +672,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         let amountInDollars = parseFloat(amount);
         const coverFee = document.getElementById("embedded-cover-fee").checked;
-        let paymentMethod = 'card';
-        const paymentMethodElem = document.getElementById("embedded-payment-method");
-        if (paymentMethodElem) paymentMethod = paymentMethodElem.value;
+    let paymentMethod = selectedPaymentMethod;
         let fee = 0;
         if (coverFee) {
             if (paymentMethod === 'card' || paymentMethod === 'wallet') {
