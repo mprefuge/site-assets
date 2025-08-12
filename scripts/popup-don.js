@@ -153,22 +153,28 @@ const style = `<style>
             /* Form styles */
             label {
                 display: block;
-                margin-bottom: 4px;
-                font-weight: bold;
+                margin-bottom: 6px;
+                font-weight: 600;
+                color: #222;
+                letter-spacing: 0.01em;
+                font-size: 15px;
             }
-            #donation-form {
-                background-color: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            #donation-form, #popup-donation-form, #embedded-donation-form {
+                background-color: #fff;
+                padding: 28px 24px 20px 24px;
+                border-radius: 18px;
+                box-shadow: 0 6px 32px 0 rgba(189,33,53,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.08);
+                max-width: 540px;
+                margin: 0 auto;
             }
             .form-row {
                 display: flex;
-                margin-bottom: 15px;
+                gap: 18px;
+                margin-bottom: 18px;
             }
             .form-row > div {
                 flex: 1;
-                margin-right: 10px;
+                margin-right: 0;
             }
             .form-row > div:last-child {
                 margin-right: 0;
@@ -176,10 +182,169 @@ const style = `<style>
             .form-row input,
             .form-row select {
                 width: 100%;
-                padding: 10px;
-                border: 1px solid #ccc;
-                border-radius: 5px;
+                padding: 13px 12px;
+                border: 1.5px solid #e0e0e0;
+                border-radius: 8px;
                 box-sizing: border-box;
+                font-size: 16px;
+                background: #fafbfc;
+                color: #222;
+                transition: border-color 0.2s, box-shadow 0.2s;
+                outline: none;
+            }
+            .form-row input:focus,
+            .form-row select:focus {
+                border-color: #BD2135;
+                box-shadow: 0 0 0 2px #BD213533;
+                background: #fff;
+            }
+            .form-row input:disabled,
+            .form-row select:disabled {
+                background: #f4f4f4;
+                color: #aaa;
+            }
+            .form-row input[type="number"]::-webkit-inner-spin-button,
+            .form-row input[type="number"]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .form-row input[type="number"] {
+                -moz-appearance: textfield;
+            }
+            .checkbox-row {
+                display: flex;
+                align-items: center;
+                margin: 18px 0 10px 0;
+                gap: 10px;
+            }
+            .checkbox-row input[type="checkbox"] {
+                accent-color: #BD2135;
+                width: 18px;
+                height: 18px;
+                margin-right: 8px;
+            }
+            .header-row {
+                background: linear-gradient(90deg, #BD2135 0%, #000 100%);
+                color: #fff;
+                text-align: center;
+                padding: 16px 0 12px 0;
+                border-radius: 8px 8px 0 0;
+                margin-bottom: 18px;
+            }
+            .header-row h2 {
+                margin: 0;
+                font-size: 26px;
+                color: #fff;
+                font-weight: 700;
+                letter-spacing: 0.01em;
+            }
+            #popup-amount-buttons, #embedded-amount-buttons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .popup-amount-btn, .embedded-amount-btn {
+                padding: 12px 24px;
+                border: none;
+                border-radius: 7px;
+                background-color: #000;
+                color: #fff;
+                font-size: 17px;
+                cursor: pointer;
+                flex-grow: 1;
+                text-align: center;
+                transition: background 0.2s, color 0.2s;
+                font-weight: 600;
+                box-shadow: 0 1.5px 6px 0 rgba(0,0,0,0.08);
+            }
+            .popup-amount-btn.selected, .embedded-amount-btn.selected {
+                background-color: #BD2135;
+                color: #fff;
+            }
+            #popup-custom-amount-container, #embedded-custom-amount-container {
+                display: none;
+                margin-bottom: 18px;
+            }
+            #popup-custom-amount, #embedded-custom-amount {
+                width: 100%;
+                padding: 13px 12px;
+                border: 1.5px solid #e0e0e0;
+                border-radius: 8px;
+                box-sizing: border-box;
+                font-size: 16px;
+                background: #fafbfc;
+                color: #222;
+                transition: border-color 0.2s, box-shadow 0.2s;
+                outline: none;
+            }
+            #popup-custom-amount:focus, #embedded-custom-amount:focus {
+                border-color: #BD2135;
+                box-shadow: 0 0 0 2px #BD213533;
+                background: #fff;
+            }
+            #popup-total-amount-display-bg, #embedded-total-amount-display-bg {
+                background-color: #000;
+                text-align: center;
+                padding: 7px;
+                border-radius: 25px;
+                margin-bottom: 18px;
+            }
+            button[type="submit"], #popup-total-amount-display, #embedded-total-amount-display {
+                background: linear-gradient(90deg, #BD2135 0%, #000 100%);
+                color: #fff;
+                padding: 18px 0;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 24px;
+                font-weight: bold;
+                width: 100%;
+                margin-top: 10px;
+                box-shadow: 0 2px 8px 0 rgba(189,33,53,0.10);
+                transition: background 0.2s, color 0.2s;
+            }
+            button[type="submit"]:hover, #popup-total-amount-display:hover, #embedded-total-amount-display:hover {
+                background: linear-gradient(90deg, #a11d2d 0%, #222 100%);
+            }
+            button[type="submit"]:disabled, #popup-total-amount-display:disabled, #embedded-total-amount-display:disabled {
+                background: #e0e0e0;
+                color: #aaa;
+                cursor: not-allowed;
+            }
+            .logo-container {
+                text-align: center;
+                margin-bottom: 18px;
+            }
+            .modal-content {
+                background-color: #fff;
+                max-height: 100%;
+                overflow-y: auto;
+                margin: auto;
+                padding: 0;
+                border: none;
+                width: 100%;
+                max-width: 600px;
+                border-radius: 25px;
+                z-index: 10000;
+                position: relative;
+                box-shadow: 0 6px 32px 0 rgba(189,33,53,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.08);
+            }
+            @media (max-width: 600px) {
+                .modal-content {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 0;
+                    margin: 0;
+                    padding: 0;
+                }
+                .form-row {
+                    flex-direction: column;
+                    gap: 0;
+                }
+                #donation-form, #popup-donation-form, #embedded-donation-form {
+                    padding: 12px 4px 8px 4px;
+                }
             }
             #popup-amount-buttons {
                 display: flex;
