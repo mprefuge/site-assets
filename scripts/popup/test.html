@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Donation Popup</title>
+    <!-- Link to the styles -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <h1>Test Donation Popup</h1>
+    <p>Click the button below to test the donation popup functionality.</p>
+    <button id="open-donation-popup">Open Donation Popup</button>
+
+    <!-- Placeholder for the donation modal -->
+    <div id="donation-popup"></div>
+
+    <!-- Include the main script -->
+    <script type="module" src="./popup-don.js"></script>
+
+    <script>
+        document.getElementById('open-donation-popup').addEventListener('click', () => {
+            window.location.hash = '#donate';
+        });
+    </script>
+</body>
+</html>
