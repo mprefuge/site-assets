@@ -73,6 +73,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-btn.secondary { background:transparent; color:var(--brand); }
     .dp-btn:hover { opacity:0.9; }
     .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; }
+    .dp-btn-back:hover { background:var(--brand); color:#fff; }
     
     /* Responsive */
     @media (max-width: 640px) {
@@ -97,18 +99,66 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
   // ---------- Templating ----------
 
-  function personalInfoHTML(prefix) {
+  function donationDetailsHTML(prefix) {
     return `
       <div class="dp-step-content active" id="${prefix}-step1">
         <div class="dp-card">
-          <div class="dp-title">Personal Information</div>
-          <div class="dp-grid dp-grid-2">
-            <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
-            <div><label class="dp-label" for="${prefix}-lastname">Last Name</label><input class="dp-input" id="${prefix}-lastname" required></div>
-          </div>
-          <div class="dp-grid dp-grid-2" style="margin-top:12px;">
-            <div><label class="dp-label" for="${prefix}-email">Email</label><input type="email" class="dp-input" id="${prefix}-email" required></div>
-            <div><label class="dp-label" for="${prefix}-phone">Phone</label><input type="tel" class="dp-input" id="${prefix}-phone" required></div>
+          <div class="dp-title">Donation Details</div>
+          <div class="dp-grid dp-grid-2" style="gap:16px;">
+            <div>
+              <label class="dp-label">Select Donation Amount</label>
+              <div class="dp-row" id="${prefix}-amount-row">
+                ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
+                <button type="button" class="dp-chip" data-value="custom">Other</button>
+              </div>
+              <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
+                <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
+              </div>
+              <div style="margin-top:12px;">
+                <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
+                <select id="${prefix}-frequency" class="dp-select">
+                  <option value="onetime">One-time</option>
+                  <option value="week">Weekly</option>
+                  <option value="biweek">Bi-Weekly</option>
+                  <option value="month">Monthly</option>
+                  <option value="year">Yearly</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div style="margin-bottom:12px;">
+                <label class="dp-label" for="${prefix}-category">Category</label>
+                <select id="${prefix}-category" class="dp-select">
+                  <option>General Giving</option>
+                  <option>Cooking and Culture</option>
+                  <option>Corporate Sponsor</option>
+                  <option>Ministry Support Dinner</option>
+                  <option>TNND Payment</option>
+                  <option>Volunteer Application</option>
+                  <option>Other (specify)</option>
+                </select>
+                <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
+                  <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
+                </div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <label class="dp-label">Payment Method</label>
+                <div class="dp-row" id="${prefix}-pm-row">
+                  <button type="button" class="dp-chip" data-method="card">Card</button>
+                  <button type="button" class="dp-chip" data-method="ach">US Bank</button>
+                  <button type="button" class="dp-chip" data-method="wallet">Wallet</button>
+                </div>
+              </div>
+              <div class="dp-fee" style="margin-top:12px;">
+                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="${prefix}-cover-fee" checked>
+                  I would like to cover the processing fees
+                </label>
+                <div style="font-size:12px;color:#666;margin-top:4px;">
+                  Total: <span id="${prefix}-total-preview">$0.00</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="dp-nav-buttons">
             <div></div>
@@ -119,11 +169,19 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     `;
   }
 
-  function addressHTML(prefix) {
+  function personalAndAddressHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step2">
         <div class="dp-card">
-          <div class="dp-title">Address Information</div>
+          <div class="dp-title">Your Information</div>
+          <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
+            <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
+            <div><label class="dp-label" for="${prefix}-lastname">Last Name</label><input class="dp-input" id="${prefix}-lastname" required></div>
+          </div>
+          <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
+            <div><label class="dp-label" for="${prefix}-email">Email</label><input type="email" class="dp-input" id="${prefix}-email" required></div>
+            <div><label class="dp-label" for="${prefix}-phone">Phone</label><input type="tel" class="dp-input" id="${prefix}-phone" required></div>
+          </div>
           <div class="dp-grid" id="${prefix}-address-lookup-row">
             <div style="position:relative;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -157,74 +215,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     `;
   }
 
-  function donationControlsHTML(prefix) {
+  function reviewAndSubmitHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step3">
-        <div class="dp-card">
-          <div class="dp-title">Donation Details</div>
-          <div class="dp-grid dp-grid-2" style="gap:16px;">
-            <div>
-              <label class="dp-label">Select Donation Amount</label>
-              <div class="dp-row" id="${prefix}-amount-row">
-                ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
-                <button type="button" class="dp-chip" data-value="custom">Other</button>
-              </div>
-              <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
-                <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
-              </div>
-              <div class="dp-fee" style="margin-top:12px;">
-                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="checkbox" id="${prefix}-cover-fee" checked>
-                  I would like to cover the processing fees
-                </label>
-              </div>
-            </div>
-            <div>
-              <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
-              <select id="${prefix}-frequency" class="dp-select">
-                <option value="onetime">One-time</option>
-                <option value="week">Weekly</option>
-                <option value="biweek">Bi-Weekly</option>
-                <option value="month">Monthly</option>
-                <option value="year">Yearly</option>
-              </select>
-              <div style="margin-top:12px;">
-                <label class="dp-label" for="${prefix}-category">Category</label>
-                <select id="${prefix}-category" class="dp-select">
-                  <option>General Giving</option>
-                  <option>Cooking and Culture</option>
-                  <option>Corporate Sponsor</option>
-                  <option>Ministry Support Dinner</option>
-                  <option>TNND Payment</option>
-                  <option>Volunteer Application</option>
-                  <option>Other (specify)</option>
-                </select>
-                <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
-                  <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
-                </div>
-              </div>
-              <div style="margin-top:12px;">
-                <label class="dp-label">Payment Method</label>
-                <div class="dp-row" id="${prefix}-pm-row">
-                  <button type="button" class="dp-chip" data-method="card">Card</button>
-                  <button type="button" class="dp-chip" data-method="ach">US Bank</button>
-                  <button type="button" class="dp-chip" data-method="wallet">Wallet</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="dp-nav-buttons">
-            <button type="button" class="dp-btn secondary" id="${prefix}-prev3">Previous</button>
-            <button type="button" class="dp-btn" id="${prefix}-next3">Next</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function summaryAndSubmitHTML(prefix) {
-    return `
-      <div class="dp-step-content" id="${prefix}-step4">
         <div class="dp-card">
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
@@ -241,13 +234,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
           <div class="dp-nav-buttons" style="margin-top:16px;">
-            <button type="button" class="dp-btn secondary" id="${prefix}-prev4">Previous</button>
+            <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
             <div></div>
           </div>
         </div>
       </div>
     `;
   }
+
+
 
   function headerHTML(prefix, embedded) {
     return `
@@ -262,12 +257,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div class="dp-step active" id="${prefix}-step-indicator-1">1</div>
               <div class="dp-step" id="${prefix}-step-indicator-2">2</div>
               <div class="dp-step" id="${prefix}-step-indicator-3">3</div>
-              <div class="dp-step" id="${prefix}-step-indicator-4">4</div>
             </div>
-            ${personalInfoHTML(prefix)}
-            ${addressHTML(prefix)}
-            ${donationControlsHTML(prefix)}
-            ${summaryAndSubmitHTML(prefix)}
+            ${donationDetailsHTML(prefix)}
+            ${personalAndAddressHTML(prefix)}
+            ${reviewAndSubmitHTML(prefix)}
           </div>
         </div>
       </div>
@@ -337,7 +330,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function wireUp(prefix) {
     // Step navigation
     var currentStep = 1;
-    var totalSteps = 4;
+    var totalSteps = 3;
     
     function showStep(step) {
       // Hide all steps
@@ -361,23 +354,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     function validateStep(step) {
       switch(step) {
         case 1:
-          var fname = document.getElementById(prefix + "-firstname").value.trim();
-          var lname = document.getElementById(prefix + "-lastname").value.trim();
-          var email = document.getElementById(prefix + "-email").value.trim();
-          var phone = document.getElementById(prefix + "-phone").value.trim();
-          return fname && lname && /.+@.+\..+/.test(email) && phone;
-        case 2:
-          var manualWrap = document.getElementById(prefix + "-manual-address");
-          var lookupInput = document.getElementById(prefix + "-address-lookup");
-          var addr1 = document.getElementById(prefix + "-addr1");
-          var city = document.getElementById(prefix + "-city");
-          var stateSel = document.getElementById(prefix + "-state");
-          var zip = document.getElementById(prefix + "-zip");
-          var countrySel = document.getElementById(prefix + "-country");
-          return manualWrap.style.display !== "none"
-            ? (addr1.value && city.value && stateSel.value && zip.value && countrySel.value)
-            : (lookupInput.value.trim().length >= 5);
-        case 3:
           var amountOk = customActive ? (parseFloat(customInput.value || "0") > 0) : (selectedAmount > 0);
           var category = document.getElementById(prefix + "-category").value;
           var otherOk = true;
@@ -385,6 +361,23 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
           }
           return amountOk && otherOk;
+        case 2:
+          var fname = document.getElementById(prefix + "-firstname").value.trim();
+          var lname = document.getElementById(prefix + "-lastname").value.trim();
+          var email = document.getElementById(prefix + "-email").value.trim();
+          var phone = document.getElementById(prefix + "-phone").value.trim();
+          var manualWrap = document.getElementById(prefix + "-manual-address");
+          var lookupInput = document.getElementById(prefix + "-address-lookup");
+          var addr1 = document.getElementById(prefix + "-addr1");
+          var city = document.getElementById(prefix + "-city");
+          var stateSel = document.getElementById(prefix + "-state");
+          var zip = document.getElementById(prefix + "-zip");
+          var countrySel = document.getElementById(prefix + "-country");
+          var identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
+          var addressOk = manualWrap.style.display !== "none"
+            ? (addr1.value && city.value && stateSel.value && zip.value && countrySel.value)
+            : (lookupInput.value.trim().length >= 5);
+          return identityOk && addressOk;
         default:
           return true;
       }
@@ -428,6 +421,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     var amountRow = document.getElementById(prefix + "-amount-row");
     var customWrap = document.getElementById(prefix + "-custom-wrap");
     var customInput = document.getElementById(prefix + "-custom");
+    var totalPreview = document.getElementById(prefix + "-total-preview");
     var selectedAmount = 0; // no default selection
     var customActive = false;
 
@@ -581,6 +575,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var lname = document.getElementById(prefix + "-lastname").value.trim();
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
+      var manualWrap = document.getElementById(prefix + "-manual-address");
+      var lookupInput = document.getElementById(prefix + "-address-lookup");
+      var addr1 = document.getElementById(prefix + "-addr1");
+      var city = document.getElementById(prefix + "-city");
+      var stateSel = document.getElementById(prefix + "-state");
+      var zip = document.getElementById(prefix + "-zip");
+      var countrySel = document.getElementById(prefix + "-country");
+      
       var addressOk = manualWrap.style.display !== "none"
         ? (addr1.value && city.value && stateSel.value && zip.value && countrySel.value)
         : (lookupInput.value.trim().length >= 5);
@@ -602,24 +604,30 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var t = computeTotals();
       var currentAmount = customActive ? (parseFloat(customInput.value || "0")) : selectedAmount;
       
-      giftEl.textContent = format(currentAmount);
-      feeEl.textContent = document.getElementById(prefix + "-cover-fee").checked ? format(t.fee) : "$0.00";
-      feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(not covered)";
+      // Update the total preview on step 1
+      if (totalPreview) {
+        totalPreview.textContent = format(t.total);
+      }
+      
+      // Update step 3 summary elements if they exist
+      if (giftEl) giftEl.textContent = format(currentAmount);
+      if (feeEl) feeEl.textContent = document.getElementById(prefix + "-cover-fee").checked ? format(t.fee) : "$0.00";
+      if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(not covered)";
       
       var freq = freqSel.value;
       var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
       var freqText = freqMap[freq] || "";
       
       if (currentAmount > 0) {
-        submitBtn.textContent = "Donate " + format(t.total) + freqText;
+        if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
       } else {
-        submitBtn.textContent = "Select an amount";
+        if (submitBtn) submitBtn.textContent = "Select an amount";
       }
       
-      submitBtn.disabled = !validateRequired();
+      if (submitBtn) submitBtn.disabled = !validateRequired();
 
       // Remove the separate recurring note since it's now in the button
-      recurNote.textContent = "";
+      if (recurNote) recurNote.textContent = "";
     }
 
     // Category other reveal initial state
