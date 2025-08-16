@@ -28,9 +28,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     :root { --brand:#BD2135; }
     .dp-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; }
     .dp-panel { background:#fff; width:100%; max-width:600px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:hidden; }
-    .dp-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
+    .dp-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
     .dp-header img { height:56px; }
-    .dp-close { font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
+    .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
     .dp-body { padding:16px; }
     .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:16px; margin-bottom:16px; }
@@ -66,7 +66,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-embedded .dp-header { border-radius:20px 20px 0 0; }
 
     .dp-steps { display:flex; justify-content:center; margin-bottom:20px; }
-    .dp-step { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#666; font-weight:700; margin:0 8px; position:relative; }
+    .dp-step { display:flex; align-items:center; justify-content:center; width:12px; height:12px; border-radius:50%; background:#e0e0e0; color:#666; font-weight:700; margin:0 8px; position:relative; }
     .dp-step.active { background:var(--brand); color:#fff; }
     .dp-step.completed { background:#28a745; color:#fff; }
     .dp-step::after { content:''; position:absolute; top:50%; left:100%; width:40px; height:2px; background:#e0e0e0; transform:translateY(-50%); z-index:-1; }
@@ -82,10 +82,22 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-btn:hover { opacity:0.9; }
     .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
     .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; }
+    /* Custom checkbox styling to match theme */
+    .dp-checkbox-container { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:12px; }
+    .dp-checkbox { appearance:none; width:20px; height:20px; border:2px solid #e0e0e0; border-radius:4px; background:#fff; cursor:pointer; transition:.2s; position:relative; }
+    .dp-checkbox:checked { background:var(--brand); border-color:var(--brand); }
+    .dp-checkbox:checked::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#fff; font-size:12px; font-weight:700; }
+    .dp-checkbox:focus { outline:none; box-shadow:0 0 0 2px rgba(189,33,53,.25); }
+    
+    /* Total display styling */
+    .dp-total-container { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .dp-total-amount { font-size:18px; font-weight:700; color:var(--brand); padding:12px 16px; border:2px solid var(--brand); border-radius:8px; background:#fff; }
+    
+    /* Wallet explainer text */
+    .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; }
     .dp-btn-back:hover { background:var(--brand); color:#fff; }
     
     /* Responsive */
-    @media (max-width: 640px) {
       .dp-panel { max-width:100%; height:100%; border-radius:0; }
       .dp-body { padding:12px; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
@@ -177,25 +189,23 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 </svg>
                 <span>Wallet</span>
                 <small>2.2% + $0.30</small>
+                <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
               </button>
             </div>
           </div>
 
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
-              <input type="checkbox" id="${prefix}-cover-fee">
+            <label class="dp-checkbox-container">
+              <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
               <span style="font-weight:600;">I would like to cover the processing fees</span>
             </label>
-            <div class="dp-total-display" style="text-align:center;padding:16px;background:var(--brand);color:#fff;border-radius:12px;font-size:18px;font-weight:700;">
-              Total: <span id="${prefix}-total-preview">$0.00</span>
+            <div class="dp-total-container">
+              <div class="dp-total-amount">
+                Total: <span id="${prefix}-total-preview">$0.00</span>
+              </div>
+              <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
             </div>
-          </div>
-
-          <div class="dp-nav-buttons">
-            <div></div>
-            <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
-          </div>
         </div>
       </div>
     `;
@@ -286,9 +296,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           </div>
           <div class="dp-body" id="${prefix}-body">
             <div class="dp-steps">
-              <div class="dp-step active" id="${prefix}-step-indicator-1">1</div>
-              <div class="dp-step" id="${prefix}-step-indicator-2">2</div>
-              <div class="dp-step" id="${prefix}-step-indicator-3">3</div>
+              <div class="dp-step active" id="${prefix}-step-indicator-1"></div>
+              <div class="dp-step" id="${prefix}-step-indicator-2"></div>
+              <div class="dp-step" id="${prefix}-step-indicator-3"></div>
             </div>
             ${donationDetailsHTML(prefix)}
             ${personalAndAddressHTML(prefix)}
