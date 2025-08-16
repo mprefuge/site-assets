@@ -206,6 +206,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
               <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
             </div>
+          </div>
         </div>
       </div>
     `;
