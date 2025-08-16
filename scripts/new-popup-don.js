@@ -28,9 +28,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     :root { --brand:#BD2135; }
     .dp-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; }
     .dp-panel { background:#fff; width:100%; max-width:600px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:hidden; }
-    .dp-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#000; color:#fff; border-bottom:4px solid var(--brand); }
+    .dp-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
     .dp-header img { height:56px; }
-    .dp-close { font-size:24px; line-height:1; color:#fff; opacity:.75; cursor:pointer; border:0; background:transparent; }
+    .dp-close { font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
     .dp-body { padding:16px; }
     .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:16px; margin-bottom:16px; }
@@ -45,6 +45,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-chip { padding:10px 16px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
+    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; text-align:center; }
+    .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:4px; }
+    .dp-payment-chip small { font-size:12px; font-weight:500; opacity:0.8; }
+    .dp-payment-chip.selected img { filter:brightness(0) invert(1); }
+    .dp-payment-chip.selected .wallet-svg-main { fill:#fff !important; stroke:#fff !important; }
+    .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
+    .dp-payment-chip.selected .wallet-svg-bar { fill:var(--brand) !important; }
+    .dp-payment-methods { justify-content:center; }
     .dp-fee { font-size:13px; color:#444; margin-top:6px; }
     .dp-summary { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .dp-summary .dp-total { font-weight:800; font-size:24px; color:var(--brand); }
@@ -104,62 +112,86 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       <div class="dp-step-content active" id="${prefix}-step1">
         <div class="dp-card">
           <div class="dp-title">Donation Details</div>
-          <div class="dp-grid dp-grid-2" style="gap:16px;">
-            <div>
-              <label class="dp-label">Select Donation Amount</label>
-              <div class="dp-row" id="${prefix}-amount-row">
-                ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
-                <button type="button" class="dp-chip" data-value="custom">Other</button>
-              </div>
-              <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
-                <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
-              </div>
-              <div style="margin-top:12px;">
-                <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
-                <select id="${prefix}-frequency" class="dp-select">
-                  <option value="onetime">One-time</option>
-                  <option value="week">Weekly</option>
-                  <option value="biweek">Bi-Weekly</option>
-                  <option value="month">Monthly</option>
-                  <option value="year">Yearly</option>
-                </select>
-              </div>
+          
+          <!-- Donation Amount - Single Row -->
+          <div style="margin-bottom:16px;">
+            <label class="dp-label">Select Donation Amount</label>
+            <div class="dp-row" id="${prefix}-amount-row">
+              ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
+              <button type="button" class="dp-chip" data-value="custom">Other</button>
             </div>
-            <div>
-              <div style="margin-bottom:12px;">
-                <label class="dp-label" for="${prefix}-category">Category</label>
-                <select id="${prefix}-category" class="dp-select">
-                  <option>General Giving</option>
-                  <option>Cooking and Culture</option>
-                  <option>Corporate Sponsor</option>
-                  <option>Ministry Support Dinner</option>
-                  <option>TNND Payment</option>
-                  <option>Volunteer Application</option>
-                  <option>Other (specify)</option>
-                </select>
-                <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
-                  <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
-                </div>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label class="dp-label">Payment Method</label>
-                <div class="dp-row" id="${prefix}-pm-row">
-                  <button type="button" class="dp-chip" data-method="card">Card</button>
-                  <button type="button" class="dp-chip" data-method="ach">US Bank</button>
-                  <button type="button" class="dp-chip" data-method="wallet">Wallet</button>
-                </div>
-              </div>
-              <div class="dp-fee" style="margin-top:12px;">
-                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="checkbox" id="${prefix}-cover-fee" checked>
-                  I would like to cover the processing fees
-                </label>
-                <div style="font-size:12px;color:#666;margin-top:4px;">
-                  Total: <span id="${prefix}-total-preview">$0.00</span>
-                </div>
-              </div>
+            <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
+              <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
             </div>
           </div>
+
+          <!-- Category with Other Field -->
+          <div style="margin-bottom:16px;">
+            <label class="dp-label" for="${prefix}-category">Category</label>
+            <select id="${prefix}-category" class="dp-select">
+              <option>General Giving</option>
+              <option>Cooking and Culture</option>
+              <option>Corporate Sponsor</option>
+              <option>Ministry Support Dinner</option>
+              <option>TNND Payment</option>
+              <option>Volunteer Application</option>
+              <option>Other (specify)</option>
+            </select>
+            <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
+              <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
+            </div>
+          </div>
+
+          <!-- Frequency -->
+          <div style="margin-bottom:16px;">
+            <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
+            <select id="${prefix}-frequency" class="dp-select">
+              <option value="onetime">One-time</option>
+              <option value="week">Weekly</option>
+              <option value="biweek">Bi-Weekly</option>
+              <option value="month">Monthly</option>
+              <option value="year">Yearly</option>
+            </select>
+          </div>
+
+          <!-- Payment Method with Icons -->
+          <div style="margin-bottom:16px;">
+            <label class="dp-label">Payment Method</label>
+            <div class="dp-row dp-payment-methods" id="${prefix}-pm-row">
+              <button type="button" class="dp-chip dp-payment-chip" data-method="card">
+                <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="28" height="28" />
+                <span>Card</span>
+                <small>2.2% + $0.30</small>
+              </button>
+              <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
+                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="US Bank" width="28" height="28" />
+                <span>US Bank</span>
+                <small>0.8% (max $5)</small>
+              </button>
+              <button type="button" class="dp-chip dp-payment-chip" data-method="wallet">
+                <svg width="28" height="28" viewBox="0 0 40 28" fill="none">
+                  <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
+                  <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
+                  <circle class="wallet-svg-circle" cx="32" cy="14" r="4" fill="#fff"/>
+                  <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
+                </svg>
+                <span>Wallet</span>
+                <small>2.2% + $0.30</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cover Processing Fees and Total -->
+          <div class="dp-fee-section" style="margin-bottom:20px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
+              <input type="checkbox" id="${prefix}-cover-fee">
+              <span style="font-weight:600;">I would like to cover the processing fees</span>
+            </label>
+            <div class="dp-total-display" style="text-align:center;padding:16px;background:var(--brand);color:#fff;border-radius:12px;font-size:18px;font-weight:700;">
+              Total: <span id="${prefix}-total-preview">$0.00</span>
+            </div>
+          </div>
+
           <div class="dp-nav-buttons">
             <div></div>
             <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
@@ -482,6 +514,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       selectChipGroup(pmRow, "data-method", paymentMethod);
       updateTotals();
     });
+    // Set default selection to card
     selectChipGroup(pmRow, "data-method", "card");
 
     // address lookup / manual
@@ -562,11 +595,17 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var amt = customActive ? parseFloat(customInput.value || "0") : Number(selectedAmount || 0);
       var cover = coverFee.checked;
       var fee = 0;
+      
       if (cover) {
-        if (paymentMethod === "ach") fee = Math.min(amt * 0.008, 5.0);
-        else fee = amt * 0.022 + 0.30; // card & wallet
+        if (paymentMethod === "ach") {
+          fee = Math.min(amt * 0.008, 5.0);
+        } else {
+          // card & wallet: 2.2% + $0.30
+          fee = amt * 0.022 + 0.30;
+        }
       }
       var total = amt + fee;
+      
       return { amt: amt, fee: fee, total: total };
     }
 
@@ -593,9 +632,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
       }
       var identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
-
-      // Debugging logs
-      console.log("Validation Results:", { identityOk, addressOk, amountOk, otherOk });
 
       return identityOk && addressOk && amountOk && otherOk;
     }
