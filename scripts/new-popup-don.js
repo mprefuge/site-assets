@@ -32,20 +32,20 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-header img { height:56px; }
     .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
-    .dp-body { padding:16px; }
-    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:16px; margin-bottom:16px; }
-    .dp-title { font-weight:700; margin-bottom:12px; }
+    .dp-body { padding:16px; max-width:600px; margin:0 auto; }
+    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; }
+    .dp-title { font-weight:700; margin-bottom:16px; text-align:center; }
     .dp-grid { display:grid; gap:12px; }
     .dp-grid-2 { grid-template-columns: 1fr 1fr; }
     .dp-grid-3 { grid-template-columns: 2fr 1fr; }
     .dp-label { display:block; font-size:14px; font-weight:600; margin-bottom:6px; color:#222; }
-    .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; }
+    .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
     .dp-input:focus, .dp-select:focus { border-color:var(--brand); box-shadow:0 0 0 2px #BD213533; background:#fff; }
-    .dp-row { display:flex; flex-wrap:wrap; gap:8px; }
-    .dp-chip { padding:10px 16px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; }
+    .dp-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+    .dp-chip { padding:12px 18px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
-    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; text-align:center; }
+    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; max-width:140px; text-align:center; border-radius:12px !important; }
     .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:4px; }
     .dp-payment-chip small { font-size:12px; font-weight:500; opacity:0.8; }
     .dp-payment-chip.selected img { filter:brightness(0) invert(1); }
@@ -66,12 +66,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-embedded .dp-header { border-radius:20px 20px 0 0; }
 
     .dp-steps { display:flex; justify-content:center; margin-bottom:20px; }
-    .dp-step { display:flex; align-items:center; justify-content:center; width:12px; height:12px; border-radius:50%; background:#e0e0e0; color:#666; font-weight:700; margin:0 8px; position:relative; }
+    .dp-step { display:flex; align-items:center; justify-content:center; width:12px; height:12px; border-radius:50%; background:#ccc; color:#666; font-weight:700; margin:0 8px; position:relative; }
     .dp-step.active { background:var(--brand); color:#fff; }
-    .dp-step.completed { background:#28a745; color:#fff; }
-    .dp-step::after { content:''; position:absolute; top:50%; left:100%; width:40px; height:2px; background:#e0e0e0; transform:translateY(-50%); z-index:-1; }
+    .dp-step.completed { background:#000; color:#fff; }
+    .dp-step::after { content:''; position:absolute; top:50%; left:100%; width:40px; height:2px; background:#ccc; transform:translateY(-50%); z-index:-1; }
     .dp-step:last-child::after { display:none; }
-    .dp-step.completed::after { background:#28a745; }
+    .dp-step.completed::after { background:#000; }
     .dp-step.active::after { background:var(--brand); }
     
     .dp-step-content { display:none; }
@@ -81,7 +81,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-btn.secondary { background:transparent; color:var(--brand); }
     .dp-btn:hover { opacity:0.9; }
     .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; }
+    .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; position:absolute; top:16px; left:24px; }
     /* Custom checkbox styling to match theme */
     .dp-checkbox-container { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:12px; }
     .dp-checkbox { appearance:none; width:20px; height:20px; border:2px solid #e0e0e0; border-radius:4px; background:#fff; cursor:pointer; transition:.2s; position:relative; }
@@ -94,8 +94,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-total-amount { font-size:18px; font-weight:700; color:var(--brand); padding:12px 16px; border:2px solid var(--brand); border-radius:8px; background:#fff; }
     
     /* Wallet explainer text */
-    .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; }
+    .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; line-height:1.2; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; }
     .dp-btn-back:hover { background:var(--brand); color:#fff; }
+    
+    /* Error message styling */
+    .dp-error-message { color:var(--brand); font-size:12px; font-weight:600; margin-top:4px; display:none; }
+    
+    /* Step 3 specific positioning */
+    .dp-step3-container { position:relative; }
     
     /* Responsive */
       .dp-panel { max-width:100%; height:100%; border-radius:0; }
@@ -104,16 +110,19 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
       .dp-row { justify-content: center; }
-      .dp-chip { padding:8px 12px; font-size:14px; }
+      .dp-chip { padding:10px 14px; font-size:15px; }
+      .dp-payment-chip { min-width:110px; max-width:130px; }
     }
     @media (max-width: 480px) {
       .dp-body { padding:8px; }
-      .dp-card { padding:12px; margin-bottom:12px; }
+      .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
-      .dp-row { gap:4px; }
-      .dp-chip { padding:6px 10px; font-size:13px; }
+      .dp-row { gap:6px; }
+      .dp-chip { padding:8px 12px; font-size:14px; }
+      .dp-payment-chip { min-width:100px; max-width:120px; padding:10px 12px; }
       .dp-input, .dp-select { padding:10px; font-size:14px; }
       .dp-cta { padding:14px; font-size:16px; }
+      .dp-btn-back { width:40px; height:40px; font-size:20px; top:12px; left:16px; }
     }
   </style>`;
 
@@ -151,6 +160,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             </select>
             <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
               <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
+              <div id="${prefix}-category-error" class="dp-error-message">Please describe what this donation is for</div>
             </div>
           </div>
 
@@ -261,7 +271,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function reviewAndSubmitHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step3">
-        <div class="dp-card">
+        <div class="dp-card dp-step3-container">
+          <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
             <div style="flex:1;">
@@ -276,10 +287,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           </div>
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
-          <div class="dp-nav-buttons" style="margin-top:16px;">
-            <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
-            <div></div>
-          </div>
         </div>
       </div>
     `;
@@ -400,8 +407,18 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           var amountOk = customActive ? (parseFloat(customInput.value || "0") > 0) : (selectedAmount > 0);
           var category = document.getElementById(prefix + "-category").value;
           var otherOk = true;
+          var categoryError = document.getElementById(prefix + "-category-error");
+          
           if (category === "Other (specify)") {
-            otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
+            var otherValue = document.getElementById(prefix + "-category-other").value.trim();
+            otherOk = otherValue.length > 0;
+            if (!otherOk && categoryError) {
+              categoryError.style.display = "block";
+            } else if (categoryError) {
+              categoryError.style.display = "none";
+            }
+          } else if (categoryError) {
+            categoryError.style.display = "none";
           }
           return amountOk && otherOk;
         case 2:
@@ -508,6 +525,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     catSel.addEventListener("change", function () {
       var isOther = catSel.value.indexOf("Other") === 0 || catSel.value.indexOf("Other (specify)") === 0;
       catOtherWrap.style.display = isOther ? "" : "none";
+      var categoryError = document.getElementById(prefix + "-category-error");
+      if (categoryError) {
+        categoryError.style.display = "none";
+      }
       updateTotals();
     });
 
@@ -689,7 +710,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       customInput.addEventListener(ev, updateTotals);
       freqSel.addEventListener(ev, updateTotals);
       catSel.addEventListener(ev, updateTotals);
-      if (catOtherInput) catOtherInput.addEventListener(ev, updateTotals);
+      if (catOtherInput) {
+        catOtherInput.addEventListener(ev, function() {
+          var categoryError = document.getElementById(prefix + "-category-error");
+          if (categoryError) {
+            categoryError.style.display = "none";
+          }
+          updateTotals();
+        });
+      }
       coverFee.addEventListener(ev, updateTotals);
       addr1.addEventListener(ev, updateTotals);
       addr2.addEventListener(ev, updateTotals);
