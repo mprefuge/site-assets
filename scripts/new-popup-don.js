@@ -58,8 +58,27 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     /* Frequency options */
     .dp-frequency-container { display:flex; flex-direction:column; gap:8px; }
     .dp-frequency-options { justify-content:center; }
-    .dp-recurring-options { margin-top:12px; }
-    .dp-recurring-options .dp-row { justify-content:center; }
+    
+    /* Elegant frequency stepper */
+    .dp-recurring-stepper { margin-top:12px; }
+    .dp-stepper-container { display:flex; align-items:center; justify-content:center; gap:12px; }
+    .dp-stepper-btn { 
+      display:flex; align-items:center; justify-content:center; 
+      width:32px; height:32px; border-radius:50%; 
+      border:2px solid var(--brand); background:transparent; color:var(--brand); 
+      cursor:pointer; font-size:20px; font-weight:700; transition:.2s; 
+    }
+    .dp-stepper-btn:hover { background:var(--brand); color:#fff; }
+    .dp-stepper-btn:disabled { 
+      opacity:0.3; cursor:not-allowed; border-color:#ccc; color:#ccc; 
+    }
+    .dp-stepper-btn:disabled:hover { background:transparent; color:#ccc; }
+    .dp-stepper-display { 
+      font-size:16px; font-weight:600; color:#333; 
+      min-width:100px; text-align:center; 
+      padding:8px 16px; border-radius:8px; 
+      background:#f8f9fa; border:1px solid #e9ecef; 
+    }
     
     /* Personal info card wider */
     .dp-personal-info-card { max-width:700px; margin:0 auto; }
@@ -197,12 +216,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
                 <button type="button" class="dp-chip dp-frequency-chip" data-frequency="recurring">Recurring</button>
               </div>
-              <div id="${prefix}-recurring-options" class="dp-recurring-options" style="display:none;margin-top:12px;">
-                <label class="dp-label">Recurring Interval</label>
-                <div class="dp-row">
-                  <button type="button" class="dp-chip dp-frequency-chip" data-recurring="biweek">Bi-Weekly</button>
-                  <button type="button" class="dp-chip dp-frequency-chip selected" data-recurring="month">Monthly</button>
-                  <button type="button" class="dp-chip dp-frequency-chip" data-recurring="year">Yearly</button>
+              <div id="${prefix}-recurring-stepper" class="dp-recurring-stepper" style="display:none;margin-top:12px;">
+                <div class="dp-stepper-container">
+                  <button type="button" class="dp-stepper-btn dp-stepper-minus" id="${prefix}-freq-minus">−</button>
+                  <div class="dp-stepper-display" id="${prefix}-freq-display">Monthly</div>
+                  <button type="button" class="dp-stepper-btn dp-stepper-plus" id="${prefix}-freq-plus">+</button>
                 </div>
               </div>
             </div>
@@ -571,10 +589,33 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     customInput.addEventListener("input", updateTotals);
 
-    // frequency handling with new fixed options system
+    // frequency handling with elegant stepper system
     var freqHidden = document.getElementById(prefix + "-frequency");
     var frequencyOptions = document.querySelector("#" + prefix + "-step1 .dp-frequency-options");
-    var recurringOptions = document.getElementById(prefix + "-recurring-options");
+    var recurringStepper = document.getElementById(prefix + "-recurring-stepper");
+    var freqDisplay = document.getElementById(prefix + "-freq-display");
+    var freqMinus = document.getElementById(prefix + "-freq-minus");
+    var freqPlus = document.getElementById(prefix + "-freq-plus");
+    
+    // Frequency options: Bi-Weekly → Monthly → Yearly
+    var recurringFreqs = [
+      { value: "biweek", label: "Bi-Weekly" },
+      { value: "month", label: "Monthly" },
+      { value: "year", label: "Yearly" }
+    ];
+    var currentFreqIndex = 1; // Default to Monthly (index 1)
+    
+    function updateStepperDisplay() {
+      var current = recurringFreqs[currentFreqIndex];
+      freqDisplay.textContent = current.label;
+      freqHidden.value = current.value;
+      
+      // Update button states
+      freqMinus.disabled = currentFreqIndex === 0; // Disable at Bi-Weekly
+      freqPlus.disabled = currentFreqIndex === recurringFreqs.length - 1; // Disable at Yearly
+      
+      updateTotals();
+    }
     
     // Handle frequency option selection (One-Time vs Recurring)
     frequencyOptions.addEventListener("click", function (e) {
@@ -588,35 +629,32 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       });
       t.classList.add("selected");
       
-      // Show/hide recurring options
+      // Show/hide recurring stepper
       if (freq === "recurring") {
-        recurringOptions.style.display = "block";
-        freqHidden.value = "month"; // Default to monthly
+        recurringStepper.style.display = "block";
+        currentFreqIndex = 1; // Reset to Monthly when switching to recurring
+        updateStepperDisplay();
       } else {
-        recurringOptions.style.display = "none";
+        recurringStepper.style.display = "none";
         freqHidden.value = "onetime";
+        updateTotals();
       }
-      updateTotals();
     });
     
-    // Handle recurring interval selection (Bi-Weekly, Monthly, Yearly)
-    if (recurringOptions) {
-      recurringOptions.addEventListener("click", function (e) {
-        var t = e.target.closest(".dp-frequency-chip");
-        if (!t) return;
-        var recurringFreq = t.getAttribute("data-recurring");
-        
-        // Update UI
-        recurringOptions.querySelectorAll(".dp-frequency-chip").forEach(function(chip) {
-          chip.classList.remove("selected");
-        });
-        t.classList.add("selected");
-        
-        // Set frequency value
-        freqHidden.value = recurringFreq;
-        updateTotals();
-      });
-    }
+    // Handle stepper button clicks
+    freqMinus.addEventListener("click", function() {
+      if (currentFreqIndex > 0) {
+        currentFreqIndex--;
+        updateStepperDisplay();
+      }
+    });
+    
+    freqPlus.addEventListener("click", function() {
+      if (currentFreqIndex < recurringFreqs.length - 1) {
+        currentFreqIndex++;
+        updateStepperDisplay();
+      }
+    });
 
     var freqSel = freqHidden; // Keep reference for compatibility
     // category + other
