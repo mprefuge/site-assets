@@ -1,3 +1,10 @@
+/* donation-popup.js — Refuge Intl
+   - Brand: #BD2135, black, white
+   - Popup + Embedded, mobile-friendly, no flicker
+   - “Other (specify)” category with required free-text
+   - Personal info + address lookup/manual
+   - Stripe handoff with cover-fee math
+*/
 const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lnc3194xuZhPQnVi6pDF_LuvDSG8BElOsVFllpS6UpE';
 
 (function () {
@@ -50,53 +57,100 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-embedded .dp-panel { max-width:none; border-radius:20px; }
     .dp-embedded .dp-header { border-radius:20px 20px 0 0; }
 
+    .dp-steps { display:flex; justify-content:center; margin-bottom:20px; }
+    .dp-step { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#666; font-weight:700; margin:0 8px; position:relative; }
+    .dp-step.active { background:var(--brand); color:#fff; }
+    .dp-step.completed { background:#28a745; color:#fff; }
+    .dp-step::after { content:''; position:absolute; top:50%; left:100%; width:40px; height:2px; background:#e0e0e0; transform:translateY(-50%); z-index:-1; }
+    .dp-step:last-child::after { display:none; }
+    .dp-step.completed::after { background:#28a745; }
+    .dp-step.active::after { background:var(--brand); }
+    
+    .dp-step-content { display:none; }
+    .dp-step-content.active { display:block; }
+    .dp-nav-buttons { display:flex; justify-content:space-between; margin-top:20px; }
+    .dp-btn { padding:12px 24px; border:2px solid var(--brand); background:var(--brand); color:#fff; border-radius:8px; cursor:pointer; font-weight:600; transition:.2s; }
+    .dp-btn.secondary { background:transparent; color:var(--brand); }
+    .dp-btn:hover { opacity:0.9; }
+    .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    
     /* Responsive */
     @media (max-width: 640px) {
       .dp-panel { max-width:100%; height:100%; border-radius:0; }
       .dp-body { padding:12px; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
-      .dp-cta { border-radius:999px; }
+      .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
+      .dp-row { justify-content: center; }
+      .dp-chip { padding:8px 12px; font-size:14px; }
+    }
+    @media (max-width: 480px) {
+      .dp-body { padding:8px; }
+      .dp-card { padding:12px; margin-bottom:12px; }
+      .dp-grid { gap:8px; }
+      .dp-row { gap:4px; }
+      .dp-chip { padding:6px 10px; font-size:13px; }
+      .dp-input, .dp-select { padding:10px; font-size:14px; }
+      .dp-cta { padding:14px; font-size:16px; }
     }
   </style>`;
 
   // ---------- Templating ----------
-  var logoHTML = '<div class="dp-card" style="text-align:center;margin-top:8px;"><img src="https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png" alt="Refuge International" height="64"/></div>';
 
   function personalInfoHTML(prefix) {
     return `
-      <div class="dp-card">
-        <div class="dp-title">Please Provide the Following Information</div>
-        <div class="dp-grid dp-grid-2">
-          <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
-          <div><label class="dp-label" for="${prefix}-lastname">Last Name</label><input class="dp-input" id="${prefix}-lastname" required></div>
-        </div>
-        <div class="dp-grid dp-grid-2" style="margin-top:12px;">
-          <div><label class="dp-label" for="${prefix}-email">Email</label><input type="email" class="dp-input" id="${prefix}-email" required></div>
-          <div><label class="dp-label" for="${prefix}-phone">Phone</label><input type="tel" class="dp-input" id="${prefix}-phone" required></div>
-        </div>
-        <div class="dp-grid" id="${prefix}-address-lookup-row" style="margin-top:12px;">
-          <div style="position:relative;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-              <label class="dp-label" for="${prefix}-address-lookup" style="margin:0;">Address</label>
-              <span id="${prefix}-enter-manually" style="font-size:14px;font-weight:700;cursor:pointer;color:${BRAND_RED};">Enter manually</span>
-            </div>
-            <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
-            <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
-          </div>
-        </div>
-        <div id="${prefix}-manual-address" style="display:none;margin-top:12px;">
+      <div class="dp-step-content active" id="${prefix}-step1">
+        <div class="dp-card">
+          <div class="dp-title">Personal Information</div>
           <div class="dp-grid dp-grid-2">
-            <div><label class="dp-label" for="${prefix}-addr1">Address Line 1</label><input class="dp-input" id="${prefix}-addr1"></div>
-            <div><label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label><input class="dp-input" id="${prefix}-addr2"></div>
+            <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
+            <div><label class="dp-label" for="${prefix}-lastname">Last Name</label><input class="dp-input" id="${prefix}-lastname" required></div>
           </div>
-          <div class="dp-grid dp-grid-3" style="margin-top:12px;">
-            <div><label class="dp-label" for="${prefix}-city">City</label><input class="dp-input" id="${prefix}-city"></div>
-            <div><label class="dp-label" for="${prefix}-state">State</label><select class="dp-select" id="${prefix}-state"></select></div>
-            <div><label class="dp-label" for="${prefix}-zip">Zip Code</label><input class="dp-input" id="${prefix}-zip"></div>
+          <div class="dp-grid dp-grid-2" style="margin-top:12px;">
+            <div><label class="dp-label" for="${prefix}-email">Email</label><input type="email" class="dp-input" id="${prefix}-email" required></div>
+            <div><label class="dp-label" for="${prefix}-phone">Phone</label><input type="tel" class="dp-input" id="${prefix}-phone" required></div>
           </div>
-          <div class="dp-grid" style="margin-top:12px;">
-            <div><label class="dp-label" for="${prefix}-country">Country</label><select class="dp-select" id="${prefix}-country"></select></div>
+          <div class="dp-nav-buttons">
+            <div></div>
+            <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function addressHTML(prefix) {
+    return `
+      <div class="dp-step-content" id="${prefix}-step2">
+        <div class="dp-card">
+          <div class="dp-title">Address Information</div>
+          <div class="dp-grid" id="${prefix}-address-lookup-row">
+            <div style="position:relative;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <label class="dp-label" for="${prefix}-address-lookup" style="margin:0;">Address</label>
+                <span id="${prefix}-enter-manually" style="font-size:14px;font-weight:700;cursor:pointer;color:${BRAND_RED};">Enter manually</span>
+              </div>
+              <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
+              <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
+            </div>
+          </div>
+          <div id="${prefix}-manual-address" style="display:none;margin-top:12px;">
+            <div class="dp-grid dp-grid-2">
+              <div><label class="dp-label" for="${prefix}-addr1">Address Line 1</label><input class="dp-input" id="${prefix}-addr1"></div>
+              <div><label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label><input class="dp-input" id="${prefix}-addr2"></div>
+            </div>
+            <div class="dp-grid dp-grid-3" style="margin-top:12px;">
+              <div><label class="dp-label" for="${prefix}-city">City</label><input class="dp-input" id="${prefix}-city"></div>
+              <div><label class="dp-label" for="${prefix}-state">State</label><select class="dp-select" id="${prefix}-state"></select></div>
+              <div><label class="dp-label" for="${prefix}-zip">Zip Code</label><input class="dp-input" id="${prefix}-zip"></div>
+            </div>
+            <div class="dp-grid" style="margin-top:12px;">
+              <div><label class="dp-label" for="${prefix}-country">Country</label><select class="dp-select" id="${prefix}-country"></select></div>
+            </div>
+          </div>
+          <div class="dp-nav-buttons">
+            <button type="button" class="dp-btn secondary" id="${prefix}-prev2">Previous</button>
+            <button type="button" class="dp-btn" id="${prefix}-next2">Next</button>
           </div>
         </div>
       </div>
@@ -105,56 +159,63 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
   function donationControlsHTML(prefix) {
     return `
-      <div class="dp-card">
-        <div class="dp-grid dp-grid-2" style="gap:16px;">
-          <div>
-            <label class="dp-label">Select Donation Amount</label>
-            <div class="dp-row" id="${prefix}-amount-row">
-              ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
-              <button type="button" class="dp-chip" data-value="custom">Other</button>
+      <div class="dp-step-content" id="${prefix}-step3">
+        <div class="dp-card">
+          <div class="dp-title">Donation Details</div>
+          <div class="dp-grid dp-grid-2" style="gap:16px;">
+            <div>
+              <label class="dp-label">Select Donation Amount</label>
+              <div class="dp-row" id="${prefix}-amount-row">
+                ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
+                <button type="button" class="dp-chip" data-value="custom">Other</button>
+              </div>
+              <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
+                <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
+              </div>
+              <div class="dp-fee" style="margin-top:12px;">
+                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="${prefix}-cover-fee" checked>
+                  I would like to cover the processing fees
+                </label>
+              </div>
             </div>
-            <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
-              <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
-            </div>
-            <div class="dp-fee">
-              <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="checkbox" id="${prefix}-cover-fee" checked>
-                I would like to cover the processing fees
-              </label>
+            <div>
+              <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
+              <select id="${prefix}-frequency" class="dp-select">
+                <option value="onetime">One-time</option>
+                <option value="week">Weekly</option>
+                <option value="biweek">Bi-Weekly</option>
+                <option value="month">Monthly</option>
+                <option value="year">Yearly</option>
+              </select>
+              <div style="margin-top:12px;">
+                <label class="dp-label" for="${prefix}-category">Category</label>
+                <select id="${prefix}-category" class="dp-select">
+                  <option>General Giving</option>
+                  <option>Cooking and Culture</option>
+                  <option>Corporate Sponsor</option>
+                  <option>Ministry Support Dinner</option>
+                  <option>TNND Payment</option>
+                  <option>Volunteer Application</option>
+                  <option>Other (specify)</option>
+                </select>
+                <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
+                  <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <label class="dp-label">Payment Method</label>
+                <div class="dp-row" id="${prefix}-pm-row">
+                  <button type="button" class="dp-chip" data-method="card">Card</button>
+                  <button type="button" class="dp-chip" data-method="ach">US Bank</button>
+                  <button type="button" class="dp-chip" data-method="wallet">Wallet</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
-            <select id="${prefix}-frequency" class="dp-select">
-              <option value="onetime">One-time</option>
-              <option value="week">Weekly</option>
-              <option value="biweek">Bi-Weekly</option>
-              <option value="month">Monthly</option>
-              <option value="year">Yearly</option>
-            </select>
-            <div style="margin-top:12px;">
-              <label class="dp-label" for="${prefix}-category">Category</label>
-              <select id="${prefix}-category" class="dp-select">
-                <option>General Giving</option>
-                <option>Cooking and Culture</option>
-                <option>Corporate Sponsor</option>
-                <option>Ministry Support Dinner</option>
-                <option>TNND Payment</option>
-                <option>Volunteer Application</option>
-                <option>Other (specify)</option>
-              </select>
-              <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
-                <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
-              </div>
-            </div>
-            <div style="margin-top:12px;">
-              <label class="dp-label">Payment Method</label>
-              <div class="dp-row" id="${prefix}-pm-row">
-                <button type="button" class="dp-chip" data-method="card">Card</button>
-                <button type="button" class="dp-chip" data-method="ach">US Bank</button>
-                <button type="button" class="dp-chip" data-method="wallet">Wallet</button>
-              </div>
-            </div>
+          <div class="dp-nav-buttons">
+            <button type="button" class="dp-btn secondary" id="${prefix}-prev3">Previous</button>
+            <button type="button" class="dp-btn" id="${prefix}-next3">Next</button>
           </div>
         </div>
       </div>
@@ -163,20 +224,27 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
   function summaryAndSubmitHTML(prefix) {
     return `
-      <div class="dp-card">
-        <div class="dp-summary">
-          <div style="flex:1;">
-            <div style="display:flex;justify-content:space-between;gap:12px;">
-              <div>Gift</div><div id="${prefix}-gift">$0.00</div>
+      <div class="dp-step-content" id="${prefix}-step4">
+        <div class="dp-card">
+          <div class="dp-title">Review Your Donation</div>
+          <div class="dp-summary">
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;gap:12px;">
+                <div>Gift</div><div id="${prefix}-gift">$0.00</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;">
+                <div>Processing fees <span id="${prefix}-fee-label">(added)</span></div><div id="${prefix}-fee">$0.00</div>
+              </div>
+              <div style="font-size:12px;color:#555;margin-top:6px;" id="${prefix}-recur-note"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;">
-              <div>Processing fees <span id="${prefix}-fee-label">(added)</span></div><div id="${prefix}-fee">$0.00</div>
-            </div>
-            <div style="font-size:12px;color:#555;margin-top:6px;" id="${prefix}-recur-note"></div>
+          </div>
+          <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
+          <div class="dp-trust">Secure Payment powered by Stripe</div>
+          <div class="dp-nav-buttons" style="margin-top:16px;">
+            <button type="button" class="dp-btn secondary" id="${prefix}-prev4">Previous</button>
+            <div></div>
           </div>
         </div>
-        <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Donate $0.00</button>
-        <div class="dp-trust">Secure Payment powered by Stripe</div>
       </div>
     `;
   }
@@ -190,8 +258,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             ${embedded ? "" : `<button class="dp-close" id="${prefix}-close" aria-label="Close">&times;</button>`}
           </div>
           <div class="dp-body" id="${prefix}-body">
-            ${logoHTML}
+            <div class="dp-steps">
+              <div class="dp-step active" id="${prefix}-step-indicator-1">1</div>
+              <div class="dp-step" id="${prefix}-step-indicator-2">2</div>
+              <div class="dp-step" id="${prefix}-step-indicator-3">3</div>
+              <div class="dp-step" id="${prefix}-step-indicator-4">4</div>
+            </div>
             ${personalInfoHTML(prefix)}
+            ${addressHTML(prefix)}
             ${donationControlsHTML(prefix)}
             ${summaryAndSubmitHTML(prefix)}
           </div>
@@ -261,15 +335,100 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   }
 
   function wireUp(prefix) {
+    // Step navigation
+    var currentStep = 1;
+    var totalSteps = 4;
+    
+    function showStep(step) {
+      // Hide all steps
+      for (var i = 1; i <= totalSteps; i++) {
+        var stepEl = document.getElementById(prefix + "-step" + i);
+        var indicatorEl = document.getElementById(prefix + "-step-indicator-" + i);
+        if (stepEl) stepEl.classList.remove("active");
+        if (indicatorEl) {
+          indicatorEl.classList.remove("active", "completed");
+          if (i < step) indicatorEl.classList.add("completed");
+          else if (i === step) indicatorEl.classList.add("active");
+        }
+      }
+      
+      // Show current step
+      var activeStep = document.getElementById(prefix + "-step" + step);
+      if (activeStep) activeStep.classList.add("active");
+      currentStep = step;
+    }
+    
+    function validateStep(step) {
+      switch(step) {
+        case 1:
+          var fname = document.getElementById(prefix + "-firstname").value.trim();
+          var lname = document.getElementById(prefix + "-lastname").value.trim();
+          var email = document.getElementById(prefix + "-email").value.trim();
+          var phone = document.getElementById(prefix + "-phone").value.trim();
+          return fname && lname && /.+@.+\..+/.test(email) && phone;
+        case 2:
+          var manualWrap = document.getElementById(prefix + "-manual-address");
+          var lookupInput = document.getElementById(prefix + "-address-lookup");
+          var addr1 = document.getElementById(prefix + "-addr1");
+          var city = document.getElementById(prefix + "-city");
+          var stateSel = document.getElementById(prefix + "-state");
+          var zip = document.getElementById(prefix + "-zip");
+          var countrySel = document.getElementById(prefix + "-country");
+          return manualWrap.style.display !== "none"
+            ? (addr1.value && city.value && stateSel.value && zip.value && countrySel.value)
+            : (lookupInput.value.trim().length >= 5);
+        case 3:
+          var amountOk = customActive ? (parseFloat(customInput.value || "0") > 0) : (selectedAmount > 0);
+          var category = document.getElementById(prefix + "-category").value;
+          var otherOk = true;
+          if (category === "Other (specify)") {
+            otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
+          }
+          return amountOk && otherOk;
+        default:
+          return true;
+      }
+    }
+    
+    // Navigation button handlers
+    function setupStepNavigation() {
+      for (var i = 1; i <= totalSteps; i++) {
+        var nextBtn = document.getElementById(prefix + "-next" + i);
+        var prevBtn = document.getElementById(prefix + "-prev" + i);
+        
+        if (nextBtn) {
+          nextBtn.addEventListener("click", (function(step) {
+            return function() {
+              if (validateStep(step)) {
+                showStep(step + 1);
+                updateTotals();
+              }
+            };
+          })(i));
+        }
+        
+        if (prevBtn) {
+          prevBtn.addEventListener("click", (function(step) {
+            return function() {
+              showStep(step - 1);
+            };
+          })(i));
+        }
+      }
+    }
+    
     // selects
     populateSelect(prefix + "-state", states);
     populateSelect(prefix + "-country", countries);
+
+    // Setup step navigation
+    setupStepNavigation();
 
     // amount chips
     var amountRow = document.getElementById(prefix + "-amount-row");
     var customWrap = document.getElementById(prefix + "-custom-wrap");
     var customInput = document.getElementById(prefix + "-custom");
-    var selectedAmount = 100; // default
+    var selectedAmount = 0; // no default selection
     var customActive = false;
 
     function selectChipGroup(row, valueAttr, value) {
@@ -297,8 +456,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     });
 
-    if (!customActive) { // set default selection
-      selectChipGroup(amountRow, "data-value", "100");
+    if (!customActive) { // no default selection
+      // selectChipGroup(amountRow, "data-value", "100");
     }
 
     customInput.addEventListener("input", updateTotals);
@@ -441,15 +600,26 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     function updateTotals() {
       var t = computeTotals();
-      giftEl.textContent = format(customActive ? (parseFloat(customInput.value || "0")) : selectedAmount);
+      var currentAmount = customActive ? (parseFloat(customInput.value || "0")) : selectedAmount;
+      
+      giftEl.textContent = format(currentAmount);
       feeEl.textContent = document.getElementById(prefix + "-cover-fee").checked ? format(t.fee) : "$0.00";
       feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(not covered)";
-      submitBtn.textContent = "Donate " + format(t.total);
+      
+      var freq = freqSel.value;
+      var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
+      var freqText = freqMap[freq] || "";
+      
+      if (currentAmount > 0) {
+        submitBtn.textContent = "Donate " + format(t.total) + freqText;
+      } else {
+        submitBtn.textContent = "Select an amount";
+      }
+      
       submitBtn.disabled = !validateRequired();
 
-      var freq = freqSel.value;
-      var map = { onetime: "one time", week: "every week", biweek: "every two weeks", month: "every month", year: "every year" };
-      recurNote.textContent = freq !== "onetime" ? ("This amount will be charged " + map[freq] + ".") : "";
+      // Remove the separate recurring note since it's now in the button
+      recurNote.textContent = "";
     }
 
     // Category other reveal initial state
@@ -485,11 +655,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var phone = document.getElementById(prefix + "-phone").value.trim();
       var freq = freqSel.value;
       var category = catSel.value;
-      var categoryOther = (category.indexOf("Other") === 0) ? document.getElementById(prefix + "-category-other").value.trim() : undefined;
-      
-      // If categoryOther is specified, append it to the category to maintain API compatibility
-      if (categoryOther) {
-        category = category + ": " + categoryOther;
+      // If "Other (specify)" is selected, replace it with the custom text
+      if (category === "Other (specify)") {
+        var categoryOther = document.getElementById(prefix + "-category-other").value.trim();
+        category = categoryOther || "Other";
       }
 
       var totals = computeTotals();
