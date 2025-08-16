@@ -45,6 +45,33 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-chip { padding:12px 18px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
+    
+    /* Amount chips with more rectangular styling */
+    .dp-amount-chip { border-radius:8px; min-width:80px; padding:14px 20px; font-size:18px; font-weight:800; }
+    .dp-amount-chip:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.15); }
+    .dp-amount-chip.selected { transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.25); }
+    
+    /* Frequency chips */
+    .dp-frequency-chip { border-radius:8px; min-width:120px; }
+    
+    /* Frequency stepper */
+    .dp-frequency-container { display:flex; flex-direction:column; gap:8px; }
+    .dp-frequency-options { justify-content:center; }
+    .dp-stepper-container { display:flex; align-items:center; gap:8px; justify-content:center; }
+    .dp-stepper-btn { width:40px; height:40px; border:1.5px solid #d4d4d4; background:#fff; border-radius:8px; font-size:18px; font-weight:700; cursor:pointer; transition:.2s; }
+    .dp-stepper-btn:hover { border-color:var(--brand); color:var(--brand); }
+    .dp-stepper-input { width:60px; text-align:center; padding:8px; border:1.5px solid #e0e0e0; border-radius:8px; font-weight:700; }
+    .dp-stepper-unit { padding:8px 12px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafbfc; }
+    
+    /* Personal info card wider */
+    .dp-personal-info-card { max-width:700px; margin:0 auto; }
+    
+    /* Back arrow positioning */
+    .dp-back-arrow-container { margin-bottom:16px; }
+    .dp-back-arrow-container .dp-btn-back { margin:0; }
+    
+    /* Fee checkbox positioning fix */
+    .dp-fee-checkbox-container { position:relative; z-index:1; }
     .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; max-width:140px; text-align:center; border-radius:12px !important; }
     .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:4px; }
     .dp-payment-chip small { font-size:12px; font-weight:500; opacity:0.8; }
@@ -138,8 +165,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <div style="margin-bottom:16px;">
             <label class="dp-label">Select Donation Amount</label>
             <div class="dp-row" id="${prefix}-amount-row">
-              ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip" data-value="${v}">$${v}</button>`; }).join("")}
-              <button type="button" class="dp-chip" data-value="custom">Other</button>
+              ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip dp-amount-chip" data-value="${v}">$${v}</button>`; }).join("")}
+              <button type="button" class="dp-chip dp-amount-chip" data-value="custom">Other</button>
             </div>
             <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
               <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
@@ -167,13 +194,26 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <!-- Frequency -->
           <div style="margin-bottom:16px;">
             <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
-            <select id="${prefix}-frequency" class="dp-select">
-              <option value="onetime">One-time</option>
-              <option value="week">Weekly</option>
-              <option value="biweek">Bi-Weekly</option>
-              <option value="month">Monthly</option>
-              <option value="year">Yearly</option>
-            </select>
+            <div class="dp-frequency-container">
+              <div class="dp-row dp-frequency-options">
+                <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
+                <button type="button" class="dp-chip dp-frequency-chip" data-frequency="recurring">Recurring</button>
+              </div>
+              <div id="${prefix}-recurring-stepper" class="dp-recurring-stepper" style="display:none;margin-top:12px;">
+                <label class="dp-label">Recurring Interval</label>
+                <div class="dp-stepper-container">
+                  <button type="button" class="dp-stepper-btn" id="${prefix}-stepper-minus">−</button>
+                  <input type="number" id="${prefix}-stepper-value" class="dp-stepper-input" value="1" min="1" max="12" readonly>
+                  <button type="button" class="dp-stepper-btn" id="${prefix}-stepper-plus">+</button>
+                  <select id="${prefix}-stepper-unit" class="dp-stepper-unit">
+                    <option value="week">Week(s)</option>
+                    <option value="month" selected>Month(s)</option>
+                    <option value="year">Year(s)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="${prefix}-frequency" value="onetime">
           </div>
 
           <!-- Payment Method with Icons - Only shown when covering fees -->
@@ -206,10 +246,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
-            <label class="dp-checkbox-container">
-              <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
-              <span style="font-weight:600;">I would like to cover the processing fees</span>
-            </label>
+            <div class="dp-fee-checkbox-container" style="margin-bottom:12px;">
+              <label class="dp-checkbox-container">
+                <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
+                <span style="font-weight:600;">I would like to cover the processing fees</span>
+              </label>
+            </div>
             <div class="dp-total-container">
               <div class="dp-total-amount">
                 Total: <span id="${prefix}-total-preview">$0.00</span>
@@ -225,7 +267,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function personalAndAddressHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step2">
-        <div class="dp-card">
+        <div class="dp-card dp-personal-info-card">
           <div class="dp-title">Your Information</div>
           <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
             <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
@@ -271,10 +313,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function reviewAndSubmitHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step3">
-        <div class="dp-card dp-step3-container">
+        <div class="dp-back-arrow-container">
+          <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
+        </div>
+        <div class="dp-card">
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
-            <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
             <div style="flex:1;">
               <div style="display:flex;justify-content:space-between;gap:12px;">
                 <div>Gift</div><div id="${prefix}-gift">$0.00</div>
@@ -516,8 +560,79 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     customInput.addEventListener("input", updateTotals);
 
-    // frequency
-    var freqSel = document.getElementById(prefix + "-frequency");
+    // frequency handling with new stepper system
+    var freqHidden = document.getElementById(prefix + "-frequency");
+    var frequencyOptions = document.querySelector("#" + prefix + "-step1 .dp-frequency-options");
+    var recurringStep = document.getElementById(prefix + "-recurring-stepper");
+    var stepperValue = document.getElementById(prefix + "-stepper-value");
+    var stepperUnit = document.getElementById(prefix + "-stepper-unit");
+    var stepperMinus = document.getElementById(prefix + "-stepper-minus");
+    var stepperPlus = document.getElementById(prefix + "-stepper-plus");
+    
+    // Handle frequency option selection
+    frequencyOptions.addEventListener("click", function (e) {
+      var t = e.target.closest(".dp-frequency-chip");
+      if (!t) return;
+      var freq = t.getAttribute("data-frequency");
+      
+      // Update UI
+      frequencyOptions.querySelectorAll(".dp-frequency-chip").forEach(function(chip) {
+        chip.classList.remove("selected");
+      });
+      t.classList.add("selected");
+      
+      // Show/hide stepper
+      if (freq === "recurring") {
+        recurringStep.style.display = "block";
+        updateFrequencyValue();
+      } else {
+        recurringStep.style.display = "none";
+        freqHidden.value = "onetime";
+      }
+      updateTotals();
+    });
+    
+    // Stepper functionality
+    stepperMinus.addEventListener("click", function() {
+      var val = parseInt(stepperValue.value);
+      if (val > 1) {
+        stepperValue.value = val - 1;
+        updateFrequencyValue();
+        updateTotals();
+      }
+    });
+    
+    stepperPlus.addEventListener("click", function() {
+      var val = parseInt(stepperValue.value);
+      if (val < 12) {
+        stepperValue.value = val + 1;
+        updateFrequencyValue();
+        updateTotals();
+      }
+    });
+    
+    stepperUnit.addEventListener("change", function() {
+      updateFrequencyValue();
+      updateTotals();
+    });
+    
+    function updateFrequencyValue() {
+      var interval = parseInt(stepperValue.value);
+      var unit = stepperUnit.value;
+      
+      if (interval === 1) {
+        freqHidden.value = unit;
+      } else {
+        // For multiple intervals, we'll use a custom format
+        if (unit === "week" && interval === 2) {
+          freqHidden.value = "biweek";
+        } else {
+          freqHidden.value = unit; // This will need API support for custom intervals
+        }
+      }
+    }
+
+    var freqSel = freqHidden; // Keep reference for compatibility
     // category + other
     var catSel = document.getElementById(prefix + "-category");
     var catOtherWrap = document.getElementById(prefix + "-category-other-wrap");
@@ -697,6 +812,19 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
       var freqText = freqMap[freq] || "";
       
+      // Handle custom intervals from stepper
+      var selectedFreq = document.querySelector("#" + prefix + "-step1 .dp-frequency-chip.selected");
+      if (selectedFreq && selectedFreq.getAttribute("data-frequency") === "recurring" && recurringStep.style.display !== "none") {
+        var interval = parseInt(stepperValue.value);
+        var unit = stepperUnit.value;
+        var unitText = unit === "week" ? "week" : unit === "month" ? "month" : "year";
+        if (interval === 1) {
+          freqText = " every " + unitText;
+        } else {
+          freqText = " every " + interval + " " + unitText + (interval > 1 ? "s" : "");
+        }
+      }
+      
       if (currentAmount > 0) {
         if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
       } else {
@@ -720,6 +848,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       document.getElementById(prefix + "-phone").addEventListener(ev, updateTotals);
       customInput.addEventListener(ev, updateTotals);
       freqSel.addEventListener(ev, updateTotals);
+      if (stepperValue) stepperValue.addEventListener(ev, updateTotals);
+      if (stepperUnit) stepperUnit.addEventListener(ev, updateTotals);
       catSel.addEventListener(ev, updateTotals);
       if (catOtherInput) {
         catOtherInput.addEventListener(ev, function() {
