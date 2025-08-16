@@ -81,7 +81,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-btn.secondary { background:transparent; color:var(--brand); }
     .dp-btn:hover { opacity:0.9; }
     .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; position:absolute; top:16px; left:24px; }
+    .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; margin-right:12px; flex-shrink:0; }
     /* Custom checkbox styling to match theme */
     .dp-checkbox-container { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:12px; }
     .dp-checkbox { appearance:none; width:20px; height:20px; border:2px solid #e0e0e0; border-radius:4px; background:#fff; cursor:pointer; transition:.2s; position:relative; }
@@ -122,7 +122,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-payment-chip { min-width:100px; max-width:120px; padding:10px 12px; }
       .dp-input, .dp-select { padding:10px; font-size:14px; }
       .dp-cta { padding:14px; font-size:16px; }
-      .dp-btn-back { width:40px; height:40px; font-size:20px; top:12px; left:16px; }
+      .dp-btn-back { width:40px; height:40px; font-size:20px; margin-right:8px; }
     }
   </style>`;
 
@@ -176,8 +176,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             </select>
           </div>
 
-          <!-- Payment Method with Icons -->
-          <div style="margin-bottom:16px;">
+          <!-- Payment Method with Icons - Only shown when covering fees -->
+          <div id="${prefix}-payment-method-section" style="margin-bottom:16px;display:none;">
             <label class="dp-label">Payment Method</label>
             <div class="dp-row dp-payment-methods" id="${prefix}-pm-row">
               <button type="button" class="dp-chip dp-payment-chip" data-method="card">
@@ -272,9 +272,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     return `
       <div class="dp-step-content" id="${prefix}-step3">
         <div class="dp-card dp-step3-container">
-          <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
+            <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
             <div style="flex:1;">
               <div style="display:flex;justify-content:space-between;gap:12px;">
                 <div>Gift</div><div id="${prefix}-gift">$0.00</div>
@@ -534,7 +534,17 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     // cover fees
     var coverFee = document.getElementById(prefix + "-cover-fee");
-    coverFee.addEventListener("change", updateTotals);
+    var paymentMethodSection = document.getElementById(prefix + "-payment-method-section");
+    
+    coverFee.addEventListener("change", function() {
+      // Show/hide payment method section based on checkbox state
+      if (coverFee.checked) {
+        paymentMethodSection.style.display = "block";
+      } else {
+        paymentMethodSection.style.display = "none";
+      }
+      updateTotals();
+    });
 
     // payment method
     var pmRow = document.getElementById(prefix + "-pm-row");
@@ -626,17 +636,18 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     function computeTotals() {
       var amt = customActive ? parseFloat(customInput.value || "0") : Number(selectedAmount || 0);
       var cover = coverFee.checked;
-      var fee = 0;
       
-      if (cover) {
-        if (paymentMethod === "ach") {
-          fee = Math.min(amt * 0.008, 5.0);
-        } else {
-          // card & wallet: 2.2% + $0.30
-          fee = amt * 0.022 + 0.30;
-        }
+      // Always calculate fee for display purposes
+      var fee = 0;
+      if (paymentMethod === "ach") {
+        fee = Math.min(amt * 0.008, 5.0);
+      } else {
+        // card & wallet: 2.2% + $0.30
+        fee = amt * 0.022 + 0.30;
       }
-      var total = amt + fee;
+      
+      // Only add fee to total if covering fees
+      var total = cover ? amt + fee : amt;
       
       return { amt: amt, fee: fee, total: total };
     }
@@ -679,7 +690,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       
       // Update step 3 summary elements if they exist
       if (giftEl) giftEl.textContent = format(currentAmount);
-      if (feeEl) feeEl.textContent = document.getElementById(prefix + "-cover-fee").checked ? format(t.fee) : "$0.00";
+      if (feeEl) feeEl.textContent = format(t.fee); // Always show the actual fee amount
       if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(not covered)";
       
       var freq = freqSel.value;
