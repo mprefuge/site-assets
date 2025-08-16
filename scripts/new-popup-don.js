@@ -29,6 +29,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; }
     .dp-panel { background:#fff; width:100%; max-width:600px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:hidden; }
     .dp-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
+    .dp-header .dp-btn-back { position:absolute; left:16px; margin:0; }
     .dp-header img { height:56px; }
     .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
@@ -54,14 +55,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     /* Frequency chips */
     .dp-frequency-chip { border-radius:8px; min-width:120px; }
     
-    /* Frequency stepper */
+    /* Frequency options */
     .dp-frequency-container { display:flex; flex-direction:column; gap:8px; }
     .dp-frequency-options { justify-content:center; }
-    .dp-stepper-container { display:flex; align-items:center; gap:8px; justify-content:center; }
-    .dp-stepper-btn { width:40px; height:40px; border:1.5px solid #d4d4d4; background:#fff; border-radius:8px; font-size:18px; font-weight:700; cursor:pointer; transition:.2s; }
-    .dp-stepper-btn:hover { border-color:var(--brand); color:var(--brand); }
-    .dp-stepper-input { width:60px; text-align:center; padding:8px; border:1.5px solid #e0e0e0; border-radius:8px; font-weight:700; }
-    .dp-stepper-unit { padding:8px 12px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafbfc; }
+    .dp-recurring-options { margin-top:12px; }
+    .dp-recurring-options .dp-row { justify-content:center; }
     
     /* Personal info card wider */
     .dp-personal-info-card { max-width:700px; margin:0 auto; }
@@ -199,17 +197,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
                 <button type="button" class="dp-chip dp-frequency-chip" data-frequency="recurring">Recurring</button>
               </div>
-              <div id="${prefix}-recurring-stepper" class="dp-recurring-stepper" style="display:none;margin-top:12px;">
+              <div id="${prefix}-recurring-options" class="dp-recurring-options" style="display:none;margin-top:12px;">
                 <label class="dp-label">Recurring Interval</label>
-                <div class="dp-stepper-container">
-                  <button type="button" class="dp-stepper-btn" id="${prefix}-stepper-minus">−</button>
-                  <input type="number" id="${prefix}-stepper-value" class="dp-stepper-input" value="1" min="1" max="12" readonly>
-                  <button type="button" class="dp-stepper-btn" id="${prefix}-stepper-plus">+</button>
-                  <select id="${prefix}-stepper-unit" class="dp-stepper-unit">
-                    <option value="week">Week(s)</option>
-                    <option value="month" selected>Month(s)</option>
-                    <option value="year">Year(s)</option>
-                  </select>
+                <div class="dp-row">
+                  <button type="button" class="dp-chip dp-frequency-chip" data-recurring="biweek">Bi-Weekly</button>
+                  <button type="button" class="dp-chip dp-frequency-chip selected" data-recurring="month">Monthly</button>
+                  <button type="button" class="dp-chip dp-frequency-chip" data-recurring="year">Yearly</button>
                 </div>
               </div>
             </div>
@@ -313,9 +306,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function reviewAndSubmitHTML(prefix) {
     return `
       <div class="dp-step-content" id="${prefix}-step3">
-        <div class="dp-back-arrow-container">
-          <button type="button" class="dp-btn-back" id="${prefix}-prev3" aria-label="Go back">←</button>
-        </div>
         <div class="dp-card">
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
@@ -343,6 +333,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       <div class="${embedded ? "dp-embedded" : ""}">
         <div class="dp-panel">
           <div class="dp-header">
+            <button type="button" class="dp-btn-back" id="${prefix}-header-back" aria-label="Go back" style="display:none;">←</button>
             <img src="https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png" alt="Refuge International"/>
             ${embedded ? "" : `<button class="dp-close" id="${prefix}-close" aria-label="Close">&times;</button>`}
           </div>
@@ -439,6 +430,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }
       }
       
+      // Show/hide header back button based on step
+      var headerBackBtn = document.getElementById(prefix + "-header-back");
+      if (headerBackBtn) {
+        if (step === 3) {
+          headerBackBtn.style.display = "block";
+        } else {
+          headerBackBtn.style.display = "none";
+        }
+      }
+      
       // Show current step
       var activeStep = document.getElementById(prefix + "-step" + step);
       if (activeStep) activeStep.classList.add("active");
@@ -520,6 +521,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     // Setup step navigation
     setupStepNavigation();
+    
+    // Header back button
+    var headerBackBtn = document.getElementById(prefix + "-header-back");
+    if (headerBackBtn) {
+      headerBackBtn.addEventListener("click", function() {
+        if (currentStep > 1) {
+          showStep(currentStep - 1);
+        }
+      });
+    }
 
     // amount chips
     var amountRow = document.getElementById(prefix + "-amount-row");
@@ -560,16 +571,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     customInput.addEventListener("input", updateTotals);
 
-    // frequency handling with new stepper system
+    // frequency handling with new fixed options system
     var freqHidden = document.getElementById(prefix + "-frequency");
     var frequencyOptions = document.querySelector("#" + prefix + "-step1 .dp-frequency-options");
-    var recurringStep = document.getElementById(prefix + "-recurring-stepper");
-    var stepperValue = document.getElementById(prefix + "-stepper-value");
-    var stepperUnit = document.getElementById(prefix + "-stepper-unit");
-    var stepperMinus = document.getElementById(prefix + "-stepper-minus");
-    var stepperPlus = document.getElementById(prefix + "-stepper-plus");
+    var recurringOptions = document.getElementById(prefix + "-recurring-options");
     
-    // Handle frequency option selection
+    // Handle frequency option selection (One-Time vs Recurring)
     frequencyOptions.addEventListener("click", function (e) {
       var t = e.target.closest(".dp-frequency-chip");
       if (!t) return;
@@ -581,55 +588,34 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       });
       t.classList.add("selected");
       
-      // Show/hide stepper
+      // Show/hide recurring options
       if (freq === "recurring") {
-        recurringStep.style.display = "block";
-        updateFrequencyValue();
+        recurringOptions.style.display = "block";
+        freqHidden.value = "month"; // Default to monthly
       } else {
-        recurringStep.style.display = "none";
+        recurringOptions.style.display = "none";
         freqHidden.value = "onetime";
       }
       updateTotals();
     });
     
-    // Stepper functionality
-    stepperMinus.addEventListener("click", function() {
-      var val = parseInt(stepperValue.value);
-      if (val > 1) {
-        stepperValue.value = val - 1;
-        updateFrequencyValue();
+    // Handle recurring interval selection (Bi-Weekly, Monthly, Yearly)
+    if (recurringOptions) {
+      recurringOptions.addEventListener("click", function (e) {
+        var t = e.target.closest(".dp-frequency-chip");
+        if (!t) return;
+        var recurringFreq = t.getAttribute("data-recurring");
+        
+        // Update UI
+        recurringOptions.querySelectorAll(".dp-frequency-chip").forEach(function(chip) {
+          chip.classList.remove("selected");
+        });
+        t.classList.add("selected");
+        
+        // Set frequency value
+        freqHidden.value = recurringFreq;
         updateTotals();
-      }
-    });
-    
-    stepperPlus.addEventListener("click", function() {
-      var val = parseInt(stepperValue.value);
-      if (val < 12) {
-        stepperValue.value = val + 1;
-        updateFrequencyValue();
-        updateTotals();
-      }
-    });
-    
-    stepperUnit.addEventListener("change", function() {
-      updateFrequencyValue();
-      updateTotals();
-    });
-    
-    function updateFrequencyValue() {
-      var interval = parseInt(stepperValue.value);
-      var unit = stepperUnit.value;
-      
-      if (interval === 1) {
-        freqHidden.value = unit;
-      } else {
-        // For multiple intervals, we'll use a custom format
-        if (unit === "week" && interval === 2) {
-          freqHidden.value = "biweek";
-        } else {
-          freqHidden.value = unit; // This will need API support for custom intervals
-        }
-      }
+      });
     }
 
     var freqSel = freqHidden; // Keep reference for compatibility
@@ -812,18 +798,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
       var freqText = freqMap[freq] || "";
       
-      // Handle custom intervals from stepper
-      var selectedFreq = document.querySelector("#" + prefix + "-step1 .dp-frequency-chip.selected");
-      if (selectedFreq && selectedFreq.getAttribute("data-frequency") === "recurring" && recurringStep.style.display !== "none") {
-        var interval = parseInt(stepperValue.value);
-        var unit = stepperUnit.value;
-        var unitText = unit === "week" ? "week" : unit === "month" ? "month" : "year";
-        if (interval === 1) {
-          freqText = " every " + unitText;
-        } else {
-          freqText = " every " + interval + " " + unitText + (interval > 1 ? "s" : "");
-        }
-      }
+      // No need for custom interval logic since we're using fixed options now
       
       if (currentAmount > 0) {
         if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
@@ -848,8 +823,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       document.getElementById(prefix + "-phone").addEventListener(ev, updateTotals);
       customInput.addEventListener(ev, updateTotals);
       freqSel.addEventListener(ev, updateTotals);
-      if (stepperValue) stepperValue.addEventListener(ev, updateTotals);
-      if (stepperUnit) stepperUnit.addEventListener(ev, updateTotals);
       catSel.addEventListener(ev, updateTotals);
       if (catOtherInput) {
         catOtherInput.addEventListener(ev, function() {
