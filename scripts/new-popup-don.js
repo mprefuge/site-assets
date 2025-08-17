@@ -30,6 +30,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
     .dp-input:focus, .dp-select:focus { border-color:var(--brand); box-shadow:0 0 0 2px #BD213533; background:#fff; }
     .dp-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+    .dp-amount-row { flex-wrap:nowrap; overflow-x:auto; }
     .dp-chip { padding:12px 18px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
@@ -136,20 +137,23 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Responsive */
     @media (max-width: 768px) {
-      .dp-panel { max-width:100%; height:100%; border-radius:0; }
-      .dp-body { padding:12px; }
+      .dp-panel { max-width:100%; height:100vh; border-radius:0; overflow-y:auto; }
+      .dp-body { padding:12px; max-height:calc(100vh - 100px); overflow-y:auto; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
       .dp-row { justify-content: center; }
+      .dp-amount-row { flex-wrap:wrap; justify-content:center; }
       .dp-chip { padding:10px 14px; font-size:15px; }
       .dp-payment-chip { min-width:110px; max-width:130px; }
     }
     @media (max-width: 480px) {
-      .dp-body { padding:8px; }
+      .dp-panel { height:100vh; overflow-y:auto; }
+      .dp-body { padding:8px; max-height:calc(100vh - 80px); overflow-y:auto; }
       .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
       .dp-row { gap:6px; }
+      .dp-amount-row { flex-wrap:wrap; }
       .dp-chip { padding:8px 12px; font-size:14px; }
       .dp-payment-chip { min-width:100px; max-width:120px; padding:10px 12px; }
       .dp-input, .dp-select { padding:10px; font-size:14px; }
@@ -184,7 +188,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <!-- Donation Amount - Single Row -->
           <div style="margin-bottom:16px;">
             <label class="dp-label">Amount</label>
-            <div class="dp-row" id="${prefix}-amount-row">
+            <div class="dp-row dp-amount-row" id="${prefix}-amount-row">
               ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip dp-amount-chip" data-value="${v}">$${v}</button>`; }).join("")}
               <button type="button" class="dp-chip dp-amount-chip" data-value="custom">Other</button>
             </div>
