@@ -225,7 +225,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div id="${prefix}-category-error" class="dp-error-message">Please describe what this donation is for</div>
             </div>
           </div>
-
+            <div class="dp-fee-checkbox-container" style="margin-bottom:12px;">
+              <label class="dp-checkbox-container">
+                <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
+                <span style="font-weight:600;">I would like to cover the processing fees</span>
+              </label>
+            </div>
           <!-- Payment Method with Icons - Only shown when covering fees -->
           <div id="${prefix}-payment-method-section" style="margin-bottom:16px;display:none;">
             <label class="dp-label">Payment Method</label>
@@ -248,20 +253,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                   <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
                 </svg>
                 <span>Wallet</span>
-                <small>2.2% + $0.30</small>
                 <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
+                <small>2.2% + $0.30</small>
               </button>
             </div>
           </div>
 
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
-            <div class="dp-fee-checkbox-container" style="margin-bottom:12px;">
-              <label class="dp-checkbox-container">
-                <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
-                <span style="font-weight:600;">I would like to cover the processing fees</span>
-              </label>
-            </div>
             <div class="dp-total-container">
               <div class="dp-total-amount">
                 Total: <span id="${prefix}-total-preview">$0.00</span>
