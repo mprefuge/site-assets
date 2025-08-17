@@ -137,8 +137,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Responsive */
     @media (max-width: 768px) {
-      .dp-panel { max-width:100%; max-height:90vh; border-radius:12px; overflow-y:auto; margin:20px; }
-      .dp-body { padding:12px; overflow-y:auto; }
+      .dp-panel { max-width:calc(100% - 40px); max-height:90vh; border-radius:12px; overflow-y:auto; }
+      .dp-body { padding:12px; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
@@ -146,14 +146,21 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-row { flex-wrap:wrap; justify-content:center; }
       .dp-chip { padding:10px 14px; font-size:15px; }
       .dp-payment-chip { min-width:110px; max-width:130px; }
+      
+      /* Ensure address dropdown is not clipped */
+      .dp-body { position:relative; }
+      #popup-address-suggestions, #embedded-address-suggestions { 
+        z-index:10000 !important; 
+        max-height:200px !important;
+      }
     }
     @media (min-width: 769px) and (max-width: 900px) {
       .dp-amount-row { flex-wrap:wrap; justify-content:center; }
       .dp-amount-chip { min-width:85px; padding:12px 16px; font-size:16px; }
     }
     @media (max-width: 480px) {
-      .dp-panel { max-height:85vh; overflow-y:auto; margin:15px; border-radius:8px; }
-      .dp-body { padding:8px; overflow-y:auto; }
+      .dp-panel { max-width:calc(100% - 30px); max-height:85vh; overflow-y:auto; border-radius:8px; }
+      .dp-body { padding:8px; }
       .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
       .dp-row { gap:6px; }
@@ -163,6 +170,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-input, .dp-select { padding:10px; font-size:14px; }
       .dp-cta { padding:14px; font-size:16px; }
       .dp-btn-back { width:40px; height:40px; font-size:20px; margin-right:8px; }
+      
+      /* Smaller address dropdown on very small screens */
+      #popup-address-suggestions, #embedded-address-suggestions { 
+        max-height:150px !important;
+        font-size:14px !important;
+      }
     }
   </style>`;
   function donationDetailsHTML(prefix) {
