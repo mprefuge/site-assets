@@ -475,17 +475,18 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     // Category configuration - easily adjustable mapping of frequency to categories
     var categoryConfig = {
       onetime: [
-        "Ministry Support Dinner",
-        "TNND Payment", 
+        "General Giving",
         "Cooking and Culture",
         "Corporate Sponsor",
+        "Ministry Support Dinner",
+        "TNND Payment", 
         "Volunteer Application",
-        "Other (specify)"
+        "Other"
       ],
       recurring: [
         "General Giving",
         "Corporate Sponsor",
-        "Other (specify)"
+        "Other"
       ]
     };
     
