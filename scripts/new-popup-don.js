@@ -137,8 +137,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Responsive */
     @media (max-width: 768px) {
-      .dp-panel { max-width:100%; height:100vh; border-radius:0; overflow-y:auto; }
-      .dp-body { padding:12px; max-height:calc(100vh - 100px); overflow-y:auto; }
+      .dp-panel { max-width:100%; max-height:90vh; border-radius:12px; overflow-y:auto; margin:20px; }
+      .dp-body { padding:12px; overflow-y:auto; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
@@ -152,8 +152,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-chip { min-width:85px; padding:12px 16px; font-size:16px; }
     }
     @media (max-width: 480px) {
-      .dp-panel { height:100vh; overflow-y:auto; }
-      .dp-body { padding:8px; max-height:calc(100vh - 80px); overflow-y:auto; }
+      .dp-panel { max-height:85vh; overflow-y:auto; margin:15px; border-radius:8px; }
+      .dp-body { padding:8px; overflow-y:auto; }
       .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
       .dp-row { gap:6px; }
