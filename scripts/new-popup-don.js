@@ -30,7 +30,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
     .dp-input:focus, .dp-select:focus { border-color:var(--brand); box-shadow:0 0 0 2px #BD213533; background:#fff; }
     .dp-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
-    .dp-amount-row { flex-wrap:nowrap; overflow-x:auto; }
+    .dp-amount-row { flex-wrap:nowrap; }
     .dp-chip { padding:12px 18px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
