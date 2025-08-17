@@ -137,7 +137,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Responsive */
     @media (max-width: 600px) {
-      .dp-modal { padding: 2px; }
+      .dp-modal { padding: 10px; }
       .dp-panel { width: 100%; max-width: none; max-height:90vh; border-radius:12px; overflow-y:auto; }
       .dp-body { padding:12px; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
@@ -160,7 +160,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-chip { min-width:85px; padding:12px 16px; font-size:16px; }
     }
     @media (max-width: 400px) {
-      .dp-modal { padding: 2px; }
+      .dp-modal { padding: 8px; }
       .dp-panel { width: 100%; max-width: none; max-height:85vh; overflow-y:auto; border-radius:8px; }
       .dp-body { padding:8px; }
       .dp-card { padding:18px; margin-bottom:12px; }
@@ -846,19 +846,19 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var t = computeTotals();
       var currentAmount = customActive ? (parseFloat(customInput.value || "0")) : selectedAmount;
       
+      var freq = freqSel.value;
+      var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
+      var freqText = freqMap[freq] || "";
+      
       // Update the total preview on step 1
       if (totalPreview) {
-        totalPreview.textContent = format(t.total);
+        totalPreview.textContent = format(t.total) + freqText;
       }
       
       // Update step 3 summary elements if they exist
       if (giftEl) giftEl.textContent = format(currentAmount);
       if (feeEl) feeEl.textContent = format(t.fee); // Always show the actual fee amount
       if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "";
-      
-      var freq = freqSel.value;
-      var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
-      var freqText = freqMap[freq] || "";
       
       // No need for custom interval logic since we're using fixed options now
       
