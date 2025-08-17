@@ -472,6 +472,23 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     var currentStep = 1;
     var totalSteps = 3;
     
+    // Category configuration - easily adjustable mapping of frequency to categories
+    var categoryConfig = {
+      onetime: [
+        "Ministry Support Dinner",
+        "TNND Payment", 
+        "Cooking and Culture",
+        "Corporate Sponsor",
+        "Volunteer Application",
+        "Other (specify)"
+      ],
+      recurring: [
+        "General Giving",
+        "Corporate Sponsor",
+        "Other (specify)"
+      ]
+    };
+    
     function showStep(step) {
       for (var i = 1; i <= totalSteps; i++) {
         var stepEl = document.getElementById(prefix + "-step" + i);
@@ -540,6 +557,38 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     }
     
+    function updateCategoryOptions(frequency) {
+      var catSel = document.getElementById(prefix + "-category");
+      if (!catSel) return;
+      
+      var currentValue = catSel.value;
+      var categories = categoryConfig[frequency] || categoryConfig.onetime;
+      
+      // Clear existing options
+      catSel.innerHTML = "";
+      
+      // Add new options based on frequency
+      categories.forEach(function(category) {
+        var option = document.createElement("option");
+        option.value = category;
+        option.textContent = category;
+        catSel.appendChild(option);
+      });
+      
+      // Try to preserve the current selection if it exists in the new list
+      var optionExists = categories.indexOf(currentValue) !== -1;
+      if (optionExists) {
+        catSel.value = currentValue;
+      } else {
+        // Default to first option if current selection doesn't exist
+        catSel.value = categories[0] || "";
+      }
+      
+      // Trigger change event to update "Other" field visibility
+      var changeEvent = new Event('change');
+      catSel.dispatchEvent(changeEvent);
+    }
+    
     function setupStepNavigation() {
       for (var i = 1; i <= totalSteps; i++) {
         var nextBtn = document.getElementById(prefix + "-next" + i);
@@ -570,6 +619,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     populateSelect(prefix + "-country", countries);
 
     setupStepNavigation();
+    
+    // Initialize category options for default frequency (One-Time)
+    updateCategoryOptions("onetime");
     
     var headerBackBtn = document.getElementById(prefix + "-header-back");
     if (headerBackBtn) {
@@ -663,9 +715,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         recurringStepper.style.display = "block";
         currentFreqIndex = 1; // Reset to Monthly when switching to recurring
         updateStepperDisplay();
+        updateCategoryOptions("recurring");
       } else {
         recurringStepper.style.display = "none";
         freqHidden.value = "onetime";
+        updateCategoryOptions("onetime");
         updateTotals();
       }
     });
