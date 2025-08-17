@@ -36,7 +36,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
     
     /* Amount chips with more rectangular styling */
-    .dp-amount-chip { border-radius:8px; min-width:80px; padding:14px 20px; font-size:18px; font-weight:800; }
+    .dp-amount-chip { border-radius:8px; min-width:90px; padding:14px 18px; font-size:18px; font-weight:800; white-space:nowrap; }
     .dp-amount-chip:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.15); }
     .dp-amount-chip.selected { transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.25); }
     
@@ -146,6 +146,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-row { flex-wrap:wrap; justify-content:center; }
       .dp-chip { padding:10px 14px; font-size:15px; }
       .dp-payment-chip { min-width:110px; max-width:130px; }
+    }
+    @media (min-width: 769px) and (max-width: 900px) {
+      .dp-amount-row { flex-wrap:wrap; justify-content:center; }
+      .dp-amount-chip { min-width:85px; padding:12px 16px; font-size:16px; }
     }
     @media (max-width: 480px) {
       .dp-panel { height:100vh; overflow-y:auto; }
