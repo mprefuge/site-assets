@@ -177,6 +177,24 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       <div class="dp-step-content active" id="${prefix}-step1">
         <div class="dp-card">
           <div class="dp-title">Donation Details</div>
+          <!-- Frequency -->
+          <div style="margin-bottom:16px;">
+            <label class="dp-label" for="${prefix}-frequency">Frequency</label>
+            <div class="dp-frequency-container">
+              <div class="dp-row dp-frequency-options">
+                <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
+                <button type="button" class="dp-chip dp-frequency-chip" data-frequency="recurring">Recurring</button>
+              </div>
+              <div id="${prefix}-recurring-stepper" class="dp-recurring-stepper" style="display:none;margin-top:12px;">
+                <div class="dp-stepper-container">
+                  <button type="button" class="dp-stepper-btn dp-stepper-minus" id="${prefix}-freq-minus">−</button>
+                  <div class="dp-stepper-display" id="${prefix}-freq-display">Monthly</div>
+                  <button type="button" class="dp-stepper-btn dp-stepper-plus" id="${prefix}-freq-plus">+</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="${prefix}-frequency" value="onetime">
+          </div>
           
           <!-- Donation Amount - Single Row -->
           <div style="margin-bottom:16px;">
@@ -208,25 +226,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             </div>
           </div>
 
-          <!-- Frequency -->
-          <div style="margin-bottom:16px;">
-            <label class="dp-label" for="${prefix}-frequency">Frequency</label>
-            <div class="dp-frequency-container">
-              <div class="dp-row dp-frequency-options">
-                <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
-                <button type="button" class="dp-chip dp-frequency-chip" data-frequency="recurring">Recurring</button>
-              </div>
-              <div id="${prefix}-recurring-stepper" class="dp-recurring-stepper" style="display:none;margin-top:12px;">
-                <div class="dp-stepper-container">
-                  <button type="button" class="dp-stepper-btn dp-stepper-minus" id="${prefix}-freq-minus">−</button>
-                  <div class="dp-stepper-display" id="${prefix}-freq-display">Monthly</div>
-                  <button type="button" class="dp-stepper-btn dp-stepper-plus" id="${prefix}-freq-plus">+</button>
-                </div>
-              </div>
-            </div>
-            <input type="hidden" id="${prefix}-frequency" value="onetime">
-          </div>
-
           <!-- Payment Method with Icons - Only shown when covering fees -->
           <div id="${prefix}-payment-method-section" style="margin-bottom:16px;display:none;">
             <label class="dp-label">Payment Method</label>
@@ -237,8 +236,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <small>2.2% + $0.30</small>
               </button>
               <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
-                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="US Bank" width="28" height="28" />
-                <span>US Bank</span>
+                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="28" height="28" />
+                <span>ACH/Bank Transfer</span>
                 <small>0.8% (max $5)</small>
               </button>
               <button type="button" class="dp-chip dp-payment-chip" data-method="wallet">
@@ -599,12 +598,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     // Frequency options: Weekly → Bi-Weekly → Monthly → Yearly
     var recurringFreqs = [
-      { value: "week", label: "Weekly" },
-      { value: "biweek", label: "Bi-Weekly" },
+      { value: "year", label: "Yearly" },
       { value: "month", label: "Monthly" },
-      { value: "year", label: "Yearly" }
+      { value: "biweek", label: "Bi-Weekly" },
+      { value: "week", label: "Weekly" }
     ];
-    var currentFreqIndex = 3; // Default to Monthly (index 2)
+    var currentFreqIndex = 1; // Default to Monthly (index 1)
     
     function updateStepperDisplay() {
       var current = recurringFreqs[currentFreqIndex];
@@ -831,7 +830,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       // Update step 3 summary elements if they exist
       if (giftEl) giftEl.textContent = format(currentAmount);
       if (feeEl) feeEl.textContent = format(t.fee); // Always show the actual fee amount
-      if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(not covered)";
+      if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "";
       
       var freq = freqSel.value;
       var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
