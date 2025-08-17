@@ -135,6 +135,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-step3-container { position:relative; }
     
     /* Responsive */
+    @media (max-width: 768px) {
       .dp-panel { max-width:100%; height:100%; border-radius:0; }
       .dp-body { padding:12px; }
       .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
@@ -357,6 +358,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             </div>
           </div>
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
+          <div style="text-align:center;font-size:14px;color:#666;margin:12px 0 6px 0;">After clicking donate, you will be taken to Stripe to enter your payment information.</div>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
         </div>
       </div>
