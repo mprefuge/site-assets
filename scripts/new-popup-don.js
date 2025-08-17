@@ -597,13 +597,14 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     var freqMinus = document.getElementById(prefix + "-freq-minus");
     var freqPlus = document.getElementById(prefix + "-freq-plus");
     
-    // Frequency options: Bi-Weekly → Monthly → Yearly
+    // Frequency options: Weekly → Bi-Weekly → Monthly → Yearly
     var recurringFreqs = [
+      { value: "week", label: "Weekly" },
       { value: "biweek", label: "Bi-Weekly" },
       { value: "month", label: "Monthly" },
       { value: "year", label: "Yearly" }
     ];
-    var currentFreqIndex = 1; // Default to Monthly (index 1)
+    var currentFreqIndex = 2; // Default to Monthly (index 2)
     
     function updateStepperDisplay() {
       var current = recurringFreqs[currentFreqIndex];
