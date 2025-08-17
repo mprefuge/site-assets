@@ -1,28 +1,15 @@
-/* donation-popup.js — Refuge Intl
-   - Brand: #BD2135, black, white
-   - Popup + Embedded, mobile-friendly, no flicker
-   - “Other (specify)” category with required free-text
-   - Personal info + address lookup/manual
-   - Stripe handoff with cover-fee math
-*/
 const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lnc3194xuZhPQnVi6pDF_LuvDSG8BElOsVFllpS6UpE';
 
 (function () {
   "use strict";
 
-  // ---------- Config ----------
   var BRAND_RED = "#BD2135";
   var BRAND_BLACK = "#000000";
   var BRAND_WHITE = "#ffffff";
 
-  // If you haven’t already, define: window.processDonationAPI = "https://your.api/endpoint"
-
-
-  // Utility: countries/states options (short lists to keep file brief; add as needed)
   var states = ["", "AL - Alabama", "AK - Alaska", "AZ - Arizona", "AR - Arkansas", "CA - California", "CO - Colorado", "CT - Connecticut", "DE - Delaware", "FL - Florida", "GA - Georgia", "HI - Hawaii", "ID - Idaho", "IL - Illinois", "IN - Indiana", "IA - Iowa", "KS - Kansas", "KY - Kentucky", "LA - Louisiana", "ME - Maine", "MD - Maryland", "MA - Massachusetts", "MI - Michigan", "MN - Minnesota", "MS - Mississippi", "MO - Missouri", "MT - Montana", "NE - Nebraska", "NV - Nevada", "NH - New Hampshire", "NJ - New Jersey", "NM - New Mexico", "NY - New York", "NC - North Carolina", "ND - North Dakota", "OH - Ohio", "OK - Oklahoma", "OR - Oregon", "PA - Pennsylvania", "RI - Rhode Island", "SC - South Carolina", "SD - South Dakota", "TN - Tennessee", "TX - Texas", "UT - Utah", "VT - Vermont", "VA - Virginia", "WA - Washington", "WV - West Virginia", "WI - Wisconsin", "WY - Wyoming", "Outside US"];
   var countries = ["United States", "Afghanistan", "Akrotiri", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla", "Antarctica", "Antigua and Barbuda", "Argentina", "Armenia", "Aruba", "Ashmore and Cartier Islands", "Australia", "Austria", "Azerbaijan", "Bahamas, The", "Bahrain", "Bangladesh", "Barbados", "Bassas da India", "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Bouvet Island", "Brazil", "British Indian Ocean Territory", "British Virgin Islands", "Brunei", "Bulgaria", "Burkina Faso", "Burma", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Cayman Islands", "Central African Republic", "Chad", "Chile", "China", "Christmas Island", "Clipperton Island", "Cocos (Keeling) Islands", "Colombia", "Comoros", "Congo, Democratic Republic of the", "Congo, Republic of the", "Cook Islands", "Coral Sea Islands", "Costa Rica", "Cote d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Dhekelia", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Ethiopia", "Europa Island", "Falkland Islands (Islas Malvinas)", "Faroe Islands", "Fiji", "Finland", "France", "French Guiana", "French Polynesia", "French Southern and Antarctic Lands", "Gabon", "Gambia, The", "Gaza Strip", "Georgia", "Germany", "Ghana", "Gibraltar", "Glorioso Islands", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam", "Guatemala", "Guernsey", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Heard Island and McDonald Islands", "Holy See (Vatican City)", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Isle of Man", "Israel", "Italy", "Jamaica", "Jan Mayen", "Japan", "Jersey", "Jordan", "Juan de Nova Island", "Kazakhstan", "Kenya", "Kiribati", "North Korea", "South Korea", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Macedonia", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia, Federated States of", "Moldova", "Monaco", "Mongolia", "Montserrat", "Morocco", "Mozambique", "Namibia", "Nauru", "Navassa Island", "Nepal", "Netherlands", "Netherlands Antilles", "New Caledonia", "New Zealand", "Nicaragua", "Niger", "Nigeria", "Niue", "Norfolk Island", "Northern Ireland", "Northern Mariana Islands", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paracel Islands", "Paraguay", "Peru", "Philippines", "Pitcairn Islands", "Poland", "Portugal", "Puerto Rico", "Qatar", "Reunion", "Romania", "Russia", "Rwanda", "Saint Helena", "Saint Kitts and Nevis", "Saint Lucia", "Saint Pierre and Miquelon", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia and Montenegro", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Georgia and the South Sandwich Islands", "Spain", "Spratly Islands", "Sri Lanka", "Sudan", "Suriname", "Svalbard", "Swaziland", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tokelau", "Tonga", "Trinidad and Tobago", "Tromelin Island", "Tunisia", "Turkey", "Turkmenistan", "Turks and Caicos Islands", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Virgin Islands", "Wake Island", "Wallis and Futuna", "West Bank", "Western Sahara", "Yemen", "Zambia", "Zimbabwe", "Myanmar (Burma)", "Palestine", "Democratic Republic of the Congo", "Not Listed"];
 
-  // ---------- Styles ----------
   var style = `
   <style id="donation-popup-style">
     :root { --brand:#BD2135; }
@@ -169,9 +156,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-btn-back { width:40px; height:40px; font-size:20px; margin-right:8px; }
     }
   </style>`;
-
-  // ---------- Templating ----------
-
   function donationDetailsHTML(prefix) {
     return `
       <div class="dp-step-content active" id="${prefix}-step1">
@@ -278,15 +262,30 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       <div class="dp-step-content" id="${prefix}-step2">
         <div class="dp-card dp-personal-info-card">
           <div class="dp-title">Your Information</div>
+          
           <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
-            <div><label class="dp-label" for="${prefix}-firstname">First Name</label><input class="dp-input" id="${prefix}-firstname" required></div>
-            <div><label class="dp-label" for="${prefix}-lastname">Last Name</label><input class="dp-input" id="${prefix}-lastname" required></div>
+            <div>
+              <label class="dp-label" for="${prefix}-firstname">First Name</label>
+              <input class="dp-input" id="${prefix}-firstname" required>
+            </div>
+            <div>
+              <label class="dp-label" for="${prefix}-lastname">Last Name</label>
+              <input class="dp-input" id="${prefix}-lastname" required>
+            </div>
           </div>
+          
           <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
-            <div><label class="dp-label" for="${prefix}-email">Email</label><input type="email" class="dp-input" id="${prefix}-email" required></div>
-            <div><label class="dp-label" for="${prefix}-phone">Phone</label><input type="tel" class="dp-input" id="${prefix}-phone" required></div>
+            <div>
+              <label class="dp-label" for="${prefix}-email">Email</label>
+              <input type="email" class="dp-input" id="${prefix}-email" required>
+            </div>
+            <div>
+              <label class="dp-label" for="${prefix}-phone">Phone</label>
+              <input type="tel" class="dp-input" id="${prefix}-phone" required>
+            </div>
           </div>
-          <div class="dp-grid" id="${prefix}-address-lookup-row">
+          
+          <div class="dp-grid" id="${prefix}-address-lookup-row" style="margin-bottom:16px;">
             <div style="position:relative;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <label class="dp-label" for="${prefix}-address-lookup" style="margin:0;">Address</label>
@@ -296,20 +295,42 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
             </div>
           </div>
-          <div id="${prefix}-manual-address" style="display:none;margin-top:12px;">
-            <div class="dp-grid dp-grid-2">
-              <div><label class="dp-label" for="${prefix}-addr1">Address Line 1</label><input class="dp-input" id="${prefix}-addr1"></div>
-              <div><label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label><input class="dp-input" id="${prefix}-addr2"></div>
+          
+          <div id="${prefix}-manual-address" style="display:none;">
+            <div class="dp-grid dp-grid-2" style="margin-bottom:12px;">
+              <div>
+                <label class="dp-label" for="${prefix}-addr1">Address Line 1</label>
+                <input class="dp-input" id="${prefix}-addr1">
+              </div>
+              <div>
+                <label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label>
+                <input class="dp-input" id="${prefix}-addr2">
+              </div>
             </div>
-            <div class="dp-grid dp-grid-3" style="margin-top:12px;">
-              <div><label class="dp-label" for="${prefix}-city">City</label><input class="dp-input" id="${prefix}-city"></div>
-              <div><label class="dp-label" for="${prefix}-state">State</label><select class="dp-select" id="${prefix}-state"></select></div>
-              <div><label class="dp-label" for="${prefix}-zip">Zip Code</label><input class="dp-input" id="${prefix}-zip"></div>
+            
+            <div class="dp-grid dp-grid-3" style="margin-bottom:12px;">
+              <div>
+                <label class="dp-label" for="${prefix}-city">City</label>
+                <input class="dp-input" id="${prefix}-city">
+              </div>
+              <div>
+                <label class="dp-label" for="${prefix}-state">State</label>
+                <select class="dp-select" id="${prefix}-state"></select>
+              </div>
+              <div>
+                <label class="dp-label" for="${prefix}-zip">Zip Code</label>
+                <input class="dp-input" id="${prefix}-zip">
+              </div>
             </div>
-            <div class="dp-grid" style="margin-top:12px;">
-              <div><label class="dp-label" for="${prefix}-country">Country</label><select class="dp-select" id="${prefix}-country"></select></div>
+            
+            <div class="dp-grid" style="margin-bottom:16px;">
+              <div>
+                <label class="dp-label" for="${prefix}-country">Country</label>
+                <select class="dp-select" id="${prefix}-country"></select>
+              </div>
             </div>
           </div>
+          
           <div class="dp-nav-buttons">
             <button type="button" class="dp-btn secondary" id="${prefix}-prev2">Previous</button>
             <button type="button" class="dp-btn" id="${prefix}-next2">Next</button>
@@ -342,8 +363,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     `;
   }
 
-
-
   function headerHTML(prefix, embedded) {
     return `
       <div class="${embedded ? "dp-embedded" : ""}">
@@ -368,12 +387,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     `;
   }
 
-  // ---------- Mount helpers ----------
   function mountPopup() {
     var root = document.getElementById("donation-popup");
     if (!root) return;
 
-    // Inject style once
     if (!document.getElementById("donation-popup-style")) {
       document.head.insertAdjacentHTML("beforeend", style);
     }
@@ -384,7 +401,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       </div>
     `;
 
-    // Open/close by hash
     var modal = document.getElementById("dp-modal");
     var closeBtn = document.getElementById("popup-close");
     function showModal() { modal.style.display = "flex"; }
@@ -394,7 +410,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     checkHash();
     window.addEventListener("hashchange", checkHash);
 
-    // Overlay click to close
     modal.addEventListener("click", function (e) {
       if (e.target === modal) hideModal();
     });
@@ -407,7 +422,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     var root = document.getElementById("donation-form-embedded");
     if (!root) return;
 
-    // Inject style once
     if (!document.getElementById("donation-popup-style")) {
       document.head.insertAdjacentHTML("beforeend", style);
     }
@@ -416,7 +430,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     wireUp("embedded");
   }
 
-  // ---------- Logic ----------
   function populateSelect(id, options) {
     var sel = document.getElementById(id);
     if (!sel) return;
@@ -429,12 +442,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   }
 
   function wireUp(prefix) {
-    // Step navigation
     var currentStep = 1;
     var totalSteps = 3;
     
     function showStep(step) {
-      // Hide all steps
       for (var i = 1; i <= totalSteps; i++) {
         var stepEl = document.getElementById(prefix + "-step" + i);
         var indicatorEl = document.getElementById(prefix + "-step-indicator-" + i);
@@ -446,7 +457,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }
       }
       
-      // Show/hide header back button based on step
       var headerBackBtn = document.getElementById(prefix + "-header-back");
       if (headerBackBtn) {
         if (step === 3) {
@@ -456,7 +466,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }
       }
       
-      // Show current step
       var activeStep = document.getElementById(prefix + "-step" + step);
       if (activeStep) activeStep.classList.add("active");
       currentStep = step;
@@ -504,7 +513,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     }
     
-    // Navigation button handlers
     function setupStepNavigation() {
       for (var i = 1; i <= totalSteps; i++) {
         var nextBtn = document.getElementById(prefix + "-next" + i);
@@ -531,14 +539,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     }
     
-    // selects
     populateSelect(prefix + "-state", states);
     populateSelect(prefix + "-country", countries);
 
-    // Setup step navigation
     setupStepNavigation();
     
-    // Header back button
     var headerBackBtn = document.getElementById(prefix + "-header-back");
     if (headerBackBtn) {
       headerBackBtn.addEventListener("click", function() {
@@ -548,7 +553,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       });
     }
 
-    // amount chips
     var amountRow = document.getElementById(prefix + "-amount-row");
     var customWrap = document.getElementById(prefix + "-custom-wrap");
     var customInput = document.getElementById(prefix + "-custom");
@@ -622,7 +626,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       if (!t) return;
       var freq = t.getAttribute("data-frequency");
       
-      // Update UI
       frequencyOptions.querySelectorAll(".dp-frequency-chip").forEach(function(chip) {
         chip.classList.remove("selected");
       });
@@ -670,12 +673,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       updateTotals();
     });
 
-    // cover fees
     var coverFee = document.getElementById(prefix + "-cover-fee");
     var paymentMethodSection = document.getElementById(prefix + "-payment-method-section");
     
     coverFee.addEventListener("change", function() {
-      // Show/hide payment method section based on checkbox state
       if (coverFee.checked) {
         paymentMethodSection.style.display = "block";
       } else {
@@ -684,7 +685,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       updateTotals();
     });
 
-    // payment method
     var pmRow = document.getElementById(prefix + "-pm-row");
     var paymentMethod = "card";
     pmRow.addEventListener("click", function (e) {
@@ -946,7 +946,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     updateTotals();
   }
 
-  // ---------- Public helpers ----------
   window.openDonationModal = function () {
     var modal = document.getElementById("dp-modal");
     if (modal) modal.style.display = "flex";
@@ -956,7 +955,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     if (modal) modal.style.display = "none";
   };
 
-  // ---------- Boot ----------
   document.addEventListener("DOMContentLoaded", function () {
     mountPopup();     // attaches to #donation-popup (if present)
     mountEmbedded();  // attaches to #donation-form-embedded (if present)
