@@ -180,7 +180,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           
           <!-- Donation Amount - Single Row -->
           <div style="margin-bottom:16px;">
-            <label class="dp-label">Select Donation Amount</label>
+            <label class="dp-label">Amount</label>
             <div class="dp-row" id="${prefix}-amount-row">
               ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip dp-amount-chip" data-value="${v}">$${v}</button>`; }).join("")}
               <button type="button" class="dp-chip dp-amount-chip" data-value="custom">Other</button>
@@ -210,7 +210,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
           <!-- Frequency -->
           <div style="margin-bottom:16px;">
-            <label class="dp-label" for="${prefix}-frequency">Donation Frequency</label>
+            <label class="dp-label" for="${prefix}-frequency">Frequency</label>
             <div class="dp-frequency-container">
               <div class="dp-row dp-frequency-options">
                 <button type="button" class="dp-chip dp-frequency-chip selected" data-frequency="onetime">One-Time</button>
@@ -604,7 +604,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       { value: "month", label: "Monthly" },
       { value: "year", label: "Yearly" }
     ];
-    var currentFreqIndex = 2; // Default to Monthly (index 2)
+    var currentFreqIndex = 3; // Default to Monthly (index 2)
     
     function updateStepperDisplay() {
       var current = recurringFreqs[currentFreqIndex];
