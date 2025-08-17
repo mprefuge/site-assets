@@ -123,7 +123,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Total display styling */
     .dp-total-container { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .dp-total-amount { font-size:18px; font-weight:700; color:var(--brand); padding:12px 16px; border:2px solid var(--brand); border-radius:8px; background:#fff; }
+    .dp-total-amount { font-size:18px; font-weight:700; color:#000000; padding:12px 16px; border:2px solid #000000; border-radius:8px; background:#fff; }
     
     /* Wallet explainer text */
     .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; line-height:1.2; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; }
@@ -270,8 +270,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
             <div class="dp-total-container">
-              <div class="dp-total-amount">
-                Total: <span id="${prefix}-total-preview">$0.00</span>
+              <div style="flex: 1; display: flex; justify-content: center;">
+                <div class="dp-total-amount">
+                  Total: <span id="${prefix}-total-preview">$0.00</span>
+                </div>
               </div>
               <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
             </div>
