@@ -286,10 +286,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <option>Ministry Support Dinner</option>
               <option>TNND Payment</option>
               <option>Volunteer Application</option>
-              <option>Other (specify)</option>
+              <option>Other</option>
             </select>
             <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
-              <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Please describe what this donation is for">
+              <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Specify">
               <div id="${prefix}-category-error" class="dp-error-message">Please describe what this donation is for</div>
             </div>
           </div>
@@ -352,12 +352,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <div>
               <label class="dp-label" for="${prefix}-firstname">First Name</label>
               <input class="dp-input" id="${prefix}-firstname" required>
-              <div id="${prefix}-firstname-error" class="dp-error-message">First name is required</div>
+              <div id="${prefix}-firstname-error" class="dp-error-message">Please enter your first name</div>
             </div>
             <div>
               <label class="dp-label" for="${prefix}-lastname">Last Name</label>
               <input class="dp-input" id="${prefix}-lastname" required>
-              <div id="${prefix}-lastname-error" class="dp-error-message">Last name is required</div>
+              <div id="${prefix}-lastname-error" class="dp-error-message">Please enter your last name</div>
             </div>
           </div>
           
@@ -366,12 +366,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <div>
               <label class="dp-label" for="${prefix}-email">Email</label>
               <input type="email" class="dp-input" id="${prefix}-email" required>
-              <div id="${prefix}-email-error" class="dp-error-message">Valid email address is required</div>
+              <div id="${prefix}-email-error" class="dp-error-message">Please enter a valid email address</div>
             </div>
             <div>
               <label class="dp-label" for="${prefix}-phone">Phone</label>
               <input type="tel" class="dp-input" id="${prefix}-phone" required>
-              <div id="${prefix}-phone-error" class="dp-error-message">Phone number is required</div>
+              <div id="${prefix}-phone-error" class="dp-error-message">Please enter your phone number</div>
             </div>
           </div>
           
@@ -383,7 +383,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
               <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
               <div id="${prefix}-address-suggestions" style="position:absolute;z-index:10001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
-              <div id="${prefix}-address-lookup-error" class="dp-error-message">Address is required</div>
+              <div id="${prefix}-address-lookup-error" class="dp-error-message">Please include your address</div>
             </div>
           </div>
           
@@ -393,7 +393,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div>
                 <label class="dp-label" for="${prefix}-addr1">Address Line 1</label>
                 <input class="dp-input" id="${prefix}-addr1">
-                <div id="${prefix}-addr1-error" class="dp-error-message">Address line 1 is required</div>
+                <div id="${prefix}-addr1-error" class="dp-error-message">Please enter your address</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label>
@@ -406,22 +406,22 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div>
                 <label class="dp-label" for="${prefix}-city">City</label>
                 <input class="dp-input" id="${prefix}-city">
-                <div id="${prefix}-city-error" class="dp-error-message">City is required</div>
+                <div id="${prefix}-city-error" class="dp-error-message">Please enter your city</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-state">State</label>
                 <select class="dp-select" id="${prefix}-state"></select>
-                <div id="${prefix}-state-error" class="dp-error-message">State is required</div>
+                <div id="${prefix}-state-error" class="dp-error-message">Please enter your state</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-zip">Zip Code</label>
                 <input class="dp-input" id="${prefix}-zip">
-                <div id="${prefix}-zip-error" class="dp-error-message">Zip code is required</div>
+                <div id="${prefix}-zip-error" class="dp-error-message">Please enter your zip code</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-country">Country</label>
                 <select class="dp-select" id="${prefix}-country"></select>
-                <div id="${prefix}-country-error" class="dp-error-message">Country is required</div>
+                <div id="${prefix}-country-error" class="dp-error-message">Please enter your country</div>
               </div>
             </div>
           </div>
@@ -1205,7 +1205,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var payload = {
         firstname: first,
         lastname: last,
-        livemode: first.toLowerCase() === "test" ? false : true,
+        livemode: category.toLowerCase() === "test" ? false : true, //first.toLowerCase() === "test" ? false : true,
         email: email,
         phone: phone,
         address: {
