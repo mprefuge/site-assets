@@ -14,18 +14,19 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   <style id="donation-popup-style">
     :root { --brand:#BD2135; }
     .dp-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; }
-    .dp-panel { background:#fff; width:100%; max-width:600px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:hidden; }
+    .dp-panel { background:#fff; width:100%; max-width:760px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:hidden; }
     .dp-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
     .dp-header .dp-btn-back { position:absolute; left:16px; margin:0; }
     .dp-header img { height:56px; }
     .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
-    .dp-body { padding:16px; max-width:600px; margin:0 auto; }
-    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; }
+    .dp-body { padding:16px; max-width:700px; margin:0 auto; }
+    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; max-width:700px; margin-left:auto; margin-right:auto; }
     .dp-title { font-weight:700; margin-bottom:16px; text-align:center; }
     .dp-grid { display:grid; gap:12px; }
     .dp-grid-2 { grid-template-columns: 1fr 1fr; }
     .dp-grid-3 { grid-template-columns: 2fr 1fr; }
+    .dp-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
     .dp-label { display:block; font-size:14px; font-weight:600; margin-bottom:6px; color:#222; }
     .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
     .dp-input:focus, .dp-select:focus { border-color:var(--brand); box-shadow:0 0 0 2px #BD213533; background:#fff; }
@@ -85,6 +86,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-payment-chip.selected .wallet-svg-main { fill:#fff !important; stroke:#fff !important; }
     .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
     .dp-payment-chip.selected .wallet-svg-bar { fill:var(--brand) !important; }
+    .dp-payment-chip.selected .dp-wallet-explainer { color:#fff; }
     .dp-payment-methods { justify-content:center; }
     .dp-fee { font-size:13px; color:#444; margin-top:6px; }
     .dp-summary { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
@@ -124,7 +126,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Total display styling */
     .dp-total-container { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .dp-total-amount { font-size:18px; font-weight:700; color:#000000; padding:12px 16px; border:2px solid #000000; border-radius:8px; background:#fff; }
+    .dp-total-amount { font-size:18px; font-weight:700; color:#000000; flex:1; text-align:left; margin-right:16px; }
     
     /* Wallet explainer text */
     .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; line-height:1.2; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; }
@@ -141,7 +143,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-modal { padding: 10px; }
       .dp-panel { width: 100%; max-width: none; max-height:90vh; border-radius:12px; overflow-y:auto; }
       .dp-body { padding:12px; }
-      .dp-grid-2, .dp-grid-3 { grid-template-columns: 1fr; }
+      .dp-grid-2, .dp-grid-3, .dp-grid-4 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
       .dp-row { justify-content: center; }
@@ -326,10 +328,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
             <div class="dp-total-container">
-              <div style="flex: 1; display: flex; justify-content: center;">
-                <div class="dp-total-amount">
-                  Total: <span id="${prefix}-total-preview">$0.00</span>
-                </div>
+              <div class="dp-total-amount">
+                Total: <span id="${prefix}-total-preview">$0.00</span>
               </div>
               <button type="button" class="dp-btn" id="${prefix}-next1">Next</button>
             </div>
@@ -345,6 +345,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         <div class="dp-card dp-personal-info-card">
           <div class="dp-title">Your Information</div>
           
+          <!-- Row 1: First Name, Last Name -->
           <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
             <div>
               <label class="dp-label" for="${prefix}-firstname">First Name</label>
@@ -358,6 +359,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             </div>
           </div>
           
+          <!-- Row 2: Email, Phone -->
           <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
             <div>
               <label class="dp-label" for="${prefix}-email">Email</label>
@@ -384,6 +386,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           </div>
           
           <div id="${prefix}-manual-address" style="display:none;">
+            <!-- Row 3: Address Line 1, Address Line 2 (optional) -->
             <div class="dp-grid dp-grid-2" style="margin-bottom:12px;">
               <div>
                 <label class="dp-label" for="${prefix}-addr1">Address Line 1</label>
@@ -396,7 +399,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
             </div>
             
-            <div class="dp-grid dp-grid-3" style="margin-bottom:12px;">
+            <!-- Row 4: City, State, Zip, Country -->
+            <div class="dp-grid dp-grid-4" style="margin-bottom:12px;">
               <div>
                 <label class="dp-label" for="${prefix}-city">City</label>
                 <input class="dp-input" id="${prefix}-city">
@@ -412,9 +416,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <input class="dp-input" id="${prefix}-zip">
                 <div id="${prefix}-zip-error" class="dp-error-message">Zip code is required</div>
               </div>
-            </div>
-            
-            <div class="dp-grid" style="margin-bottom:16px;">
               <div>
                 <label class="dp-label" for="${prefix}-country">Country</label>
                 <select class="dp-select" id="${prefix}-country"></select>
@@ -440,7 +441,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <div class="dp-summary">
             <div style="flex:1;">
               <div style="display:flex;justify-content:space-between;gap:12px;">
-                <div>Gift</div><div id="${prefix}-gift">$0.00</div>
+                <div>Amount</div><div id="${prefix}-gift">$0.00</div>
               </div>
               <div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;">
                 <div>Processing fees <span id="${prefix}-fee-label">(added)</span></div><div id="${prefix}-fee">$0.00</div>
