@@ -1,0 +1,104 @@
+name: Deploy Donation Form
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Configure Donation Form
+      run: |
+        # Create configuration injection script
+        cat << 'EOF' > inject-config.js
+        // This script injects environment variables into the browser-accessible config
+        const fs = require('fs');
+        
+        // Read the original config file
+        let configContent = fs.readFileSync('config.js', 'utf8');
+        
+        // Inject environment variables as a global DONATION_CONFIG object
+        const envConfig = {
+          DONATION_API_ENDPOINT: process.env.DONATION_API_ENDPOINT,
+          STRIPE_PUBLIC_KEY_LIVE: process.env.STRIPE_PUBLIC_KEY_LIVE,
+          STRIPE_PUBLIC_KEY_TEST: process.env.STRIPE_PUBLIC_KEY_TEST,
+          BRAND_PRIMARY: process.env.BRAND_PRIMARY,
+          BRAND_SECONDARY: process.env.BRAND_SECONDARY,
+          BRAND_TERTIARY: process.env.BRAND_TERTIARY,
+          DONATION_AMOUNTS: process.env.DONATION_AMOUNTS,
+          CATEGORY_TYPES: process.env.CATEGORY_TYPES,
+          CATEGORIES_ONETIME: process.env.CATEGORIES_ONETIME,
+          CATEGORIES_RECURRING: process.env.CATEGORIES_RECURRING,
+          FREQUENCY_TYPES: process.env.FREQUENCY_TYPES,
+          DEFAULT_FREQUENCY: process.env.DEFAULT_FREQUENCY,
+          SHOW_COVER_PROCESSING_FEES: process.env.SHOW_COVER_PROCESSING_FEES,
+          COVER_PROCESSING_FEES_DEFAULT: process.env.COVER_PROCESSING_FEES_DEFAULT,
+          ACH_FEE_PERCENTAGE: process.env.ACH_FEE_PERCENTAGE,
+          ACH_FEE_MAX: process.env.ACH_FEE_MAX,
+          CARD_FEE_PERCENTAGE: process.env.CARD_FEE_PERCENTAGE,
+          CARD_FEE_FIXED: process.env.CARD_FEE_FIXED,
+          UI_MAX_WIDTH: process.env.UI_MAX_WIDTH,
+          UI_TOTAL_STEPS: process.env.UI_TOTAL_STEPS,
+          SHOW_PAYMENT_METHODS: process.env.SHOW_PAYMENT_METHODS
+        };
+        
+        // Remove undefined values
+        Object.keys(envConfig).forEach(key => {
+          if (envConfig[key] === undefined) {
+            delete envConfig[key];
+          }
+        });
+        
+        // Prepend the environment config injection
+        const injection = `
+        // Environment configuration injected at build time
+        if (typeof window !== 'undefined') {
+          window.DONATION_CONFIG = ${JSON.stringify(envConfig, null, 2)};
+        }
+        `;
+        
+        fs.writeFileSync('config.js', injection + configContent);
+        console.log('Configuration injected successfully');
+        EOF
+        
+        node inject-config.js
+      env:
+        # Map GitHub secrets to environment variables
+        DONATION_API_ENDPOINT: ${{ secrets.DONATION_API_ENDPOINT }}
+        STRIPE_PUBLIC_KEY_LIVE: ${{ secrets.STRIPE_PUBLIC_KEY_LIVE }}
+        STRIPE_PUBLIC_KEY_TEST: ${{ secrets.STRIPE_PUBLIC_KEY_TEST }}
+        BRAND_PRIMARY: ${{ secrets.BRAND_PRIMARY }}
+        BRAND_SECONDARY: ${{ secrets.BRAND_SECONDARY }}
+        BRAND_TERTIARY: ${{ secrets.BRAND_TERTIARY }}
+        DONATION_AMOUNTS: ${{ secrets.DONATION_AMOUNTS }}
+        CATEGORY_TYPES: ${{ secrets.CATEGORY_TYPES }}
+        CATEGORIES_ONETIME: ${{ secrets.CATEGORIES_ONETIME }}
+        CATEGORIES_RECURRING: ${{ secrets.CATEGORIES_RECURRING }}
+        FREQUENCY_TYPES: ${{ secrets.FREQUENCY_TYPES }}
+        DEFAULT_FREQUENCY: ${{ secrets.DEFAULT_FREQUENCY }}
+        SHOW_COVER_PROCESSING_FEES: ${{ secrets.SHOW_COVER_PROCESSING_FEES }}
+        COVER_PROCESSING_FEES_DEFAULT: ${{ secrets.COVER_PROCESSING_FEES_DEFAULT }}
+        ACH_FEE_PERCENTAGE: ${{ secrets.ACH_FEE_PERCENTAGE }}
+        ACH_FEE_MAX: ${{ secrets.ACH_FEE_MAX }}
+        CARD_FEE_PERCENTAGE: ${{ secrets.CARD_FEE_PERCENTAGE }}
+        CARD_FEE_FIXED: ${{ secrets.CARD_FEE_FIXED }}
+        UI_MAX_WIDTH: ${{ secrets.UI_MAX_WIDTH }}
+        UI_TOTAL_STEPS: ${{ secrets.UI_TOTAL_STEPS }}
+        SHOW_PAYMENT_METHODS: ${{ secrets.SHOW_PAYMENT_METHODS }}
+    
+    - name: Deploy to hosting
+      run: |
+        # Add your deployment commands here
+        echo "Deploying configured donation form..."
+        # Example: upload to S3, deploy to Netlify, etc.
