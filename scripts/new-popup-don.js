@@ -324,7 +324,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
               <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
               <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
-              <div id="${prefix}-address-lookup-error" class="dp-error-message">Address is required (minimum 5 characters)</div>
+              <div id="${prefix}-address-lookup-error" class="dp-error-message">Address is required</div>
             </div>
           </div>
           
