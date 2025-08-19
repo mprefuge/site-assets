@@ -30,7 +30,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-input, .dp-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
     .dp-input:focus, .dp-select:focus { border-color:var(--brand); box-shadow:0 0 0 2px #BD213533; background:#fff; }
     .dp-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
-    .dp-amount-row { flex-wrap:nowrap; }
+    .dp-amount-row { flex-wrap:nowrap; margin-bottom:8px; }
+    .dp-amount-row:last-child { margin-bottom:0; }
     .dp-chip { padding:12px 18px; border-radius:999px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .dp-chip:hover { border-color:var(--brand); color:var(--brand); }
     .dp-chip.selected { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
@@ -144,7 +145,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
       .dp-row { justify-content: center; }
-      .dp-amount-row { flex-wrap:wrap; justify-content:center; }
+      .dp-amount-row { flex-wrap:wrap; justify-content:center; margin-bottom:8px; }
+      .dp-amount-row:last-child { margin-bottom:0; }
       .dp-chip { padding:10px 14px; font-size:15px; }
       .dp-payment-chip { min-width:110px; max-width:130px; }
       
@@ -156,7 +158,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     }
     @media (min-width: 601px) and (max-width: 900px) {
-      .dp-amount-row { flex-wrap:wrap; justify-content:center; }
+      .dp-amount-row { flex-wrap:wrap; justify-content:center; margin-bottom:8px; }
+      .dp-amount-row:last-child { margin-bottom:0; }
       .dp-amount-chip { min-width:85px; padding:12px 16px; font-size:16px; }
     }
     @media (max-width: 400px) {
@@ -166,7 +169,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
       .dp-row { gap:6px; }
-      .dp-amount-row { flex-wrap:wrap; }
+      .dp-amount-row { flex-wrap:wrap; margin-bottom:8px; }
+      .dp-amount-row:last-child { margin-bottom:0; }
       .dp-chip { padding:8px 12px; font-size:14px; }
       .dp-payment-chip { min-width:100px; max-width:120px; padding:10px 12px; }
       .dp-input, .dp-select { padding:10px; font-size:14px; }
@@ -180,7 +184,59 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       }
     }
   </style>`;
+  // Helper function to group amounts into rows with proper "Other" placement
+  function groupAmountsIntoRows(amounts) {
+    const rows = [];
+    const totalAmounts = amounts.length;
+    
+    // If we have 1-2 amounts, put them with "Other" in one row
+    if (totalAmounts <= 2) {
+      rows.push([...amounts, 'other']);
+      return rows;
+    }
+    
+    // Calculate how to distribute amounts
+    const amountRows = Math.ceil(totalAmounts / 3);
+    
+    // Check if "Other" fits in the last row or needs its own row
+    const lastRowSize = totalAmounts % 3;
+    const otherNeedsOwnRow = lastRowSize === 0;
+    
+    // Create rows of amounts (3 per row)
+    for (let i = 0; i < totalAmounts; i += 3) {
+      const row = amounts.slice(i, i + 3);
+      rows.push(row);
+    }
+    
+    // Handle "Other" placement
+    if (otherNeedsOwnRow) {
+      // "Other" gets its own row
+      rows.push(['other']);
+    } else {
+      // Add "Other" to the last row
+      rows[rows.length - 1].push('other');
+    }
+    
+    return rows;
+  }
+
   function donationDetailsHTML(prefix) {
+    // Generate amount rows HTML
+    const amounts = [500,100,50,25,10];
+    const amountRows = groupAmountsIntoRows(amounts);
+    
+    const amountRowsHTML = amountRows.map((row, index) => {
+      const buttonsHTML = row.map(item => {
+        if (item === 'other') {
+          return `<button type="button" class="dp-chip dp-amount-chip" data-value="custom">Other</button>`;
+        } else {
+          return `<button type="button" class="dp-chip dp-amount-chip" data-value="${item}">$${item}</button>`;
+        }
+      }).join('');
+      
+      return `<div class="dp-row dp-amount-row" data-row="${index}">${buttonsHTML}</div>`;
+    }).join('');
+
     return `
       <div class="dp-step-content active" id="${prefix}-step1">
         <div class="dp-card">
@@ -204,12 +260,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <input type="hidden" id="${prefix}-frequency" value="onetime">
           </div>
           
-          <!-- Donation Amount - Single Row -->
+          <!-- Donation Amount - Multiple Rows -->
           <div style="margin-bottom:16px;">
             <label class="dp-label">Amount</label>
-            <div class="dp-row dp-amount-row" id="${prefix}-amount-row">
-              ${[500,100,50,25,10].map(function(v){ return `<button type="button" class="dp-chip dp-amount-chip" data-value="${v}">$${v}</button>`; }).join("")}
-              <button type="button" class="dp-chip dp-amount-chip" data-value="custom">Other</button>
+            <div id="${prefix}-amount-row">
+              ${amountRowsHTML}
             </div>
             <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
               <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
