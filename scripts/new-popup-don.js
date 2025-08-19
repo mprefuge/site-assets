@@ -20,8 +20,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-header img { height:56px; }
     .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
     .dp-close:hover { opacity:1; }
-    .dp-body { padding:16px; max-width:700px; margin:0 auto; }
-    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; max-width:700px; margin-left:auto; margin-right:auto; }
+    .dp-body { padding:16px; max-width:700px; margin:0 auto; position:relative; overflow:visible; }
+    .dp-card { background:#fff; border-radius:18px; box-shadow: 0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; max-width:700px; margin-left:auto; margin-right:auto; overflow:visible; }
     .dp-title { font-weight:700; margin-bottom:16px; text-align:center; }
     .dp-grid { display:grid; gap:12px; }
     .dp-grid-2 { grid-template-columns: 1fr 1fr; }
@@ -126,7 +126,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Total display styling */
     .dp-total-container { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .dp-total-amount { font-size:18px; font-weight:700; color:#000000; flex:1; text-align:left; margin-right:16px; }
+    .dp-total-amount { font-size:18px; font-weight:700; color:#000000; flex:1; text-align:center; margin-right:16px; }
     
     /* Wallet explainer text */
     .dp-wallet-explainer { font-size:10px; color:#666; margin-top:2px; text-align:center; line-height:1.2; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; }
@@ -142,7 +142,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     @media (max-width: 600px) {
       .dp-modal { padding: 10px; }
       .dp-panel { width: 100%; max-width: none; max-height:90vh; border-radius:12px; overflow-y:auto; }
-      .dp-body { padding:12px; }
+      .dp-body { padding:12px; position:relative; overflow:visible; }
       .dp-grid-2, .dp-grid-3, .dp-grid-4 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
       .dp-summary .dp-total { font-size:22px; }
@@ -153,7 +153,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-payment-chip { min-width:110px; max-width:130px; }
       
       /* Ensure address dropdown is not clipped */
-      .dp-body { position:relative; }
+      .dp-card { overflow:visible; }
       #popup-address-suggestions, #embedded-address-suggestions { 
         z-index:10000 !important; 
         max-height:200px !important;
@@ -380,7 +380,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <span id="${prefix}-enter-manually" style="font-size:14px;font-weight:700;cursor:pointer;color:${BRAND_RED};">Enter manually</span>
               </div>
               <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
-              <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
+              <div id="${prefix}-address-suggestions" style="position:absolute;z-index:10001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
               <div id="${prefix}-address-lookup-error" class="dp-error-message">Address is required</div>
             </div>
           </div>
