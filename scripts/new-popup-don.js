@@ -214,6 +214,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <div id="${prefix}-custom-wrap" style="display:none;margin-top:8px;">
               <input type="number" min="1" step="0.01" id="${prefix}-custom" class="dp-input" placeholder="Enter custom amount">
             </div>
+            <div id="${prefix}-amount-error" class="dp-error-message">Please select or enter a donation amount</div>
           </div>
 
           <!-- Category with Other Field -->
@@ -293,10 +294,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <div>
               <label class="dp-label" for="${prefix}-firstname">First Name</label>
               <input class="dp-input" id="${prefix}-firstname" required>
+              <div id="${prefix}-firstname-error" class="dp-error-message">First name is required</div>
             </div>
             <div>
               <label class="dp-label" for="${prefix}-lastname">Last Name</label>
               <input class="dp-input" id="${prefix}-lastname" required>
+              <div id="${prefix}-lastname-error" class="dp-error-message">Last name is required</div>
             </div>
           </div>
           
@@ -304,10 +307,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             <div>
               <label class="dp-label" for="${prefix}-email">Email</label>
               <input type="email" class="dp-input" id="${prefix}-email" required>
+              <div id="${prefix}-email-error" class="dp-error-message">Valid email address is required</div>
             </div>
             <div>
               <label class="dp-label" for="${prefix}-phone">Phone</label>
               <input type="tel" class="dp-input" id="${prefix}-phone" required>
+              <div id="${prefix}-phone-error" class="dp-error-message">Phone number is required</div>
             </div>
           </div>
           
@@ -319,6 +324,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
               <input class="dp-input" id="${prefix}-address-lookup" placeholder="Start typing your address..." autocomplete="off">
               <div id="${prefix}-address-suggestions" style="position:absolute;z-index:1001;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.08);display:none;max-height:220px;overflow:auto;"></div>
+              <div id="${prefix}-address-lookup-error" class="dp-error-message">Address is required (minimum 5 characters)</div>
             </div>
           </div>
           
@@ -327,6 +333,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div>
                 <label class="dp-label" for="${prefix}-addr1">Address Line 1</label>
                 <input class="dp-input" id="${prefix}-addr1">
+                <div id="${prefix}-addr1-error" class="dp-error-message">Address line 1 is required</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-addr2">Address Line 2 (optional)</label>
@@ -338,14 +345,17 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div>
                 <label class="dp-label" for="${prefix}-city">City</label>
                 <input class="dp-input" id="${prefix}-city">
+                <div id="${prefix}-city-error" class="dp-error-message">City is required</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-state">State</label>
                 <select class="dp-select" id="${prefix}-state"></select>
+                <div id="${prefix}-state-error" class="dp-error-message">State is required</div>
               </div>
               <div>
                 <label class="dp-label" for="${prefix}-zip">Zip Code</label>
                 <input class="dp-input" id="${prefix}-zip">
+                <div id="${prefix}-zip-error" class="dp-error-message">Zip code is required</div>
               </div>
             </div>
             
@@ -353,6 +363,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div>
                 <label class="dp-label" for="${prefix}-country">Country</label>
                 <select class="dp-select" id="${prefix}-country"></select>
+                <div id="${prefix}-country-error" class="dp-error-message">Country is required</div>
               </div>
             </div>
           </div>
@@ -481,12 +492,12 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         "Ministry Support Dinner",
         "TNND Payment", 
         "Volunteer Application",
-        "Other"
+        "Other (specify)"
       ],
       recurring: [
         "General Giving",
         "Corporate Sponsor",
-        "Other"
+        "Other (specify)"
       ]
     };
     
@@ -523,7 +534,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           var category = document.getElementById(prefix + "-category").value;
           var otherOk = true;
           var categoryError = document.getElementById(prefix + "-category-error");
+          var amountError = document.getElementById(prefix + "-amount-error");
           
+          // Amount validation
+          if (!amountOk && amountError) {
+            amountError.style.display = "block";
+          } else if (amountError) {
+            amountError.style.display = "none";
+          }
+          
+          // Category validation
           if (category === "Other (specify)") {
             var otherValue = document.getElementById(prefix + "-category-other").value.trim();
             otherOk = otherValue.length > 0;
@@ -535,6 +555,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           } else if (categoryError) {
             categoryError.style.display = "none";
           }
+          
           return amountOk && otherOk;
         case 2:
           var fname = document.getElementById(prefix + "-firstname").value.trim();
@@ -548,10 +569,79 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           var stateSel = document.getElementById(prefix + "-state");
           var zip = document.getElementById(prefix + "-zip");
           var countrySel = document.getElementById(prefix + "-country");
-          var identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
-          var addressOk = manualWrap.style.display !== "none"
-            ? (addr1.value && city.value && stateSel.value && zip.value && countrySel.value)
-            : (lookupInput.value.trim().length >= 5);
+          
+          // Personal info validation with error messages
+          var fnameError = document.getElementById(prefix + "-firstname-error");
+          var lnameError = document.getElementById(prefix + "-lastname-error");
+          var emailError = document.getElementById(prefix + "-email-error");
+          var phoneError = document.getElementById(prefix + "-phone-error");
+          
+          var fnameOk = fname.length > 0;
+          var lnameOk = lname.length > 0;
+          var emailOk = /.+@.+\..+/.test(email);
+          var phoneOk = phone.length > 0;
+          
+          // Show/hide error messages for personal info
+          if (fnameError) fnameError.style.display = fnameOk ? "none" : "block";
+          if (lnameError) lnameError.style.display = lnameOk ? "none" : "block";
+          if (emailError) emailError.style.display = emailOk ? "none" : "block";
+          if (phoneError) phoneError.style.display = phoneOk ? "none" : "block";
+          
+          var identityOk = fnameOk && lnameOk && emailOk && phoneOk;
+          
+          // Address validation with error messages
+          var addressOk = false;
+          var isManualAddress = manualWrap.style.display !== "none";
+          
+          if (isManualAddress) {
+            // Manual address validation
+            var addr1Ok = addr1.value.trim().length > 0;
+            var cityOk = city.value.trim().length > 0;
+            var stateOk = stateSel.value.length > 0;
+            var zipOk = zip.value.trim().length > 0;
+            var countryOk = countrySel.value.length > 0;
+            
+            // Show/hide error messages for manual address
+            var addr1Error = document.getElementById(prefix + "-addr1-error");
+            var cityError = document.getElementById(prefix + "-city-error");
+            var stateError = document.getElementById(prefix + "-state-error");
+            var zipError = document.getElementById(prefix + "-zip-error");
+            var countryError = document.getElementById(prefix + "-country-error");
+            
+            if (addr1Error) addr1Error.style.display = addr1Ok ? "none" : "block";
+            if (cityError) cityError.style.display = cityOk ? "none" : "block";
+            if (stateError) stateError.style.display = stateOk ? "none" : "block";
+            if (zipError) zipError.style.display = zipOk ? "none" : "block";
+            if (countryError) countryError.style.display = countryOk ? "none" : "block";
+            
+            addressOk = addr1Ok && cityOk && stateOk && zipOk && countryOk;
+            
+            // Hide lookup error if manual address is being used
+            var lookupError = document.getElementById(prefix + "-address-lookup-error");
+            if (lookupError) lookupError.style.display = "none";
+          } else {
+            // Address lookup validation
+            var lookupOk = lookupInput.value.trim().length >= 5;
+            var lookupError = document.getElementById(prefix + "-address-lookup-error");
+            
+            if (lookupError) lookupError.style.display = lookupOk ? "none" : "block";
+            
+            addressOk = lookupOk;
+            
+            // Hide manual address errors if lookup is being used
+            var manualErrors = [
+              document.getElementById(prefix + "-addr1-error"),
+              document.getElementById(prefix + "-city-error"),
+              document.getElementById(prefix + "-state-error"),
+              document.getElementById(prefix + "-zip-error"),
+              document.getElementById(prefix + "-country-error")
+            ];
+            
+            manualErrors.forEach(function(errorEl) {
+              if (errorEl) errorEl.style.display = "none";
+            });
+          }
+          
           return identityOk && addressOk;
         default:
           return true;
@@ -651,6 +741,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var t = e.target.closest(".dp-chip");
       if (!t) return;
       var v = t.getAttribute("data-value");
+      
+      // Clear amount error when user selects an amount
+      var amountError = document.getElementById(prefix + "-amount-error");
+      if (amountError) amountError.style.display = "none";
+      
       if (v === "custom") {
         customActive = true;
         customWrap.style.display = "";
@@ -931,16 +1026,60 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       if (recurNote) recurNote.textContent = "";
     }
 
+    function clearFieldErrors() {
+      // Clear all error messages when users are actively fixing issues
+      var errorIds = [
+        prefix + "-amount-error",
+        prefix + "-firstname-error",
+        prefix + "-lastname-error", 
+        prefix + "-email-error",
+        prefix + "-phone-error",
+        prefix + "-address-lookup-error",
+        prefix + "-addr1-error",
+        prefix + "-city-error", 
+        prefix + "-state-error",
+        prefix + "-zip-error",
+        prefix + "-country-error"
+      ];
+      
+      errorIds.forEach(function(errorId) {
+        var errorEl = document.getElementById(errorId);
+        if (errorEl) {
+          errorEl.style.display = "none";
+        }
+      });
+    }
+    
     // Category other reveal initial state
     catSel.dispatchEvent(new Event("change"));
 
     // Recalc handlers
     ["input","change"].forEach(function (ev) {
-      document.getElementById(prefix + "-firstname").addEventListener(ev, updateTotals);
-      document.getElementById(prefix + "-lastname").addEventListener(ev, updateTotals);
-      document.getElementById(prefix + "-email").addEventListener(ev, updateTotals);
-      document.getElementById(prefix + "-phone").addEventListener(ev, updateTotals);
-      customInput.addEventListener(ev, updateTotals);
+      document.getElementById(prefix + "-firstname").addEventListener(ev, function() {
+        var fnameError = document.getElementById(prefix + "-firstname-error");
+        if (fnameError) fnameError.style.display = "none";
+        updateTotals();
+      });
+      document.getElementById(prefix + "-lastname").addEventListener(ev, function() {
+        var lnameError = document.getElementById(prefix + "-lastname-error");
+        if (lnameError) lnameError.style.display = "none";
+        updateTotals();
+      });
+      document.getElementById(prefix + "-email").addEventListener(ev, function() {
+        var emailError = document.getElementById(prefix + "-email-error");
+        if (emailError) emailError.style.display = "none";
+        updateTotals();
+      });
+      document.getElementById(prefix + "-phone").addEventListener(ev, function() {
+        var phoneError = document.getElementById(prefix + "-phone-error");
+        if (phoneError) phoneError.style.display = "none";
+        updateTotals();
+      });
+      customInput.addEventListener(ev, function() {
+        var amountError = document.getElementById(prefix + "-amount-error");
+        if (amountError) amountError.style.display = "none";
+        updateTotals();
+      });
       freqSel.addEventListener(ev, updateTotals);
       catSel.addEventListener(ev, updateTotals);
       if (catOtherInput) {
@@ -953,13 +1092,37 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         });
       }
       coverFee.addEventListener(ev, updateTotals);
-      addr1.addEventListener(ev, updateTotals);
+      addr1.addEventListener(ev, function() {
+        var addr1Error = document.getElementById(prefix + "-addr1-error");
+        if (addr1Error) addr1Error.style.display = "none";
+        updateTotals();
+      });
       addr2.addEventListener(ev, updateTotals);
-      city.addEventListener(ev, updateTotals);
-      stateSel.addEventListener(ev, updateTotals);
-      zip.addEventListener(ev, updateTotals);
-      countrySel.addEventListener(ev, updateTotals);
-      lookupInput.addEventListener(ev, updateTotals);
+      city.addEventListener(ev, function() {
+        var cityError = document.getElementById(prefix + "-city-error");
+        if (cityError) cityError.style.display = "none";
+        updateTotals();
+      });
+      stateSel.addEventListener(ev, function() {
+        var stateError = document.getElementById(prefix + "-state-error");
+        if (stateError) stateError.style.display = "none";
+        updateTotals();
+      });
+      zip.addEventListener(ev, function() {
+        var zipError = document.getElementById(prefix + "-zip-error");
+        if (zipError) zipError.style.display = "none";
+        updateTotals();
+      });
+      countrySel.addEventListener(ev, function() {
+        var countryError = document.getElementById(prefix + "-country-error");
+        if (countryError) countryError.style.display = "none";
+        updateTotals();
+      });
+      lookupInput.addEventListener(ev, function() {
+        var lookupError = document.getElementById(prefix + "-address-lookup-error");
+        if (lookupError) lookupError.style.display = "none";
+        updateTotals();
+      });
     });
 
     // Submit
