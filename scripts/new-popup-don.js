@@ -15,7 +15,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     :root { --brand:#BD2135; }
     .dp-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; }
     .dp-panel { background:#fff; width:100%; max-width:760px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); overflow:visible; }
-    .dp-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); }
+    .dp-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid var(--brand); border-radius:24px 24px 0 0; }
     .dp-header .dp-btn-back { position:absolute; left:16px; margin:0; }
     .dp-header img { height:56px; }
     .dp-close { position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:24px; line-height:1; color:#000; opacity:.75; cursor:pointer; border:0; background:transparent; }
@@ -142,6 +142,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     @media (max-width: 600px) {
       .dp-modal { padding: 10px; }
       .dp-panel { width: 100%; max-width: none; max-height:90vh; border-radius:12px; overflow-y:auto; overflow-x:visible; }
+      .dp-header { border-radius:12px 12px 0 0; }
       .dp-body { padding:12px; position:relative; overflow:visible; }
       .dp-grid-2, .dp-grid-3, .dp-grid-4 { grid-template-columns: 1fr; }
       .dp-cta { border-radius:999px; font-size:18px; }
@@ -167,6 +168,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     @media (max-width: 400px) {
       .dp-modal { padding: 8px; }
       .dp-panel { width: 100%; max-width: none; max-height:85vh; overflow-y:auto; overflow-x:visible; border-radius:8px; }
+      .dp-header { border-radius:8px 8px 0 0; }
       .dp-body { padding:8px; }
       .dp-card { padding:18px; margin-bottom:12px; }
       .dp-grid { gap:8px; }
