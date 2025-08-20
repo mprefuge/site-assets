@@ -45,6 +45,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     /* Frequency chips */
     .dp-frequency-chip { border-radius:8px; min-width:120px; }
     
+    /* Tribute chips */
+    .dp-tribute-chip { border-radius:8px; min-width:120px; }
+    
     /* Frequency options */
     .dp-frequency-container { display:flex; flex-direction:column; gap:8px; }
     .dp-frequency-options { justify-content:center; }
@@ -435,9 +438,54 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     `;
   }
 
+  function tributeHTML(prefix) {
+    return `
+      <div class="dp-step-content" id="${prefix}-step3" style="display:none;">
+        <div class="dp-card">
+          <div class="dp-title">Tribute Information</div>
+          
+          <!-- Tribute Type Selection -->
+          <div style="margin-bottom:20px;">
+            <label class="dp-label">This donation is:</label>
+            <div class="dp-row" style="justify-content:center;">
+              <button type="button" class="dp-chip dp-tribute-chip selected" data-tribute-type="honor">In Honor</button>
+              <button type="button" class="dp-chip dp-tribute-chip" data-tribute-type="memory">In Memory</button>
+            </div>
+            <input type="hidden" id="${prefix}-tribute-type" value="honor">
+          </div>
+
+          <!-- Tribute Person Information -->
+          <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
+            <div>
+              <label class="dp-label" for="${prefix}-tribute-firstname">First Name</label>
+              <input class="dp-input" id="${prefix}-tribute-firstname" required>
+              <div id="${prefix}-tribute-firstname-error" class="dp-error-message">Please enter the person's first name</div>
+            </div>
+            <div>
+              <label class="dp-label" for="${prefix}-tribute-lastname">Last Name</label>
+              <input class="dp-input" id="${prefix}-tribute-lastname" required>
+              <div id="${prefix}-tribute-lastname-error" class="dp-error-message">Please enter the person's last name</div>
+            </div>
+          </div>
+
+          <!-- Optional Message -->
+          <div style="margin-bottom:20px;">
+            <label class="dp-label" for="${prefix}-tribute-message">Message (optional)</label>
+            <textarea class="dp-input" id="${prefix}-tribute-message" rows="3" placeholder="Enter a message for this tribute..."></textarea>
+          </div>
+
+          <div class="dp-nav-buttons">
+            <button type="button" class="dp-btn secondary" id="${prefix}-prev3">Previous</button>
+            <button type="button" class="dp-btn" id="${prefix}-next3">Next</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function reviewAndSubmitHTML(prefix) {
     return `
-      <div class="dp-step-content" id="${prefix}-step3">
+      <div class="dp-step-content" id="${prefix}-step-review" style="display:none;">
         <div class="dp-card">
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
@@ -447,6 +495,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               </div>
               <div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;">
                 <div>Processing fees <span id="${prefix}-fee-label">(added)</span></div><div id="${prefix}-fee">$0.00</div>
+              </div>
+              <div id="${prefix}-tribute-summary" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #eee;">
+                <div style="font-weight:600;margin-bottom:6px;">Tribute Information:</div>
+                <div id="${prefix}-tribute-display"></div>
               </div>
               <div style="font-size:12px;color:#555;margin-top:6px;" id="${prefix}-recur-note"></div>
             </div>
@@ -469,13 +521,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
             ${embedded ? "" : `<button class="dp-close" id="${prefix}-close" aria-label="Close">&times;</button>`}
           </div>
           <div class="dp-body" id="${prefix}-body">
-            <div class="dp-steps">
+            <div class="dp-steps" id="${prefix}-step-indicators">
               <div class="dp-step active" id="${prefix}-step-indicator-1"></div>
               <div class="dp-step" id="${prefix}-step-indicator-2"></div>
               <div class="dp-step" id="${prefix}-step-indicator-3"></div>
+              <div class="dp-step" id="${prefix}-step-indicator-4" style="display:none;"></div>
             </div>
             ${donationDetailsHTML(prefix)}
             ${personalAndAddressHTML(prefix)}
+            ${tributeHTML(prefix)}
             ${reviewAndSubmitHTML(prefix)}
           </div>
         </div>
@@ -540,6 +594,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
   function wireUp(prefix) {
     var currentStep = 1;
     var totalSteps = 3;
+    var isTributeSelected = false;
     
     // Category configuration - easily adjustable mapping of frequency to categories
     var categoryConfig = {
@@ -550,20 +605,52 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         "Ministry Support Dinner",
         "TNND Payment", 
         "Volunteer Application",
+        "Tribute",
         "Other (specify)"
       ],
       recurring: [
         "General Giving",
         "Corporate Sponsor",
+        "Tribute",
         "Other (specify)"
       ]
     };
     
+    function updateStepStructure() {
+      var step4Indicator = document.getElementById(prefix + "-step-indicator-4");
+      var reviewStep = document.getElementById(prefix + "-step-review");
+      
+      if (isTributeSelected) {
+        totalSteps = 4;
+        if (step4Indicator) step4Indicator.style.display = "block";
+        // Move review step to step 4
+        if (reviewStep) {
+          reviewStep.id = prefix + "-step4";
+        }
+      } else {
+        totalSteps = 3;
+        if (step4Indicator) step4Indicator.style.display = "none";
+        // Move review step back to step 3
+        if (reviewStep) {
+          reviewStep.id = prefix + "-step3";
+        }
+      }
+    }
+    
     function showStep(step) {
-      for (var i = 1; i <= totalSteps; i++) {
-        var stepEl = document.getElementById(prefix + "-step" + i);
+      // Hide all steps first
+      document.getElementById(prefix + "-step1").classList.remove("active");
+      document.getElementById(prefix + "-step2").classList.remove("active");
+      
+      var tributeStep = document.getElementById(prefix + "-step3");
+      var reviewStep = document.getElementById(prefix + "-step-review");
+      
+      if (tributeStep) tributeStep.classList.remove("active");
+      if (reviewStep) reviewStep.classList.remove("active");
+      
+      // Update step indicators
+      for (var i = 1; i <= 4; i++) {
         var indicatorEl = document.getElementById(prefix + "-step-indicator-" + i);
-        if (stepEl) stepEl.classList.remove("active");
         if (indicatorEl) {
           indicatorEl.classList.remove("active", "completed");
           if (i < step) indicatorEl.classList.add("completed");
@@ -571,17 +658,34 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }
       }
       
+      // Show the appropriate step
+      var targetStepEl;
+      if (step === 1) {
+        targetStepEl = document.getElementById(prefix + "-step1");
+      } else if (step === 2) {
+        targetStepEl = document.getElementById(prefix + "-step2");
+      } else if (step === 3) {
+        if (isTributeSelected) {
+          targetStepEl = tributeStep; // Tribute step
+        } else {
+          targetStepEl = reviewStep; // Review step
+        }
+      } else if (step === 4 && isTributeSelected) {
+        targetStepEl = reviewStep; // Review step
+      }
+      
+      if (targetStepEl) targetStepEl.classList.add("active");
+      
       var headerBackBtn = document.getElementById(prefix + "-header-back");
+      var actualTotalSteps = isTributeSelected ? 4 : 3;
       if (headerBackBtn) {
-        if (step === 3) {
+        if (step === actualTotalSteps) {
           headerBackBtn.style.display = "block";
         } else {
           headerBackBtn.style.display = "none";
         }
       }
       
-      var activeStep = document.getElementById(prefix + "-step" + step);
-      if (activeStep) activeStep.classList.add("active");
       currentStep = step;
     }
     
@@ -701,6 +805,24 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           }
           
           return identityOk && addressOk;
+        case 3:
+          // If tribute is not selected, this is the review step, so validation passes
+          if (!isTributeSelected) return true;
+          
+          // Tribute validation
+          var tributeFirstName = document.getElementById(prefix + "-tribute-firstname").value.trim();
+          var tributeLastName = document.getElementById(prefix + "-tribute-lastname").value.trim();
+          
+          var tributeFirstNameError = document.getElementById(prefix + "-tribute-firstname-error");
+          var tributeLastNameError = document.getElementById(prefix + "-tribute-lastname-error");
+          
+          var tributeFirstNameOk = tributeFirstName.length > 0;
+          var tributeLastNameOk = tributeLastName.length > 0;
+          
+          if (tributeFirstNameError) tributeFirstNameError.style.display = tributeFirstNameOk ? "none" : "block";
+          if (tributeLastNameError) tributeLastNameError.style.display = tributeLastNameOk ? "none" : "block";
+          
+          return tributeFirstNameOk && tributeLastNameOk;
         default:
           return true;
       }
@@ -739,7 +861,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     }
     
     function setupStepNavigation() {
-      for (var i = 1; i <= totalSteps; i++) {
+      // Setup navigation for all possible steps (1-4)
+      for (var i = 1; i <= 4; i++) {
         var nextBtn = document.getElementById(prefix + "-next" + i);
         var prevBtn = document.getElementById(prefix + "-prev" + i);
         
@@ -747,8 +870,18 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           nextBtn.addEventListener("click", (function(step) {
             return function() {
               if (validateStep(step)) {
-                showStep(step + 1);
-                updateTotals();
+                var nextStep = step + 1;
+                var maxSteps = isTributeSelected ? 4 : 3;
+                
+                // Skip tribute step if tribute not selected
+                if (!isTributeSelected && nextStep === 3) {
+                  nextStep = 3; // Go directly to review (which is step 3 when tribute not selected)
+                }
+                
+                if (nextStep <= maxSteps) {
+                  showStep(nextStep);
+                  updateTotals();
+                }
               }
             };
           })(i));
@@ -757,7 +890,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         if (prevBtn) {
           prevBtn.addEventListener("click", (function(step) {
             return function() {
-              showStep(step - 1);
+              var prevStep = step - 1;
+              
+              // Skip tribute step if tribute not selected and we're going backwards from review
+              if (!isTributeSelected && step === 3) {
+                prevStep = 2; // Go directly to personal info
+              }
+              
+              if (prevStep >= 1) {
+                showStep(prevStep);
+              }
             };
           })(i));
         }
@@ -900,11 +1042,24 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     var catOtherInput = document.getElementById(prefix + "-category-other");
     catSel.addEventListener("change", function () {
       var isOther = catSel.value.indexOf("Other") === 0 || catSel.value.indexOf("Other (specify)") === 0;
+      var wasTributeSelected = isTributeSelected;
+      isTributeSelected = catSel.value === "Tribute";
+      
       catOtherWrap.style.display = isOther ? "" : "none";
       var categoryError = document.getElementById(prefix + "-category-error");
       if (categoryError) {
         categoryError.style.display = "none";
       }
+      
+      // Update step structure if tribute selection changed
+      if (wasTributeSelected !== isTributeSelected) {
+        updateStepStructure();
+        // If we're currently past step 2 and tribute was deselected, go back to step 3 (review)
+        if (currentStep > 2 && !isTributeSelected) {
+          showStep(3);
+        }
+      }
+      
       updateTotals();
     });
 
@@ -931,6 +1086,28 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     });
     // Set default selection to card
     selectChipGroup(pmRow, "data-method", "card");
+
+    // Tribute option selection
+    var tributeTypeHidden = document.getElementById(prefix + "-tribute-type");
+    var tributeOptionsRow = document.querySelector("#" + prefix + "-step3 .dp-row");
+    if (tributeOptionsRow) {
+      tributeOptionsRow.addEventListener("click", function (e) {
+        var t = e.target.closest(".dp-tribute-chip");
+        if (!t) return;
+        var tributeType = t.getAttribute("data-tribute-type");
+        
+        tributeOptionsRow.querySelectorAll(".dp-tribute-chip").forEach(function(chip) {
+          chip.classList.remove("selected");
+        });
+        t.classList.add("selected");
+        
+        if (tributeTypeHidden) {
+          tributeTypeHidden.value = tributeType;
+        }
+        
+        updateTributeDisplay();
+      });
+    }
 
     // address lookup / manual
     var lookupRow = document.getElementById(prefix + "-address-lookup-row");
@@ -1006,6 +1183,35 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     function format(n) { return "$" + (Number(n || 0).toFixed(2)); }
 
+    function updateTributeDisplay() {
+      var tributeSummary = document.getElementById(prefix + "-tribute-summary");
+      var tributeDisplay = document.getElementById(prefix + "-tribute-display");
+      
+      if (!tributeSummary || !tributeDisplay) return;
+      
+      if (isTributeSelected) {
+        var tributeType = document.getElementById(prefix + "-tribute-type").value;
+        var tributeFirstName = document.getElementById(prefix + "-tribute-firstname").value.trim();
+        var tributeLastName = document.getElementById(prefix + "-tribute-lastname").value.trim();
+        var tributeMessage = document.getElementById(prefix + "-tribute-message").value.trim();
+        
+        if (tributeFirstName && tributeLastName) {
+          var displayText = (tributeType === "honor" ? "In Honor of: " : "In Memory of: ") + 
+                           tributeFirstName + " " + tributeLastName;
+          if (tributeMessage) {
+            displayText += "<br><em>\"" + tributeMessage + "\"</em>";
+          }
+          
+          tributeDisplay.innerHTML = displayText;
+          tributeSummary.style.display = "block";
+        } else {
+          tributeSummary.style.display = "none";
+        }
+      } else {
+        tributeSummary.style.display = "none";
+      }
+    }
+
     function computeTotals() {
       var amt = customActive ? parseFloat(customInput.value || "0") : Number(selectedAmount || 0);
       var cover = coverFee.checked;
@@ -1048,8 +1254,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
       }
       var identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
+      
+      // Tribute validation
+      var tributeOk = true;
+      if (isTributeSelected) {
+        var tributeFirstName = document.getElementById(prefix + "-tribute-firstname").value.trim();
+        var tributeLastName = document.getElementById(prefix + "-tribute-lastname").value.trim();
+        tributeOk = tributeFirstName.length > 0 && tributeLastName.length > 0;
+      }
 
-      return identityOk && addressOk && amountOk && otherOk;
+      return identityOk && addressOk && amountOk && otherOk && tributeOk;
     }
 
     function updateTotals() {
@@ -1080,6 +1294,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       
       if (submitBtn) submitBtn.disabled = !validateRequired();
 
+      // Update tribute display
+      updateTributeDisplay();
+
       // Remove the separate recurring note since it's now in the button
       if (recurNote) recurNote.textContent = "";
     }
@@ -1097,7 +1314,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         prefix + "-city-error", 
         prefix + "-state-error",
         prefix + "-zip-error",
-        prefix + "-country-error"
+        prefix + "-country-error",
+        prefix + "-tribute-firstname-error",
+        prefix + "-tribute-lastname-error"
       ];
       
       errorIds.forEach(function(errorId) {
@@ -1181,6 +1400,31 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         if (lookupError) lookupError.style.display = "none";
         updateTotals();
       });
+      
+      // Tribute field event listeners
+      var tributeFirstNameInput = document.getElementById(prefix + "-tribute-firstname");
+      var tributeLastNameInput = document.getElementById(prefix + "-tribute-lastname");
+      var tributeMessageInput = document.getElementById(prefix + "-tribute-message");
+      
+      if (tributeFirstNameInput) {
+        tributeFirstNameInput.addEventListener(ev, function() {
+          var tributeFirstNameError = document.getElementById(prefix + "-tribute-firstname-error");
+          if (tributeFirstNameError) tributeFirstNameError.style.display = "none";
+          updateTotals();
+        });
+      }
+      
+      if (tributeLastNameInput) {
+        tributeLastNameInput.addEventListener(ev, function() {
+          var tributeLastNameError = document.getElementById(prefix + "-tribute-lastname-error");
+          if (tributeLastNameError) tributeLastNameError.style.display = "none";
+          updateTotals();
+        });
+      }
+      
+      if (tributeMessageInput) {
+        tributeMessageInput.addEventListener(ev, updateTotals);
+      }
     });
 
     // Submit
@@ -1222,6 +1466,21 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         frequency: freq,
         category: category
       };
+      
+      // Add tribute information if applicable
+      if (isTributeSelected) {
+        var tributeType = document.getElementById(prefix + "-tribute-type").value;
+        var tributeFirstName = document.getElementById(prefix + "-tribute-firstname").value.trim();
+        var tributeLastName = document.getElementById(prefix + "-tribute-lastname").value.trim();
+        var tributeMessage = document.getElementById(prefix + "-tribute-message").value.trim();
+        
+        payload.tribute = {
+          type: tributeType,
+          firstName: tributeFirstName,
+          lastName: tributeLastName,
+          message: tributeMessage
+        };
+      }
 
       // Store original button text and show transfer message
       var originalButtonText = submitBtn.textContent;
