@@ -48,9 +48,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     /* Tribute chips */
     .dp-tribute-chip { border-radius:8px; min-width:120px; }
     
-    /* Donation type chips */
-    .dp-donation-type-chip { border-radius:8px; min-width:120px; }
-    
     /* Frequency options */
     .dp-frequency-container { display:flex; flex-direction:column; gap:8px; }
     .dp-frequency-options { justify-content:center; }
@@ -353,39 +350,17 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         <div class="dp-card dp-personal-info-card">
           <div class="dp-title">Your Information</div>
           
-          <!-- Donation Type Selection -->
-          <div style="margin-bottom:20px;">
-            <div class="dp-row" style="justify-content:center;">
-              <button type="button" class="dp-chip dp-donation-type-chip selected" data-donation-type="individual">Individual</button>
-              <button type="button" class="dp-chip dp-donation-type-chip" data-donation-type="organization">Organization</button>
+          <!-- Row 1: First Name, Last Name -->
+          <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
+            <div>
+              <label class="dp-label" for="${prefix}-firstname">First Name</label>
+              <input class="dp-input" id="${prefix}-firstname" required>
+              <div id="${prefix}-firstname-error" class="dp-error-message">Please enter your first name</div>
             </div>
-            <input type="hidden" id="${prefix}-donation-type" value="individual">
-          </div>
-          
-          <!-- Individual Fields -->
-          <div id="${prefix}-individual-fields">
-            <!-- Row 1: First Name, Last Name -->
-            <div class="dp-grid dp-grid-2" style="margin-bottom:16px;">
-              <div>
-                <label class="dp-label" for="${prefix}-firstname">First Name</label>
-                <input class="dp-input" id="${prefix}-firstname" required>
-                <div id="${prefix}-firstname-error" class="dp-error-message">Please enter your first name</div>
-              </div>
-              <div>
-                <label class="dp-label" for="${prefix}-lastname">Last Name</label>
-                <input class="dp-input" id="${prefix}-lastname" required>
-                <div id="${prefix}-lastname-error" class="dp-error-message">Please enter your last name</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Organization Fields -->
-          <div id="${prefix}-organization-fields" style="display:none;">
-            <!-- Row 1: Organization Name -->
-            <div style="margin-bottom:16px;">
-              <label class="dp-label" for="${prefix}-organization-name">Organization Name</label>
-              <input class="dp-input" id="${prefix}-organization-name" required>
-              <div id="${prefix}-organization-name-error" class="dp-error-message">Please enter the organization name</div>
+            <div>
+              <label class="dp-label" for="${prefix}-lastname">Last Name</label>
+              <input class="dp-input" id="${prefix}-lastname" required>
+              <div id="${prefix}-lastname-error" class="dp-error-message">Please enter your last name</div>
             </div>
           </div>
           
@@ -739,7 +714,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           
           return amountOk && otherOk;
         case 2:
-          var donationType = document.getElementById(prefix + "-donation-type").value;
+          var fname = document.getElementById(prefix + "-firstname").value.trim();
+          var lname = document.getElementById(prefix + "-lastname").value.trim();
           var email = document.getElementById(prefix + "-email").value.trim();
           var phone = document.getElementById(prefix + "-phone").value.trim();
           var manualWrap = document.getElementById(prefix + "-manual-address");
@@ -750,49 +726,24 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           var zip = document.getElementById(prefix + "-zip");
           var countrySel = document.getElementById(prefix + "-country");
           
-          // Validate based on donation type
-          var identityOk = false;
-          if (donationType === "individual") {
-            // Individual validation
-            var fname = document.getElementById(prefix + "-firstname").value.trim();
-            var lname = document.getElementById(prefix + "-lastname").value.trim();
-            
-            var fnameError = document.getElementById(prefix + "-firstname-error");
-            var lnameError = document.getElementById(prefix + "-lastname-error");
-            
-            var fnameOk = fname.length > 0;
-            var lnameOk = lname.length > 0;
-            
-            // Show/hide error messages for individual
-            if (fnameError) fnameError.style.display = fnameOk ? "none" : "block";
-            if (lnameError) lnameError.style.display = lnameOk ? "none" : "block";
-            
-            identityOk = fnameOk && lnameOk;
-          } else {
-            // Organization validation
-            var orgName = document.getElementById(prefix + "-organization-name").value.trim();
-            var orgNameError = document.getElementById(prefix + "-organization-name-error");
-            
-            var orgNameOk = orgName.length > 0;
-            
-            // Show/hide error messages for organization
-            if (orgNameError) orgNameError.style.display = orgNameOk ? "none" : "block";
-            
-            identityOk = orgNameOk;
-          }
-          
-          // Common field validation (email, phone)
+          // Personal info validation with error messages
+          var fnameError = document.getElementById(prefix + "-firstname-error");
+          var lnameError = document.getElementById(prefix + "-lastname-error");
           var emailError = document.getElementById(prefix + "-email-error");
           var phoneError = document.getElementById(prefix + "-phone-error");
           
+          var fnameOk = fname.length > 0;
+          var lnameOk = lname.length > 0;
           var emailOk = /.+@.+\..+/.test(email);
           var phoneOk = phone.length > 0;
           
-          // Show/hide error messages for common fields
+          // Show/hide error messages for personal info
+          if (fnameError) fnameError.style.display = fnameOk ? "none" : "block";
+          if (lnameError) lnameError.style.display = lnameOk ? "none" : "block";
           if (emailError) emailError.style.display = emailOk ? "none" : "block";
           if (phoneError) phoneError.style.display = phoneOk ? "none" : "block";
           
-          identityOk = identityOk && emailOk && phoneOk;
+          var identityOk = fnameOk && lnameOk && emailOk && phoneOk;
           
           // Address validation with error messages
           var addressOk = false;
@@ -1149,41 +1100,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       });
     }
 
-    // Donation type selection (Individual vs Organization)
-    var donationTypeHidden = document.getElementById(prefix + "-donation-type");
-    var donationTypeRow = document.querySelector("#" + prefix + "-step2 .dp-row");
-    var individualFields = document.getElementById(prefix + "-individual-fields");
-    var organizationFields = document.getElementById(prefix + "-organization-fields");
-    
-    if (donationTypeRow) {
-      donationTypeRow.addEventListener("click", function (e) {
-        var t = e.target.closest(".dp-donation-type-chip");
-        if (!t) return;
-        var donationType = t.getAttribute("data-donation-type");
-        
-        donationTypeRow.querySelectorAll(".dp-donation-type-chip").forEach(function(chip) {
-          chip.classList.remove("selected");
-        });
-        t.classList.add("selected");
-        
-        if (donationTypeHidden) {
-          donationTypeHidden.value = donationType;
-        }
-        
-        // Show/hide appropriate fields
-        if (donationType === "individual") {
-          individualFields.style.display = "block";
-          organizationFields.style.display = "none";
-        } else {
-          individualFields.style.display = "none";
-          organizationFields.style.display = "block";
-        }
-        
-        // Clear error messages when switching
-        clearFieldErrors();
-      });
-    }
-
     // address lookup / manual
     var lookupRow = document.getElementById(prefix + "-address-lookup-row");
     var lookupInput = document.getElementById(prefix + "-address-lookup");
@@ -1307,7 +1223,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     }
 
     function validateRequired() {
-      var donationType = document.getElementById(prefix + "-donation-type").value;
+      var fname = document.getElementById(prefix + "-firstname").value.trim();
+      var lname = document.getElementById(prefix + "-lastname").value.trim();
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
       var manualWrap = document.getElementById(prefix + "-manual-address");
@@ -1327,17 +1244,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       if (category.indexOf("Other") === 0) {
         otherOk = (document.getElementById(prefix + "-category-other").value.trim().length > 0);
       }
-      
-      // Validate identity based on donation type
-      var identityOk = false;
-      if (donationType === "individual") {
-        var fname = document.getElementById(prefix + "-firstname").value.trim();
-        var lname = document.getElementById(prefix + "-lastname").value.trim();
-        identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
-      } else {
-        var orgName = document.getElementById(prefix + "-organization-name").value.trim();
-        identityOk = orgName && /.+@.+\..+/.test(email) && phone;
-      }
+      var identityOk = fname && lname && /.+@.+\..+/.test(email) && phone;
       
       // Tribute validation
       var tributeOk = true;
@@ -1391,7 +1298,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         prefix + "-amount-error",
         prefix + "-firstname-error",
         prefix + "-lastname-error", 
-        prefix + "-organization-name-error",
         prefix + "-email-error",
         prefix + "-phone-error",
         prefix + "-address-lookup-error",
@@ -1427,15 +1333,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         if (lnameError) lnameError.style.display = "none";
         updateTotals();
       });
-      // Organization name field event listener
-      var orgNameInput = document.getElementById(prefix + "-organization-name");
-      if (orgNameInput) {
-        orgNameInput.addEventListener(ev, function() {
-          var orgNameError = document.getElementById(prefix + "-organization-name-error");
-          if (orgNameError) orgNameError.style.display = "none";
-          updateTotals();
-        });
-      }
       document.getElementById(prefix + "-email").addEventListener(ev, function() {
         var emailError = document.getElementById(prefix + "-email-error");
         if (emailError) emailError.style.display = "none";
@@ -1525,7 +1422,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     submitBtn.addEventListener("click", function () {
       if (!validateRequired()) return;
 
-      var donationType = document.getElementById(prefix + "-donation-type").value;
+      var first = document.getElementById(prefix + "-firstname").value.trim();
+      var last = document.getElementById(prefix + "-lastname").value.trim();
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
       var freq = freqSel.value;
@@ -1540,8 +1438,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var baseAmount = customActive ? parseFloat(customInput.value || "0") : selectedAmount;
 
       var payload = {
-        donationType: donationType,
-        livemode: category.toLowerCase() === "test" ? false : true,
+        firstname: first,
+        lastname: last,
+        livemode: category.toLowerCase() === "test" ? false : true, //first.toLowerCase() === "test" ? false : true,
         email: email,
         phone: phone,
         address: {
@@ -1558,17 +1457,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         frequency: freq,
         category: category
       };
-      
-      // Add individual or organization specific fields
-      if (donationType === "individual") {
-        var first = document.getElementById(prefix + "-firstname").value.trim();
-        var last = document.getElementById(prefix + "-lastname").value.trim();
-        payload.firstname = first;
-        payload.lastname = last;
-      } else {
-        var orgName = document.getElementById(prefix + "-organization-name").value.trim();
-        payload.organizationName = orgName;
-      }
       
       // Add tribute information if applicable
       if (isTributeSelected) {
