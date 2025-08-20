@@ -440,7 +440,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
   function tributeHTML(prefix) {
     return `
-      <div class="dp-step-content" id="${prefix}-step3" style="display:none;">
+      <div class="dp-step-content" id="${prefix}-step3">
         <div class="dp-card">
           <div class="dp-title">Tribute Information</div>
           
@@ -485,7 +485,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
   function reviewAndSubmitHTML(prefix) {
     return `
-      <div class="dp-step-content" id="${prefix}-step-review" style="display:none;">
+      <div class="dp-step-content" id="${prefix}-step-review">
         <div class="dp-card">
           <div class="dp-title">Review Your Donation</div>
           <div class="dp-summary">
@@ -618,22 +618,13 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     function updateStepStructure() {
       var step4Indicator = document.getElementById(prefix + "-step-indicator-4");
-      var reviewStep = document.getElementById(prefix + "-step-review");
       
       if (isTributeSelected) {
         totalSteps = 4;
         if (step4Indicator) step4Indicator.style.display = "block";
-        // Move review step to step 4
-        if (reviewStep) {
-          reviewStep.id = prefix + "-step4";
-        }
       } else {
         totalSteps = 3;
         if (step4Indicator) step4Indicator.style.display = "none";
-        // Move review step back to step 3
-        if (reviewStep) {
-          reviewStep.id = prefix + "-step3";
-        }
       }
     }
     
@@ -658,7 +649,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }
       }
       
-      // Show the appropriate step
+      // Show the appropriate step content
       var targetStepEl;
       if (step === 1) {
         targetStepEl = document.getElementById(prefix + "-step1");
@@ -666,12 +657,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         targetStepEl = document.getElementById(prefix + "-step2");
       } else if (step === 3) {
         if (isTributeSelected) {
-          targetStepEl = tributeStep; // Tribute step
+          // Step 3 is tribute information when tribute is selected
+          targetStepEl = tributeStep;
         } else {
-          targetStepEl = reviewStep; // Review step
+          // Step 3 is review when tribute is not selected
+          targetStepEl = reviewStep;
         }
       } else if (step === 4 && isTributeSelected) {
-        targetStepEl = reviewStep; // Review step
+        // Step 4 is review when tribute is selected
+        targetStepEl = reviewStep;
       }
       
       if (targetStepEl) targetStepEl.classList.add("active");
@@ -873,11 +867,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 var nextStep = step + 1;
                 var maxSteps = isTributeSelected ? 4 : 3;
                 
-                // Skip tribute step if tribute not selected
-                if (!isTributeSelected && nextStep === 3) {
-                  nextStep = 3; // Go directly to review (which is step 3 when tribute not selected)
-                }
-                
                 if (nextStep <= maxSteps) {
                   showStep(nextStep);
                   updateTotals();
@@ -891,11 +880,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           prevBtn.addEventListener("click", (function(step) {
             return function() {
               var prevStep = step - 1;
-              
-              // Skip tribute step if tribute not selected and we're going backwards from review
-              if (!isTributeSelected && step === 3) {
-                prevStep = 2; // Go directly to personal info
-              }
               
               if (prevStep >= 1) {
                 showStep(prevStep);
@@ -1054,9 +1038,16 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       // Update step structure if tribute selection changed
       if (wasTributeSelected !== isTributeSelected) {
         updateStepStructure();
-        // If we're currently past step 2 and tribute was deselected, go back to step 3 (review)
-        if (currentStep > 2 && !isTributeSelected) {
-          showStep(3);
+        // If we're currently past step 2 and tribute selection changed, 
+        // navigate to the appropriate step
+        if (currentStep > 2) {
+          if (isTributeSelected) {
+            // Tribute was just selected, go to tribute step (step 3)
+            showStep(3);
+          } else {
+            // Tribute was deselected, go to review step (step 3 when no tribute)
+            showStep(3);
+          }
         }
       }
       
