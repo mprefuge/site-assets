@@ -355,7 +355,6 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           
           <!-- Donation Type Selection -->
           <div style="margin-bottom:20px;">
-            <label class="dp-label">Donation Type</label>
             <div class="dp-row" style="justify-content:center;">
               <button type="button" class="dp-chip dp-donation-type-chip selected" data-donation-type="individual">Individual</button>
               <button type="button" class="dp-chip dp-donation-type-chip" data-donation-type="organization">Organization</button>
