@@ -1579,6 +1579,10 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       } else {
         var orgName = document.getElementById(prefix + "-organization-name").value.trim();
         payload.organizationName = orgName;
+        // For organization donations, the backend might still expect name fields
+        // Try using organization name as the first name and empty last name
+        payload.firstname = orgName;
+        payload.lastname = "";
       }
       
       // Add tribute information if applicable
@@ -1601,13 +1605,24 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
 
+      console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
+      
       fetch(processDonationAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       })
-      .then(function (r) { return r.json(); })
+      .then(function (r) { 
+        console.log("API Response status:", r.status);
+        return r.json(); 
+      })
       .then(function (session) {
+        console.log("API Response data:", session);
+        
+        if (!session || !session.id) {
+          throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
+        }
+        
         var key = payload.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
         var stripe = window.Stripe ? window.Stripe(key) : null;
         if (!stripe) { console.error("Stripe.js not loaded"); return; }
