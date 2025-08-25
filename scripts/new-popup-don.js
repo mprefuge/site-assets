@@ -630,13 +630,13 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         "Ministry Support Dinner",
         "TNND Payment", 
         "Volunteer Application",
-        "Tribute",
+        //"Tribute",
         "Other (specify)"
       ],
       recurring: [
         "General Giving",
         "Corporate Sponsor",
-        "Tribute",
+        //"Tribute",
         "Other (specify)"
       ]
     };
