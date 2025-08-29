@@ -85,9 +85,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Fee checkbox positioning fix */
     .dp-fee-checkbox-container { position:relative; z-index:1; }
-    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; max-width:140px; text-align:center; border-radius:12px !important; }
+    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; max-width:140px; text-align:center; border-radius:12px !important; transition:.3s all ease; }
+    .dp-payment-chip:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(189,33,53,.15); }
     .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:4px; }
     .dp-payment-chip small { font-size:12px; font-weight:500; opacity:0.8; }
+    .dp-payment-chip.selected { transform:translateY(-2px); box-shadow:0 6px 16px rgba(189,33,53,.3); }
     .dp-payment-chip.selected img { filter:brightness(0) invert(1); }
     .dp-payment-chip.selected .wallet-svg-main { fill:#fff !important; stroke:#fff !important; }
     .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
@@ -120,9 +122,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-step-content { display:none; }
     .dp-step-content.active { display:block; }
     .dp-nav-buttons { display:flex; justify-content:space-between; margin-top:20px; }
-    .dp-btn { padding:12px 24px; border:2px solid var(--brand); background:var(--brand); color:#fff; border-radius:8px; cursor:pointer; font-weight:600; transition:.2s; }
+    .dp-btn { padding:12px 24px; border:2px solid var(--brand); background:var(--brand); color:#fff; border-radius:8px; cursor:pointer; font-weight:600; transition:.3s all ease; }
     .dp-btn.secondary { background:transparent; color:var(--brand); }
-    .dp-btn:hover { opacity:0.9; }
+    .dp-btn:hover { opacity:0.9; transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.25); }
     .dp-btn:disabled { opacity:0.5; cursor:not-allowed; }
     .dp-btn-back { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:2px solid var(--brand); background:transparent; color:var(--brand); border-radius:50%; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; margin-right:12px; flex-shrink:0; }
     /* Custom checkbox styling to match theme */
@@ -346,7 +348,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
           <!-- Cover Processing Fees and Total -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
-            <div class="dp-total-container">
+            <div class="dp-total-container" style="padding:16px; background:#f8f9fa; border-radius:12px; border:2px solid transparent; transition:all 0.3s ease;" id="${prefix}-total-container">
               <div class="dp-total-amount">
                 Total: <span id="${prefix}-total-preview">$0.00</span>
               </div>
@@ -1135,6 +1137,33 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       paymentMethod = t.getAttribute("data-method");
       selectChipGroup(pmRow, "data-method", paymentMethod);
       updateTotals();
+      
+      // Improve UX: Highlight the Next button and total container after payment method selection
+      var nextBtn = document.getElementById(prefix + "-next1");
+      var totalContainer = document.getElementById(prefix + "-total-container");
+      
+      if (nextBtn) {
+        // Add a subtle animation to draw attention to the Next button
+        nextBtn.style.transform = "scale(1.05)";
+        nextBtn.style.boxShadow = "0 4px 20px rgba(189,33,53,.4)";
+        setTimeout(function() {
+          nextBtn.style.transform = "scale(1)";
+          nextBtn.style.boxShadow = "";
+        }, 1500);
+        
+        // Smooth scroll to ensure the Next button is visible
+        nextBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      
+      if (totalContainer) {
+        // Highlight the total container to show where to proceed
+        totalContainer.style.borderColor = "var(--brand)";
+        totalContainer.style.backgroundColor = "#fff";
+        setTimeout(function() {
+          totalContainer.style.borderColor = "transparent";
+          totalContainer.style.backgroundColor = "#f8f9fa";
+        }, 2000);
+      }
     });
     // Set default selection to card
     selectChipGroup(pmRow, "data-method", "card");
