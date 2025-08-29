@@ -1537,7 +1537,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       // Update step 3 summary elements if they exist
       if (giftEl) giftEl.textContent = format(currentAmount);
       if (feeEl) feeEl.textContent = format(t.fee); // Always show the actual fee amount
-      if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "(added)" : "(covered by Refuge International)";
+      if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "" : "(covered by Refuge International)";
       
       // No need for custom interval logic since we're using fixed options now
       
