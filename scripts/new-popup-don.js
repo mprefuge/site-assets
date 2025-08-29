@@ -131,21 +131,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-card-type-chip span { font-weight:600; font-size:13px; }
     .dp-card-type-chip small { font-size:10px; font-weight:500; opacity:0.8; }
     .dp-card-type-chip.selected { transform:translateY(-2px); box-shadow:0 4px 12px rgba(189,33,53,.3); }
-    .dp-payment-chip.selected img { filter:brightness(0) invert(1); }
-    .dp-payment-chip.selected .wallet-svg-main { fill:#fff !important; stroke:#fff !important; }
-    .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
-    .dp-payment-chip.selected .wallet-svg-bar { fill:var(--brand) !important; }
+    /* Keep original logo colors when selected - only change wallet explainer text to white */
     .dp-payment-chip.selected .dp-wallet-explainer { color:#fff; }
-    .dp-payment-chip.selected text { fill:var(--brand) !important; }
-    .dp-payment-chip.selected rect[fill="#006FCF"] { fill:#fff !important; }
-    
-    .dp-card-type-chip.selected img { filter:brightness(0) invert(1); }
-    .dp-card-type-chip.selected text { fill:#fff !important; }
-    .dp-card-type-chip.selected rect[fill="#1A1F71"] { fill:var(--brand) !important; }
-    .dp-card-type-chip.selected rect[fill="#EB001B"] { fill:var(--brand) !important; }
-    .dp-card-type-chip.selected rect[fill="#006FCF"] { fill:var(--brand) !important; }
-    .dp-card-type-chip.selected rect[fill="#666"] { fill:var(--brand) !important; }
-    .dp-card-type-chip.selected circle { fill:#fff !important; }
     
     .dp-payment-methods { justify-content:center; }
     .dp-fee { font-size:13px; color:#444; margin-top:6px; }
