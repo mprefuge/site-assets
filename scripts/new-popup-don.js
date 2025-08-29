@@ -531,7 +531,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <div>Amount</div><div id="${prefix}-gift">$0.00</div>
               </div>
               <div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;">
-                <div>Processing fees <span id="${prefix}-fee-label">(added)</span></div><div id="${prefix}-fee">$0.00</div>
+                <div>Processing fees <span id="${prefix}-fee-label"></span></div><div id="${prefix}-fee">$0.00</div>
               </div>
               <div id="${prefix}-tribute-summary" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #eee;">
                 <div style="font-weight:600;margin-bottom:6px;">Tribute Information:</div>
