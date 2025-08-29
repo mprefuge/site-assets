@@ -85,11 +85,52 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     
     /* Fee checkbox positioning fix */
     .dp-fee-checkbox-container { position:relative; z-index:1; }
-    .dp-payment-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:120px; max-width:140px; text-align:center; border-radius:12px !important; transition:.3s all ease; }
-    .dp-payment-chip:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(189,33,53,.15); }
-    .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:4px; }
-    .dp-payment-chip small { font-size:12px; font-weight:500; opacity:0.8; }
-    .dp-payment-chip.selected { transform:translateY(-2px); box-shadow:0 6px 16px rgba(189,33,53,.3); }
+    
+    /* Payment method grid layout for more elegant appearance */
+    .dp-payment-grid { 
+      display:grid; 
+      grid-template-columns:repeat(3,1fr); 
+      gap:12px; 
+      justify-items:center; 
+      margin-bottom:16px; 
+    }
+    
+    .dp-payment-chip { 
+      display:flex; 
+      flex-direction:column; 
+      align-items:center; 
+      gap:6px; 
+      padding:16px 20px; 
+      min-width:140px; 
+      max-width:160px; 
+      min-height:120px;
+      text-align:center; 
+      border-radius:16px !important; 
+      transition:.3s all ease; 
+      justify-content:center;
+    }
+    .dp-payment-chip:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.2); }
+    .dp-payment-chip img, .dp-payment-chip svg { margin-bottom:6px; }
+    .dp-payment-chip span { font-weight:600; font-size:14px; }
+    .dp-payment-chip small { font-size:11px; font-weight:500; opacity:0.8; margin-top:2px; }
+    .dp-payment-chip.selected { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.4); }
+    
+    /* Card type chips for sub-selection */
+    .dp-card-type-chip {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      padding:12px 16px;
+      min-width:100px;
+      text-align:center;
+      border-radius:12px !important;
+      transition:.3s all ease;
+    }
+    .dp-card-type-chip:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(189,33,53,.15); }
+    .dp-card-type-chip span { font-weight:600; font-size:13px; }
+    .dp-card-type-chip small { font-size:10px; font-weight:500; opacity:0.8; }
+    .dp-card-type-chip.selected { transform:translateY(-2px); box-shadow:0 4px 12px rgba(189,33,53,.3); }
     .dp-payment-chip.selected img { filter:brightness(0) invert(1); }
     .dp-payment-chip.selected .wallet-svg-main { fill:#fff !important; stroke:#fff !important; }
     .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
@@ -97,6 +138,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-payment-chip.selected .dp-wallet-explainer { color:#fff; }
     .dp-payment-chip.selected text { fill:var(--brand) !important; }
     .dp-payment-chip.selected rect[fill="#006FCF"] { fill:#fff !important; }
+    
+    .dp-card-type-chip.selected img { filter:brightness(0) invert(1); }
+    .dp-card-type-chip.selected text { fill:#fff !important; }
+    .dp-card-type-chip.selected rect[fill="#1A1F71"] { fill:var(--brand) !important; }
+    .dp-card-type-chip.selected rect[fill="#EB001B"] { fill:var(--brand) !important; }
+    .dp-card-type-chip.selected rect[fill="#006FCF"] { fill:var(--brand) !important; }
+    .dp-card-type-chip.selected rect[fill="#666"] { fill:var(--brand) !important; }
+    .dp-card-type-chip.selected circle { fill:#fff !important; }
+    
     .dp-payment-methods { justify-content:center; }
     .dp-fee { font-size:13px; color:#444; margin-top:6px; }
     .dp-summary { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
@@ -161,7 +211,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-row { flex-wrap:wrap; justify-content:center; margin-bottom:8px; }
       .dp-amount-row:last-child { margin-bottom:0; }
       .dp-chip { padding:10px 14px; font-size:15px; }
-      .dp-payment-chip { min-width:110px; max-width:130px; }
+      .dp-payment-grid { grid-template-columns:1fr; gap:8px; }
+      .dp-payment-chip { min-width:100%; max-width:100%; min-height:100px; padding:12px 16px; }
+      .dp-card-type-chip { min-width:80px; padding:8px 12px; }
       
       /* Ensure address dropdown is not clipped */
       .dp-card { overflow:visible; }
@@ -186,7 +238,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-row { flex-wrap:wrap; margin-bottom:8px; }
       .dp-amount-row:last-child { margin-bottom:0; }
       .dp-chip { padding:8px 12px; font-size:14px; }
-      .dp-payment-chip { min-width:100px; max-width:120px; padding:10px 12px; }
+      .dp-payment-grid { grid-template-columns:1fr; gap:6px; }
+      .dp-payment-chip { min-width:100%; max-width:100%; min-height:90px; padding:8px 12px; }
+      .dp-card-type-chip { min-width:70px; padding:6px 10px; }
       .dp-input, .dp-select { padding:10px; font-size:14px; }
       .dp-cta { padding:14px; font-size:16px; }
       .dp-btn-back { width:40px; height:40px; font-size:20px; margin-right:8px; }
@@ -312,37 +366,67 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
           <!-- Payment Method with Icons - Only shown when covering fees -->
           <div id="${prefix}-payment-method-section" style="margin-bottom:16px;display:none;">
             <label class="dp-label">Payment Method</label>
-            <div class="dp-row dp-payment-methods" id="${prefix}-pm-row">
+            <div class="dp-payment-grid" id="${prefix}-pm-row">
               <button type="button" class="dp-chip dp-payment-chip" data-method="card">
-                <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="28" height="28" />
-                <span>Card</span>
-                <small>2.2% + $0.30</small>
+                <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
+                <span>Credit/Debit Card</span>
               </button>
               <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
-                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="28" height="28" />
-                <span>ACH/Bank Transfer</span>
+                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="32" height="32" />
+                <span>Bank Transfer</span>
                 <small>0.8% (max $5)</small>
               </button>
               <button type="button" class="dp-chip dp-payment-chip" data-method="wallet">
-                <svg width="28" height="28" viewBox="0 0 40 28" fill="none">
+                <svg width="32" height="32" viewBox="0 0 40 28" fill="none">
                   <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
                   <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
                   <circle class="wallet-svg-circle" cx="32" cy="14" r="4" fill="#fff"/>
                   <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
                 </svg>
-                <span>Wallet</span>
+                <span>Digital Wallet</span>
                 <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
                 <small>2.2% + $0.30</small>
               </button>
-              <button type="button" class="dp-chip dp-payment-chip" data-method="amex">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                  <rect x="2" y="8" width="24" height="12" rx="2" fill="#006FCF"/>
-                  <rect x="2" y="8" width="24" height="12" rx="2" stroke="#0055A5" stroke-width="1"/>
-                  <text x="14" y="16" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">AMEX</text>
-                </svg>
-                <span>American Express</span>
-                <small>3.5% + $0.30</small>
-              </button>
+            </div>
+            
+            <!-- Card Type Selection - Only shown when card is selected -->
+            <div id="${prefix}-card-type-section" style="margin-top:12px;display:none;">
+              <label class="dp-label">Card Type</label>
+              <div class="dp-row dp-card-types" id="${prefix}-card-type-row">
+                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="visa">
+                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                    <rect width="24" height="16" rx="2" fill="#1A1F71"/>
+                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
+                  </svg>
+                  <span>Visa</span>
+                  <small>2.2% + $0.30</small>
+                </button>
+                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
+                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                    <rect width="24" height="16" rx="2" fill="#EB001B"/>
+                    <circle cx="9" cy="8" r="4" fill="#FF5F00" opacity="0.8"/>
+                    <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
+                  </svg>
+                  <span>Mastercard</span>
+                  <small>2.2% + $0.30</small>
+                </button>
+                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
+                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                    <rect width="24" height="16" rx="2" fill="#006FCF"/>
+                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">AMEX</text>
+                  </svg>
+                  <span>American Express</span>
+                  <small>3.5% + $0.30</small>
+                </button>
+                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="other">
+                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                    <rect width="24" height="16" rx="2" fill="#666" stroke="#999"/>
+                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
+                  </svg>
+                  <span>Other</span>
+                  <small>2.2% + $0.30</small>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1130,12 +1214,27 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     });
 
     var pmRow = document.getElementById(prefix + "-pm-row");
-    var paymentMethod = "card";
     pmRow.addEventListener("click", function (e) {
       var t = e.target.closest(".dp-chip");
       if (!t) return;
       paymentMethod = t.getAttribute("data-method");
       selectChipGroup(pmRow, "data-method", paymentMethod);
+      
+      // Show/hide card type selection based on payment method
+      var cardTypeSection = document.getElementById(prefix + "-card-type-section");
+      if (paymentMethod === "card") {
+        cardTypeSection.style.display = "block";
+        // Reset to default card type if not already selected
+        if (!cardType) {
+          cardType = "visa";
+          var cardTypeRow = document.getElementById(prefix + "-card-type-row");
+          selectChipGroup(cardTypeRow, "data-card-type", cardType);
+        }
+      } else {
+        cardTypeSection.style.display = "none";
+        cardType = null;
+      }
+      
       updateTotals();
       
       // Improve UX: Highlight the Next button and total container after payment method selection
@@ -1165,8 +1264,30 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         }, 2000);
       }
     });
-    // Set default selection to card
+    
+    var paymentMethod = "card";
+    var cardType = "visa"; // Default card type
+    
+    // Card type selection
+    var cardTypeRow = document.getElementById(prefix + "-card-type-row");
+    if (cardTypeRow) {
+      cardTypeRow.addEventListener("click", function (e) {
+        var t = e.target.closest(".dp-chip");
+        if (!t) return;
+        cardType = t.getAttribute("data-card-type");
+        selectChipGroup(cardTypeRow, "data-card-type", cardType);
+        updateTotals();
+      });
+    }
+    
+    // Set default selections
     selectChipGroup(pmRow, "data-method", "card");
+    if (cardTypeRow) {
+      selectChipGroup(cardTypeRow, "data-card-type", "visa");
+      // Show card type section by default since card is selected
+      var cardTypeSection = document.getElementById(prefix + "-card-type-section");
+      cardTypeSection.style.display = "block";
+    }
 
     // Tribute option selection
     var tributeTypeHidden = document.getElementById(prefix + "-tribute-type");
@@ -1336,11 +1457,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var fee = 0;
       if (paymentMethod === "ach") {
         fee = Math.min(amt * 0.008, 5.0);
-      } else if (paymentMethod === "amex") {
-        // American Express: 3.5% + $0.30
-        fee = amt * 0.035 + 0.30;
+      } else if (paymentMethod === "card") {
+        // Different rates based on card type
+        if (cardType === "amex") {
+          fee = amt * 0.035 + 0.30; // American Express: 3.5% + $0.30
+        } else {
+          fee = amt * 0.022 + 0.30; // Visa, Mastercard, Other: 2.2% + $0.30
+        }
       } else {
-        // card & wallet: 2.2% + $0.30
+        // wallet: 2.2% + $0.30 (PayPal, Apple Pay, Google Pay)
         fee = amt * 0.022 + 0.30;
       }
       
