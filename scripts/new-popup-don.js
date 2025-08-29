@@ -344,80 +344,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div id="${prefix}-category-error" class="dp-error-message">Please describe what this donation is for</div>
             </div>
           </div>
-            <div class="dp-fee-checkbox-container" style="margin-bottom:12px;">
-              <label class="dp-checkbox-container">
-                <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
-                <span style="font-weight:600;">I would like to cover the processing fees</span>
-              </label>
-            </div>
-          <!-- Payment Method with Icons - Only shown when covering fees -->
-          <div id="${prefix}-payment-method-section" style="margin-bottom:16px;display:none;">
-            <label class="dp-label">Payment Method</label>
-            <div class="dp-payment-grid" id="${prefix}-pm-row">
-              <button type="button" class="dp-chip dp-payment-chip" data-method="card">
-                <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
-                <span>Credit/Debit Card</span>
-              </button>
-              <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
-                <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="32" height="32" />
-                <span>Bank Transfer</span>
-                <small>0.8% (max $5)</small>
-              </button>
-              <button type="button" class="dp-chip dp-payment-chip" data-method="wallet">
-                <svg width="32" height="32" viewBox="0 0 40 28" fill="none">
-                  <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
-                  <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
-                  <circle class="wallet-svg-circle" cx="32" cy="14" r="4" fill="#fff"/>
-                  <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
-                </svg>
-                <span>Digital Wallet</span>
-                <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
-                <small>2.2% + $0.30</small>
-              </button>
-            </div>
-            
-            <!-- Card Type Selection - Only shown when card is selected -->
-            <div id="${prefix}-card-type-section" style="margin-top:12px;display:none;">
-              <label class="dp-label">Card Type</label>
-              <div class="dp-row dp-card-types" id="${prefix}-card-type-row">
-                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="visa">
-                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
-                    <rect width="24" height="16" rx="2" fill="#1A1F71"/>
-                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
-                  </svg>
-                  <span>Visa</span>
-                  <small>2.2% + $0.30</small>
-                </button>
-                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
-                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
-                    <rect width="24" height="16" rx="2" fill="#EB001B"/>
-                    <circle cx="9" cy="8" r="4" fill="#FF5F00" opacity="0.8"/>
-                    <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
-                  </svg>
-                  <span>Mastercard</span>
-                  <small>2.2% + $0.30</small>
-                </button>
-                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
-                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
-                    <rect width="24" height="16" rx="2" fill="#006FCF"/>
-                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">AMEX</text>
-                  </svg>
-                  <span>American Express</span>
-                  <small>3.5% + $0.30</small>
-                </button>
-                <button type="button" class="dp-chip dp-card-type-chip" data-card-type="other">
-                  <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
-                    <rect width="24" height="16" rx="2" fill="#666" stroke="#999"/>
-                    <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
-                  </svg>
-                  <span>Other</span>
-                  <small>2.2% + $0.30</small>
-                </button>
-              </div>
-            </div>
-          </div>
 
-          <!-- Cover Processing Fees and Total -->
+          <!-- Total Display -->
           <div class="dp-fee-section" style="margin-bottom:20px;">
             <div class="dp-total-container" style="padding:16px; background:#f8f9fa; border-radius:12px; border:2px solid transparent; transition:all 0.3s ease;" id="${prefix}-total-container">
               <div class="dp-total-amount">
@@ -612,6 +540,84 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <div style="font-size:12px;color:#555;margin-top:6px;" id="${prefix}-recur-note"></div>
             </div>
           </div>
+          
+          <!-- Cover Processing Fees and Payment Method Selection -->
+          <div class="dp-card" style="margin-bottom:16px;">
+            <div class="dp-fee-checkbox-container" style="margin-bottom:16px;">
+              <label class="dp-checkbox-container">
+                <input type="checkbox" id="${prefix}-cover-fee" class="dp-checkbox">
+                <span style="font-weight:600;">I would like to cover the processing fees</span>
+              </label>
+            </div>
+            
+            <!-- Payment Method with Icons - Only shown when covering fees -->
+            <div id="${prefix}-payment-method-section" style="display:none;">
+              <label class="dp-label">Payment Method</label>
+              <div class="dp-payment-grid" id="${prefix}-pm-row">
+                <button type="button" class="dp-chip dp-payment-chip" data-method="card">
+                  <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
+                  <span>Credit/Debit Card</span>
+                </button>
+                <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
+                  <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="32" height="32" />
+                  <span>Bank Transfer</span>
+                  <small>0.8% (max $5)</small>
+                </button>
+                <button type="button" class="dp-chip dp-payment-chip" data-method="wallet">
+                  <svg width="32" height="32" viewBox="0 0 40 28" fill="none">
+                    <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
+                    <rect class="wallet-svg-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
+                    <circle class="wallet-svg-circle" cx="32" cy="14" r="4" fill="#fff"/>
+                    <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
+                  </svg>
+                  <span>Digital Wallet</span>
+                  <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
+                  <small>2.2% + $0.30</small>
+                </button>
+              </div>
+              
+              <!-- Card Type Selection - Only shown when card is selected -->
+              <div id="${prefix}-card-type-section" style="margin-top:12px;display:none;">
+                <label class="dp-label">Card Type</label>
+                <div class="dp-row dp-card-types" id="${prefix}-card-type-row">
+                  <button type="button" class="dp-chip dp-card-type-chip" data-card-type="visa">
+                    <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                      <rect width="24" height="16" rx="2" fill="#1A1F71"/>
+                      <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
+                    </svg>
+                    <span>Visa</span>
+                    <small>2.2% + $0.30</small>
+                  </button>
+                  <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
+                    <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                      <rect width="24" height="16" rx="2" fill="#EB001B"/>
+                      <circle cx="9" cy="8" r="4" fill="#FF5F00" opacity="0.8"/>
+                      <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
+                    </svg>
+                    <span>Mastercard</span>
+                    <small>2.2% + $0.30</small>
+                  </button>
+                  <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
+                    <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                      <rect width="24" height="16" rx="2" fill="#006FCF"/>
+                      <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">AMEX</text>
+                    </svg>
+                    <span>American Express</span>
+                    <small>3.5% + $0.30</small>
+                  </button>
+                  <button type="button" class="dp-chip dp-card-type-chip" data-card-type="other">
+                    <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
+                      <rect width="24" height="16" rx="2" fill="#666" stroke="#999"/>
+                      <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
+                    </svg>
+                    <span>Other</span>
+                    <small>2.2% + $0.30</small>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
           <div style="text-align:center;font-size:14px;color:#666;margin:12px 0 6px 0;">After clicking donate, you will be taken to Stripe to enter your payment information.</div>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
