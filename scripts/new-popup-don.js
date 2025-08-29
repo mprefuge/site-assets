@@ -93,6 +93,8 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-payment-chip.selected .wallet-svg-circle { fill:var(--brand) !important; }
     .dp-payment-chip.selected .wallet-svg-bar { fill:var(--brand) !important; }
     .dp-payment-chip.selected .dp-wallet-explainer { color:#fff; }
+    .dp-payment-chip.selected text { fill:var(--brand) !important; }
+    .dp-payment-chip.selected rect[fill="#006FCF"] { fill:#fff !important; }
     .dp-payment-methods { justify-content:center; }
     .dp-fee { font-size:13px; color:#444; margin-top:6px; }
     .dp-summary { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
@@ -329,6 +331,15 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
                 <span>Wallet</span>
                 <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
                 <small>2.2% + $0.30</small>
+              </button>
+              <button type="button" class="dp-chip dp-payment-chip" data-method="amex">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                  <rect x="2" y="8" width="24" height="12" rx="2" fill="#006FCF"/>
+                  <rect x="2" y="8" width="24" height="12" rx="2" stroke="#0055A5" stroke-width="1"/>
+                  <text x="14" y="16" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">AMEX</text>
+                </svg>
+                <span>American Express</span>
+                <small>3.5% + $0.30</small>
               </button>
             </div>
           </div>
@@ -1296,6 +1307,9 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       var fee = 0;
       if (paymentMethod === "ach") {
         fee = Math.min(amt * 0.008, 5.0);
+      } else if (paymentMethod === "amex") {
+        // American Express: 3.5% + $0.30
+        fee = amt * 0.035 + 0.30;
       } else {
         // card & wallet: 2.2% + $0.30
         fee = amt * 0.022 + 0.30;
