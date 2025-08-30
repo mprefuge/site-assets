@@ -122,7 +122,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-payment-chip.selected { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.4); }
     
     /* Icon color inversion when payment method is selected */
-    .dp-payment-chip.selected img { filter: invert(1) brightness(0) saturate(100%) sepia(100%) hue-rotate(0deg) brightness(1) contrast(1); }
+    .dp-payment-chip.selected img { filter: invert(1); }
     .dp-payment-chip.selected svg .wallet-svg-main { fill: #fff; stroke: #fff; }
     .dp-payment-chip.selected svg .wallet-svg-circle { fill: var(--brand); }
     .dp-payment-chip.selected svg .wallet-svg-bar { fill: var(--brand); }
