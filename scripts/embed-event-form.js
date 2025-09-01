@@ -71,7 +71,7 @@
       countries: null     // Will be populated from window.lookup.countries
     },
     submit: {
-      action: '/submit',
+      action: 'https://prod-54.westus.logic.azure.com:443/workflows/730ec843b9e044d79280e543f1c15282/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RQWP0FWed4nx_f3ir2Yvj31pGUWPThB0xF6PdpNQdm0',
       method: 'POST'
     },
     callbacks: {
