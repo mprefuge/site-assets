@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Builder - Donation & Event Registration Forms</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background: #f8f9fa;
+    }
+    
+    .builder-container {
+      display: grid;
+      grid-template-columns: 350px 1fr 450px;
+      height: 100vh;
+      gap: 0;
+    }
+    
+    .builder-sidebar {
+      background: white;
+      border-right: 1px solid #e5e7eb;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    
+    .builder-main {
+      background: white;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    
+    .builder-preview {
+      background: #f8f9fa;
+      border-left: 1px solid #e5e7eb;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    
+    .builder-header {
+      background: #BD2135;
+      color: white;
+      padding: 15px 20px;
+      grid-column: 1 / -1;
+      margin: 0;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: #BD2135;
+      box-shadow: 0 0 0 3px rgba(189, 33, 53, 0.1);
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: #BD2135;
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+    
+    .section-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 20px 0 10px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .fee-option {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .fee-option:hover {
+      background-color: #f3f4f6;
+    }
+    
+    .fee-option input[type="radio"] {
+      margin-right: 8px;
+    }
+    
+    .page-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .page-toggle:last-child {
+      border-bottom: none;
+    }
+    
+    .btn {
+      background: #BD2135;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .btn:hover {
+      background: #9a1b2a;
+    }
+    
+    .btn-secondary {
+      background: #6b7280;
+    }
+    
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+    
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .amounts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .amount-input {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .amount-input input {
+      width: 80px;
+    }
+    
+    .categories-list {
+      margin-top: 10px;
+    }
+    
+    .category-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+    
+    .category-item input {
+      flex: 1;
+    }
+    
+    .preview-container {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      min-height: 400px;
+    }
+    
+    .preview-header {
+      background: #f8f9fa;
+      padding: 15px;
+      border-bottom: 1px solid #e5e7eb;
+      border-radius: 8px 8px 0 0;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .config-export {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .config-export textarea {
+      width: 100%;
+      height: 150px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 10px;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="builder-container">
+    <div class="builder-header">
+      <h1 style="margin: 0; font-size: 20px;">Form Builder</h1>
+    </div>
+    
+    <!-- Configuration Sidebar -->
+    <div class="builder-sidebar">
+      <div class="form-group">
+        <label for="form-type">Form Type</label>
+        <select id="form-type" class="form-control">
+          <option value="donation">Donation Form</option>
+          <option value="event-registration">Event Registration</option>
+        </select>
+      </div>
+      
+      <!-- Event Configuration (hidden by default) -->
+      <div id="event-config" style="display: none;">
+        <div class="section-header">Event Details</div>
+        
+        <div class="form-group">
+          <label for="event-name">Event Name</label>
+          <input type="text" id="event-name" class="form-control" placeholder="Enter event name">
+        </div>
+        
+        <div class="form-group">
+          <label for="event-date">Event Date</label>
+          <input type="date" id="event-date" class="form-control">
+        </div>
+        
+        <div class="form-group">
+          <label for="event-time">Event Time</label>
+          <input type="time" id="event-time" class="form-control">
+        </div>
+        
+        <div class="form-group">
+          <label for="event-length">Duration (minutes)</label>
+          <input type="number" id="event-length" class="form-control" placeholder="120" min="1">
+        </div>
+        
+        <div class="form-group">
+          <label for="event-timezone">Timezone</label>
+          <input type="text" id="event-timezone" class="form-control" placeholder="America/New_York">
+        </div>
+        
+        <div class="section-header">Registration Pages</div>
+        
+        <div class="page-toggle">
+          <span>Personal Information</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="page-personal" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="page-toggle">
+          <span>Address Information</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="page-address" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="page-toggle">
+          <span>Church & Service Info</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="page-church">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="page-toggle">
+          <span>Final Details</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="page-final">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="page-toggle">
+          <span>Payment</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="page-payment" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      
+      <!-- Payment Configuration -->
+      <div id="payment-config">
+        <div class="section-header">Payment Settings</div>
+        
+        <div class="form-group">
+          <label class="page-toggle">
+            <span>Enable Payment</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="payment-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        
+        <div id="payment-details">
+          <div class="form-group">
+            <label for="payment-amount">Fixed Amount (leave empty for variable)</label>
+            <input type="number" id="payment-amount" class="form-control" placeholder="0.00" step="0.01" min="0">
+          </div>
+          
+          <div class="form-group">
+            <label for="payment-description">Payment Description</label>
+            <input type="text" id="payment-description" class="form-control" placeholder="Enter description">
+          </div>
+          
+          <div class="form-group">
+            <label>Fee Handling</label>
+            <div class="fee-option">
+              <input type="radio" id="fee-user" name="fee-handling" value="userChoice" checked>
+              <label for="fee-user">Let user choose whether to cover fees</label>
+            </div>
+            <div class="fee-option">
+              <input type="radio" id="fee-include" name="fee-handling" value="alwaysInclude">
+              <label for="fee-include">Always include fees in total</label>
+            </div>
+            <div class="fee-option">
+              <input type="radio" id="fee-exclude" name="fee-handling" value="alwaysExclude">
+              <label for="fee-exclude">Never show or add fees</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Donation Configuration (visible by default) -->
+      <div id="donation-config">
+        <div class="section-header">Donation Amounts</div>
+        <div class="amounts-grid">
+          <div class="amount-input">
+            <span>$</span>
+            <input type="number" id="amount-1" class="form-control" value="500" min="1">
+          </div>
+          <div class="amount-input">
+            <span>$</span>
+            <input type="number" id="amount-2" class="form-control" value="100" min="1">
+          </div>
+          <div class="amount-input">
+            <span>$</span>
+            <input type="number" id="amount-3" class="form-control" value="50" min="1">
+          </div>
+          <div class="amount-input">
+            <span>$</span>
+            <input type="number" id="amount-4" class="form-control" value="25" min="1">
+          </div>
+          <div class="amount-input">
+            <span>$</span>
+            <input type="number" id="amount-5" class="form-control" value="10" min="1">
+          </div>
+          <div class="amount-input">
+            <button class="btn btn-small" onclick="addAmount()">+ Add</button>
+          </div>
+        </div>
+        
+        <div class="section-header">Donation Categories</div>
+        <div class="categories-list" id="categories-list">
+          <div class="category-item">
+            <input type="text" class="form-control" value="General Giving">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          </div>
+          <div class="category-item">
+            <input type="text" class="form-control" value="Cooking and Culture">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          </div>
+          <div class="category-item">
+            <input type="text" class="form-control" value="Corporate Sponsor">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          </div>
+          <div class="category-item">
+            <input type="text" class="form-control" value="Ministry Support Dinner">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          </div>
+          <div class="category-item">
+            <input type="text" class="form-control" value="Other">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          </div>
+        </div>
+        <button class="btn btn-small" onclick="addCategory()">+ Add Category</button>
+      </div>
+      
+      <div class="section-header">Quick Templates</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+        <button class="btn btn-small" onclick="loadTemplate('donation-basic')">Basic Donation</button>
+        <button class="btn btn-small" onclick="loadTemplate('donation-fees-included')">Donation (Fees Included)</button>
+        <button class="btn btn-small" onclick="loadTemplate('event-paid')">Paid Event</button>
+        <button class="btn btn-small" onclick="loadTemplate('event-free')">Free Event</button>
+        <button class="btn btn-small" onclick="loadTemplate('event-full')">Full Event (5 Steps)</button>
+      </div>
+      
+      <div class="section-header">Actions</div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn" onclick="updatePreview()">Update Preview</button>
+        <button class="btn" onclick="testAsModal()">🔲 Test as Modal</button>
+        <button class="btn btn-secondary" onclick="exportConfig()">Export Config</button>
+        <button class="btn btn-secondary" onclick="importConfig()">Import Config</button>
+        <button class="btn btn-secondary" onclick="saveConfig()">Save Config</button>
+      </div>
+    </div>
+    
+    <!-- Main Configuration Area -->
+    <div class="builder-main">
+      <h2>Form Configuration</h2>
+      <p>Use the sidebar to configure your form, then preview it on the right.</p>
+      
+      <div class="config-export">
+        <h3>Current Configuration JSON</h3>
+        <textarea id="config-json" readonly></textarea>
+        <div style="margin-top: 10px;">
+          <button class="btn btn-small" onclick="copyConfig()">Copy to Clipboard</button>
+          <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleImport(event)">
+        </div>
+      </div>
+      
+      <!-- Saved Configurations -->
+      <div class="config-export">
+        <h3>Saved Configurations</h3>
+        <div id="saved-configs">
+          <p>No saved configurations yet.</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Live Preview -->
+    <div class="builder-preview">
+      <div class="preview-header">Live Preview</div>
+      <div class="preview-container">
+        <div id="form-preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include the donation popup script -->
+  <script src="donation-popup.js"></script>
+  
+  <script>
+    let currentConfig = {
+      type: "donation",
+      amounts: [500, 100, 50, 25, 10],
+      categories: [
+        "General Giving",
+        "Cooking and Culture", 
+        "Corporate Sponsor",
+        "Ministry Support Dinner",
+        "Other"
+      ],
+      payment: {
+        enabled: true,
+        feeHandling: 'userChoice'
+      }
+    };
+    
+    // Initialize the form builder
+    function initFormBuilder() {
+      // Set up event listeners
+      document.getElementById('form-type').addEventListener('change', handleFormTypeChange);
+      document.getElementById('payment-enabled').addEventListener('change', handlePaymentToggle);
+      
+      // Add event listeners to all input fields
+      ['event-name', 'event-date', 'event-time', 'event-length', 'event-timezone', 'payment-amount', 'payment-description'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.addEventListener('input', debounce(updateConfigFromUI, 300));
+        }
+      });
+      
+      // Add listeners for page toggles
+      ['page-personal', 'page-address', 'page-church', 'page-final', 'page-payment'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateConfigFromUI);
+      });
+      
+      // Add listeners for fee handling radio buttons
+      document.querySelectorAll('input[name="fee-handling"]').forEach(radio => {
+        radio.addEventListener('change', updateConfigFromUI);
+      });
+      
+      // Add listeners for donation amounts
+      ['amount-1', 'amount-2', 'amount-3', 'amount-4', 'amount-5'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.addEventListener('input', debounce(updateConfigFromUI, 300));
+        }
+      });
+      
+      // Add listeners for categories
+      document.querySelectorAll('#categories-list input').forEach(input => {
+        input.addEventListener('input', debounce(updateConfigFromUI, 300));
+      });
+      
+      // Initial update
+      updateConfigFromUI();
+      updatePreview();
+    }
+    
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+    
+    function handleFormTypeChange() {
+      const formType = document.getElementById('form-type').value;
+      const eventConfig = document.getElementById('event-config');
+      const donationConfig = document.getElementById('donation-config');
+      
+      if (formType === 'event-registration') {
+        eventConfig.style.display = 'block';
+        donationConfig.style.display = 'none';
+      } else {
+        eventConfig.style.display = 'none';
+        donationConfig.style.display = 'block';
+      }
+      
+      updateConfigFromUI();
+    }
+    
+    function handlePaymentToggle() {
+      const enabled = document.getElementById('payment-enabled').checked;
+      const paymentDetails = document.getElementById('payment-details');
+      const pagePayment = document.getElementById('page-payment');
+      
+      paymentDetails.style.display = enabled ? 'block' : 'none';
+      
+      if (!enabled && pagePayment) {
+        pagePayment.checked = false;
+      }
+      
+      updateConfigFromUI();
+    }
+    
+    function updateConfigFromUI() {
+      const formType = document.getElementById('form-type').value;
+      
+      // Build the configuration object
+      currentConfig = {
+        type: formType
+      };
+      
+      if (formType === 'event-registration') {
+        // Event configuration
+        currentConfig.event = {
+          eventName: document.getElementById('event-name').value || null,
+          eventDate: document.getElementById('event-date').value || null,
+          eventTime: document.getElementById('event-time').value || null,
+          eventLength: parseInt(document.getElementById('event-length').value) || null,
+          timezone: document.getElementById('event-timezone').value || null,
+          pages: {
+            personalInfo: document.getElementById('page-personal').checked,
+            address: document.getElementById('page-address').checked,
+            churchService: document.getElementById('page-church').checked,
+            finalDetails: document.getElementById('page-final').checked,
+            payment: document.getElementById('page-payment').checked
+          }
+        };
+      } else {
+        // Donation configuration
+        const amounts = [];
+        for (let i = 1; i <= 10; i++) {
+          const amountInput = document.getElementById(`amount-${i}`);
+          if (amountInput && amountInput.value && parseInt(amountInput.value) > 0) {
+            amounts.push(parseInt(amountInput.value));
+          }
+        }
+        currentConfig.amounts = amounts;
+        
+        // Get categories
+        const categories = [];
+        document.querySelectorAll('#categories-list input').forEach(input => {
+          if (input.value.trim()) {
+            categories.push(input.value.trim());
+          }
+        });
+        currentConfig.categories = categories;
+      }
+      
+      // Payment configuration
+      const paymentEnabled = document.getElementById('payment-enabled').checked;
+      currentConfig.payment = {
+        enabled: paymentEnabled,
+        feeHandling: document.querySelector('input[name="fee-handling"]:checked').value
+      };
+      
+      if (paymentEnabled) {
+        const amount = document.getElementById('payment-amount').value;
+        const description = document.getElementById('payment-description').value;
+        
+        if (amount && parseFloat(amount) > 0) {
+          currentConfig.payment.amount = parseFloat(amount);
+        }
+        if (description) {
+          currentConfig.payment.description = description;
+        }
+      }
+      
+      // Update the JSON display
+      document.getElementById('config-json').value = JSON.stringify(currentConfig, null, 2);
+      
+      // Validate configuration
+      validateConfiguration();
+    }
+    
+    function validateConfiguration() {
+      const errors = [];
+      
+      if (currentConfig.type === 'event-registration') {
+        if (!currentConfig.event.eventName) {
+          errors.push('Event name is required');
+        }
+        if (!currentConfig.event.eventDate) {
+          errors.push('Event date is required');
+        }
+        if (!currentConfig.event.eventTime) {
+          errors.push('Event time is required');
+        }
+        if (!currentConfig.event.eventLength || currentConfig.event.eventLength <= 0) {
+          errors.push('Event duration must be greater than 0');
+        }
+        
+        // Check if at least one page is enabled
+        const pages = currentConfig.event.pages;
+        if (!pages.personalInfo && !pages.address && !pages.churchService && !pages.finalDetails && !pages.payment) {
+          errors.push('At least one registration page must be enabled');
+        }
+      } else {
+        // Donation validation
+        if (!currentConfig.amounts || currentConfig.amounts.length === 0) {
+          errors.push('At least one donation amount is required');
+        }
+        if (!currentConfig.categories || currentConfig.categories.length === 0) {
+          errors.push('At least one donation category is required');
+        }
+      }
+      
+      // Payment validation
+      if (currentConfig.payment.enabled && currentConfig.type === 'event-registration') {
+        if (!currentConfig.payment.amount || currentConfig.payment.amount <= 0) {
+          errors.push('Payment amount is required for paid events');
+        }
+      }
+      
+      // Display validation errors
+      displayValidationErrors(errors);
+      
+      return errors.length === 0;
+    }
+    
+    function displayValidationErrors(errors) {
+      let errorContainer = document.getElementById('validation-errors');
+      if (!errorContainer) {
+        errorContainer = document.createElement('div');
+        errorContainer.id = 'validation-errors';
+        errorContainer.style.cssText = 'margin-top: 10px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626; font-size: 14px;';
+        document.querySelector('.config-export').appendChild(errorContainer);
+      }
+      
+      if (errors.length > 0) {
+        errorContainer.innerHTML = '<strong>Validation Errors:</strong><ul>' + 
+          errors.map(error => `<li>${error}</li>`).join('') + '</ul>';
+        errorContainer.style.display = 'block';
+      } else {
+        errorContainer.style.display = 'none';
+      }
+    }
+    
+    function updatePreview() {
+      // Clear previous form
+      document.getElementById('form-preview').innerHTML = '';
+      
+      console.log('Updating preview with config:', currentConfig);
+      
+      // Create a proper container for the donation popup
+      document.getElementById('form-preview').innerHTML = '<div id="donation-form-embedded"></div>';
+      
+      // Initialize the form with current config
+      try {
+        DonationPopup.init({
+          container: '#donation-form-embedded',
+          ...currentConfig
+        });
+        console.log('Preview initialized successfully');
+      } catch (error) {
+        console.error('Error initializing preview:', error);
+        document.getElementById('form-preview').innerHTML = `<div style="color: red; padding: 20px;">Error: ${error.message}</div>`;
+      }
+    }
+    
+    function addAmount() {
+      // Find the next available amount input
+      for (let i = 1; i <= 10; i++) {
+        let amountInput = document.getElementById(`amount-${i}`);
+        if (!amountInput) {
+          // Create new amount input
+          const amountsGrid = document.querySelector('.amounts-grid');
+          const addButton = amountsGrid.querySelector('button');
+          
+          const newAmountDiv = document.createElement('div');
+          newAmountDiv.className = 'amount-input';
+          newAmountDiv.innerHTML = `
+            <span>$</span>
+            <input type="number" id="amount-${i}" class="form-control" min="1">
+            <button class="btn btn-secondary btn-small" onclick="removeAmount('amount-${i}')">×</button>
+          `;
+          
+          amountsGrid.insertBefore(newAmountDiv, addButton.parentElement);
+          
+          // Add event listener
+          document.getElementById(`amount-${i}`).addEventListener('input', debounce(updateConfigFromUI, 300));
+          break;
+        }
+      }
+    }
+    
+    function removeAmount(id) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.parentElement.remove();
+        updateConfigFromUI();
+      }
+    }
+    
+    function addCategory() {
+      const categoriesList = document.getElementById('categories-list');
+      const newCategoryDiv = document.createElement('div');
+      newCategoryDiv.className = 'category-item';
+      newCategoryDiv.innerHTML = `
+        <input type="text" class="form-control" placeholder="New category">
+        <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+      `;
+      
+      categoriesList.appendChild(newCategoryDiv);
+      
+      // Add event listener
+      newCategoryDiv.querySelector('input').addEventListener('input', debounce(updateConfigFromUI, 300));
+    }
+    
+    function removeCategory(button) {
+      button.parentElement.remove();
+      updateConfigFromUI();
+    }
+    
+    function loadTemplate(templateName) {
+      let template;
+      
+      switch(templateName) {
+        case 'donation-basic':
+          template = {
+            type: "donation",
+            amounts: [500, 100, 50, 25, 10],
+            categories: ["General Giving", "Ministry Support", "Other"],
+            payment: {
+              enabled: true,
+              feeHandling: 'userChoice'
+            }
+          };
+          break;
+          
+        case 'donation-fees-included':
+          template = {
+            type: "donation",
+            amounts: [1000, 500, 250, 100, 50],
+            categories: ["Building Fund", "Mission Support", "General Fund", "Emergency Relief"],
+            payment: {
+              enabled: true,
+              feeHandling: 'alwaysInclude'
+            }
+          };
+          break;
+          
+        case 'event-paid':
+          template = {
+            type: "event-registration",
+            event: {
+              eventName: "Workshop",
+              eventDate: "2025-06-15",
+              eventTime: "10:00",
+              eventLength: 180,
+              timezone: "America/New_York",
+              pages: {
+                personalInfo: true,
+                address: true,
+                churchService: false,
+                finalDetails: false,
+                payment: true
+              }
+            },
+            payment: {
+              enabled: true,
+              amount: 75.00,
+              feeHandling: 'userChoice',
+              description: "Workshop Registration"
+            }
+          };
+          break;
+          
+        case 'event-free':
+          template = {
+            type: "event-registration",
+            event: {
+              eventName: "Community Meeting",
+              eventDate: "2025-07-20",
+              eventTime: "19:00",
+              eventLength: 90,
+              pages: {
+                personalInfo: true,
+                address: true,
+                churchService: false,
+                finalDetails: false,
+                payment: false
+              }
+            },
+            payment: {
+              enabled: false,
+              feeHandling: 'alwaysExclude'
+            }
+          };
+          break;
+          
+        case 'event-full':
+          template = {
+            type: "event-registration",
+            event: {
+              eventName: "Annual Conference",
+              eventDate: "2025-09-15",
+              eventTime: "09:00",
+              eventLength: 480,
+              timezone: "America/New_York",
+              pages: {
+                personalInfo: true,
+                address: true,
+                churchService: true,
+                finalDetails: true,
+                payment: true
+              }
+            },
+            payment: {
+              enabled: true,
+              amount: 199.00,
+              feeHandling: 'alwaysInclude',
+              description: "Conference Registration (fees included)"
+            }
+          };
+          break;
+          
+        default:
+          return;
+      }
+      
+      loadConfigToUI(template);
+      currentConfig = template;
+      updateConfigFromUI(); // Ensure JSON display is updated
+      updatePreview();
+    }
+    
+    function exportConfig() {
+      const config = JSON.stringify(currentConfig, null, 2);
+      const blob = new Blob([config], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `form-config-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    function importConfig() {
+      document.getElementById('import-file').click();
+    }
+    
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const config = JSON.parse(e.target.result);
+            loadConfigToUI(config);
+            currentConfig = config;
+            updatePreview();
+          } catch (error) {
+            alert('Invalid configuration file: ' + error.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+    
+    function loadConfigToUI(config) {
+      // Set form type
+      document.getElementById('form-type').value = config.type || 'donation';
+      handleFormTypeChange();
+      
+      // Load event configuration
+      if (config.event) {
+        document.getElementById('event-name').value = config.event.eventName || '';
+        document.getElementById('event-date').value = config.event.eventDate || '';
+        document.getElementById('event-time').value = config.event.eventTime || '';
+        document.getElementById('event-length').value = config.event.eventLength || '';
+        document.getElementById('event-timezone').value = config.event.timezone || '';
+        
+        if (config.event.pages) {
+          document.getElementById('page-personal').checked = config.event.pages.personalInfo !== false;
+          document.getElementById('page-address').checked = config.event.pages.address !== false;
+          document.getElementById('page-church').checked = config.event.pages.churchService === true;
+          document.getElementById('page-final').checked = config.event.pages.finalDetails === true;
+          document.getElementById('page-payment').checked = config.event.pages.payment !== false;
+        }
+      }
+      
+      // Load payment configuration
+      if (config.payment) {
+        document.getElementById('payment-enabled').checked = config.payment.enabled !== false;
+        document.getElementById('payment-amount').value = config.payment.amount || '';
+        document.getElementById('payment-description').value = config.payment.description || '';
+        
+        const feeHandling = config.payment.feeHandling || 'userChoice';
+        document.querySelector(`input[name="fee-handling"][value="${feeHandling}"]`).checked = true;
+        
+        handlePaymentToggle();
+      }
+      
+      // Load donation amounts
+      if (config.amounts) {
+        // Clear existing amounts first
+        for (let i = 1; i <= 10; i++) {
+          const input = document.getElementById(`amount-${i}`);
+          if (input) {
+            input.value = '';
+          }
+        }
+        
+        // Load new amounts
+        config.amounts.forEach((amount, index) => {
+          const input = document.getElementById(`amount-${index + 1}`);
+          if (input) {
+            input.value = amount;
+          }
+        });
+      }
+      
+      // Load donation categories
+      if (config.categories) {
+        const categoriesList = document.getElementById('categories-list');
+        categoriesList.innerHTML = '';
+        
+        config.categories.forEach(category => {
+          const categoryDiv = document.createElement('div');
+          categoryDiv.className = 'category-item';
+          categoryDiv.innerHTML = `
+            <input type="text" class="form-control" value="${category}">
+            <button class="btn btn-secondary btn-small" onclick="removeCategory(this)">×</button>
+          `;
+          categoriesList.appendChild(categoryDiv);
+          
+          // Add event listener
+          categoryDiv.querySelector('input').addEventListener('input', debounce(updateConfigFromUI, 300));
+        });
+      }
+    }
+    
+    function copyConfig() {
+      const textarea = document.getElementById('config-json');
+      textarea.select();
+      document.execCommand('copy');
+      alert('Configuration copied to clipboard!');
+    }
+    
+    function saveConfig() {
+      const name = prompt('Enter a name for this configuration:');
+      if (name) {
+        const savedConfigs = JSON.parse(localStorage.getItem('formConfigs') || '{}');
+        savedConfigs[name] = currentConfig;
+        localStorage.setItem('formConfigs', JSON.stringify(savedConfigs));
+        updateSavedConfigsList();
+        alert('Configuration saved!');
+      }
+    }
+    
+    function updateSavedConfigsList() {
+      const savedConfigs = JSON.parse(localStorage.getItem('formConfigs') || '{}');
+      const container = document.getElementById('saved-configs');
+      
+      if (Object.keys(savedConfigs).length === 0) {
+        container.innerHTML = '<p>No saved configurations yet.</p>';
+        return;
+      }
+      
+      let html = '';
+      Object.keys(savedConfigs).forEach(name => {
+        const config = savedConfigs[name];
+        html += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 5px;">
+            <span>${name} (${config.type})</span>
+            <div>
+              <button class="btn btn-small" onclick="loadSavedConfig('${name}')">Load</button>
+              <button class="btn btn-secondary btn-small" onclick="deleteSavedConfig('${name}')">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    function loadSavedConfig(name) {
+      const savedConfigs = JSON.parse(localStorage.getItem('formConfigs') || '{}');
+      if (savedConfigs[name]) {
+        loadConfigToUI(savedConfigs[name]);
+        currentConfig = savedConfigs[name];
+        updatePreview();
+      }
+    }
+    
+    function deleteSavedConfig(name) {
+      if (confirm(`Delete configuration "${name}"?`)) {
+        const savedConfigs = JSON.parse(localStorage.getItem('formConfigs') || '{}');
+        delete savedConfigs[name];
+        localStorage.setItem('formConfigs', JSON.stringify(savedConfigs));
+        updateSavedConfigsList();
+      }
+    }
+    
+    // Initialize the form builder on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, initializing form builder');
+      initFormBuilder();
+      updateSavedConfigsList();
+      
+      // Initial preview update
+      setTimeout(() => {
+        console.log('Triggering initial preview update');
+        updatePreview();
+      }, 500);
+    });
+    
+    // Modal testing function
+    function testAsModal() {
+      try {
+        // Get current configuration from the JSON display
+        const configJson = document.getElementById('config-json').value;
+        const config = JSON.parse(configJson);
+        config.container = "#modal-test-popup";
+        
+        // Initialize modal
+        DonationPopup.init(config);
+        
+        // Open modal
+        window.location.hash = "#donate";
+        
+        // Log the action
+        console.log('Testing configuration as modal:', config);
+      } catch (error) {
+        console.error('Error testing modal:', error);
+        alert('Error opening modal. Please check the configuration.');
+      }
+    }
+  </script>
+  
+  <!-- Modal popup container for testing -->
+  <div id="modal-test-popup"></div>
+</body>
+</html>
