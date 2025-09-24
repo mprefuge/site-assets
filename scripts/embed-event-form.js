@@ -826,7 +826,7 @@
         <div class="efe-progress-bar">
           <div class="efe-progress-fill" style="width: ${((this.currentStep - 1) / this.totalSteps) * 100}%"></div>
         </div>
-        <div class="efe-progress-steps">
+       <!--<div class="efe-progress-steps">-->
           ${Array.from({length: this.totalSteps}, (_, i) => `
             <div class="efe-step-indicator ${i + 1 === this.currentStep ? 'active' : i + 1 < this.currentStep ? 'completed' : ''}"></div>
           `).join('')}
