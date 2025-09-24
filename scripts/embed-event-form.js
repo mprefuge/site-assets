@@ -1355,6 +1355,11 @@
         } else {
           fieldsContainer.insertAdjacentHTML('afterbegin', fieldsHtml);
         }
+      } else {
+        // If all event details are pre-filled, clear the form section for event fields
+        if (fieldsContainer.classList && fieldsContainer.classList.contains('efe-event-fields-container')) {
+          fieldsContainer.innerHTML = '';
+        }
       }
 
       // Add hidden fields for provided values
