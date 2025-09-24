@@ -154,7 +154,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     .dp-cta:hover { background:#a81c2d; }
     .dp-trust { text-align:center; font-size:12px; color:#555; margin-top:6px; }
     .dp-trust-logos { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:8px; }
-    .dp-ecfa-logo { height:64px; opacity:0.8; transition:opacity 0.2s ease; }
+    .dp-ecfa-logo { height:96px; opacity:0.8; transition:opacity 0.2s ease; }
     .dp-ecfa-logo:hover { opacity:1; }
 
     /* Embedded */
@@ -241,7 +241,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
       .dp-amount-row:last-child { margin-bottom:0; }
       .dp-chip { padding:8px 12px; font-size:14px; }
       .dp-payment-grid { grid-template-columns:1fr; gap:6px; }
-      .dp-ecfa-logo { height:56px; }
+      .dp-ecfa-logo { height:94px; }
     }
       .dp-payment-chip { min-width:100%; max-width:100%; min-height:90px; padding:8px 12px; }
       .dp-card-type-chip { min-width:70px; padding:6px 10px; }
