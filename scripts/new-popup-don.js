@@ -351,7 +351,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <option>General Giving</option>
               <option>Cooking and Culture</option>
               <option>Corporate Sponsor</option>
-              <option>Ministry Support Dinner</option>
+              <option>Ministry Expansion</option>
               <option>TNND Payment</option>
               <option>Volunteer Application</option>
               <option>Other</option>
@@ -763,7 +763,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         "General Giving",
         "Cooking and Culture",
         "Corporate Sponsor",
-        "Ministry Support Dinner",
+        "Ministry Expansion Campaign",
         "TNND Payment", 
         "Volunteer Application",
         //"Tribute",
