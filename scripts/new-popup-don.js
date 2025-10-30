@@ -354,7 +354,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
               <option>Ministry Expansion</option>
               <option>TNND Payment</option>
               <option>Volunteer Application</option>
-              <option>Other</option>
+              <option>Other (specify)</option>
             </select>
             <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
               <input type="text" id="${prefix}-category-other" class="dp-input" placeholder="Specify">
@@ -714,10 +714,28 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     var modal = document.getElementById("dp-modal");
     var closeBtn = document.getElementById("popup-close");
-    function showModal() { modal.style.display = "flex"; }
+    var currentParams = null;
+    function showModal(params) { 
+      modal.style.display = "flex"; 
+      currentParams = params;
+    }
     function hideModal() { modal.style.display = "none"; history.pushState("", document.title, window.location.pathname + window.location.search); }
 
-    function checkHash() { if (window.location.hash === "#donate") showModal(); }
+    function checkHash() { 
+      if (window.location.hash.startsWith("#donate")) {
+        // Parse parameters from hash
+        var hash = window.location.hash;
+        var params = {};
+        if (hash.includes('?')) {
+          var queryString = hash.split('?')[1];
+          var urlParams = new URLSearchParams(queryString);
+          for (var pair of urlParams.entries()) {
+            params[pair[0]] = decodeURIComponent(pair[1]);
+          }
+        }
+        showModal(params);
+      }
+    }
     checkHash();
     window.addEventListener("hashchange", checkHash);
 
@@ -726,7 +744,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     });
     if (closeBtn) closeBtn.addEventListener("click", hideModal);
 
-    wireUp("popup");
+    wireUp("popup", currentParams);
   }
 
   function mountEmbedded() {
@@ -738,7 +756,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     }
 
     root.innerHTML = headerHTML("embedded", true);
-    wireUp("embedded");
+    wireUp("embedded", null);
   }
 
   function populateSelect(id, options) {
@@ -752,7 +770,7 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
     });
   }
 
-  function wireUp(prefix) {
+  function wireUp(prefix, params) {
     var currentStep = 1;
     var totalSteps = 3;
     var isTributeSelected = false;
@@ -776,6 +794,41 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
         "Other (specify)"
       ]
     };
+    
+    function setCategoryFromParams(params) {
+      if (!params || !params.campaignName) return;
+      
+      var catSel = document.getElementById(prefix + "-category");
+      var catOtherInput = document.getElementById(prefix + "-category-other");
+      var catOtherWrap = document.getElementById(prefix + "-category-other-wrap");
+      
+      if (!catSel) return;
+      
+      // Get all current options
+      var currentOptions = Array.from(catSel.options).map(option => option.value);
+      
+      // Check if campaignName is in available categories
+      var campaignName = params.campaignName.trim();
+      var categoryExists = currentOptions.includes(campaignName);
+      
+      if (categoryExists) {
+        // Set the category directly
+        catSel.value = campaignName;
+      } else {
+        // Set to "Other (specify)" and populate the other field
+        catSel.value = "Other (specify)";
+        if (catOtherInput) {
+          catOtherInput.value = campaignName;
+        }
+        if (catOtherWrap) {
+          catOtherWrap.style.display = "";
+        }
+      }
+      
+      // Trigger change event to update UI
+      var changeEvent = new Event('change');
+      catSel.dispatchEvent(changeEvent);
+    }
     
     function updateStepStructure() {
       var step4Indicator = document.getElementById(prefix + "-step-indicator-4");
@@ -1844,6 +1897,11 @@ const processDonationAPI = 'https://prod-08.westus.logic.azure.com:443/workflows
 
     // Initial totals
     updateTotals();
+    
+    // Set category from URL parameters if available
+    if (params) {
+      setCategoryFromParams(params);
+    }
   }
 
   window.openDonationModal = function () {
