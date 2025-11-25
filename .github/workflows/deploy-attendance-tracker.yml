@@ -1,0 +1,117 @@
+name: Deploy Attendance Tracker
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'attendancetracker/**'
+      - 'styles/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'attendancetracker/**'
+      - 'styles/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Configure Attendance Tracker
+      run: |
+        cd attendancetracker
+        
+        # Create configuration injection script
+        cat << 'INJECT_SCRIPT' > inject-config.js
+        const fs = require('fs');
+        
+        let configContent = fs.readFileSync('config.js', 'utf8');
+        
+        function isValidUrl(string) {
+          if (!string) return false;
+          try {
+            if (string.startsWith('/') || string.startsWith('./') || string.startsWith('../')) {
+              return true;
+            }
+            new URL(string);
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+        
+        const envConfig = {
+          ENDPOINT: process.env.ENDPOINT,
+          STYLEENDPOINT: process.env.STYLEENDPOINT
+        };
+        
+        if (envConfig.STYLEENDPOINT && !isValidUrl(envConfig.STYLEENDPOINT)) {
+          console.error('Warning: STYLEENDPOINT does not appear to be a valid URL:', envConfig.STYLEENDPOINT);
+        }
+        
+        Object.keys(envConfig).forEach(key => {
+          if (envConfig[key] === undefined) {
+            delete envConfig[key];
+          }
+        });
+        
+        const configJson = JSON.stringify(envConfig, null, 2);
+        const injection = '// Environment configuration injected at build time\nif (typeof window !== "undefined") {\n  window.ATTENDANCE_CONFIG = ' + configJson + ';\n}\n';
+        
+        fs.writeFileSync('config.js', injection + configContent);
+        console.log('Configuration injected successfully');
+        
+        if (process.env.STYLEENDPOINT) {
+          if (!isValidUrl(process.env.STYLEENDPOINT)) {
+            console.error('Error: STYLEENDPOINT is not a valid URL. Skipping HTML modification.');
+            process.exit(1);
+          }
+          
+          let htmlContent = fs.readFileSync('attendancetracker.html', 'utf8');
+          const styleEndpoint = process.env.STYLEENDPOINT;
+          
+          htmlContent = htmlContent.replace(
+            /href="\.\.\/styles\/attendancetracker\.css"/g,
+            'href="' + styleEndpoint + 'attendancetracker.css"'
+          );
+          htmlContent = htmlContent.replace(
+            /href="\.\.\/styles\/form-styles\.css"/g,
+            'href="' + styleEndpoint + 'form-styles.css"'
+          );
+          
+          fs.writeFileSync('attendancetracker.html', htmlContent);
+          console.log('Stylesheet paths updated successfully');
+        }
+        INJECT_SCRIPT
+        
+        node inject-config.js
+      env:
+        ENDPOINT: ${{ vars.ENDPOINT }}
+        STYLEENDPOINT: ${{ vars.STYLEENDPOINT }}
+    
+    - name: Validate configuration
+      run: |
+        cd attendancetracker
+        echo "Validating configuration..."
+        node -e "
+          const fs = require('fs');
+          const config = fs.readFileSync('config.js', 'utf8');
+          console.log('Config file contents (first 500 chars):');
+          console.log(config.substring(0, 500));
+          console.log('...');
+        "
+    
+    - name: Deploy to hosting
+      run: |
+        # Add your deployment commands here
+        echo "Deploying configured attendance tracker..."
+        # Example: upload to S3, deploy to Netlify, etc.

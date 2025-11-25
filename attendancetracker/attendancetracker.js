@@ -1,10 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Load configuration - config.js should be loaded before this script
+  const config = window.AttendanceConfig || {};
+  const ENDPOINT = config.api?.endpoint || '';
+  
+  // Validate ENDPOINT is configured
+  if (!ENDPOINT) {
+    console.warn('Attendance Tracker: ENDPOINT is not configured. API calls will fail.');
+  }
+
   window.authorizedUser = {};
   window.pendingChanges = [];
   window.selectedAttendance = [];
   window.viewAttendanceFilters = {};
   let allAttendanceData = [];
-  const ENDPOINT = '{{ATENDPOINT}}';
   const today = new Date().toISOString().substring(0,10);
   toastr.options = {
     "closeButton": true,
