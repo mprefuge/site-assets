@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.selectedAttendance = [];
   window.viewAttendanceFilters = {};
   let allAttendanceData = [];
-  const ENDPOINT = '{{ATENDPOINT}}';
+  const ENDPOINT = 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM';
   const today = new Date().toISOString().substring(0,10);
   toastr.options = {
     "closeButton": true,
