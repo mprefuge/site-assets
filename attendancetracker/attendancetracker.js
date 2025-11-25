@@ -1,10 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Load configuration - config.js should be loaded before this script
+  const config = window.AttendanceConfig || {};
+  const ENDPOINT = config.api?.endpoint || '';
+
   window.authorizedUser = {};
   window.pendingChanges = [];
   window.selectedAttendance = [];
   window.viewAttendanceFilters = {};
   let allAttendanceData = [];
-  const ENDPOINT = '{{ATENDPOINT}}';
   const today = new Date().toISOString().substring(0,10);
   toastr.options = {
     "closeButton": true,
