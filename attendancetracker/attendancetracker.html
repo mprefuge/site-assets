@@ -339,8 +339,9 @@
       </form>
     </div>
   </div>
-  <script src="../scripts/lookup.js" defer></script>
-  <script src="config.js" defer></script>
+  <!-- Scripts loaded in dependency order: lookup -> config -> main -->
+  <script src="../scripts/lookup.js"></script>
+  <script src="config.js"></script>
   <script src="attendancetracker.js" defer></script>
 </body>
 </html>

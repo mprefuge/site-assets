@@ -29,61 +29,70 @@ jobs:
         cd attendancetracker
         
         # Create configuration injection script
-        cat << 'EOF' > inject-config.js
-        // This script injects environment variables into the browser-accessible config
+        cat << 'INJECT_SCRIPT' > inject-config.js
         const fs = require('fs');
         
-        // Read the original config file
         let configContent = fs.readFileSync('config.js', 'utf8');
         
-        // Inject environment variables as a global AttendanceConfig object
-        // Note: We set window.ATTENDANCE_CONFIG which is read by config.js
+        function isValidUrl(string) {
+          if (!string) return false;
+          try {
+            if (string.startsWith('/') || string.startsWith('./') || string.startsWith('../')) {
+              return true;
+            }
+            new URL(string);
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+        
         const envConfig = {
           ENDPOINT: process.env.ENDPOINT,
           STYLEENDPOINT: process.env.STYLEENDPOINT
         };
         
-        // Remove undefined values
+        if (envConfig.STYLEENDPOINT && !isValidUrl(envConfig.STYLEENDPOINT)) {
+          console.error('Warning: STYLEENDPOINT does not appear to be a valid URL:', envConfig.STYLEENDPOINT);
+        }
+        
         Object.keys(envConfig).forEach(key => {
           if (envConfig[key] === undefined) {
             delete envConfig[key];
           }
         });
         
-        // Prepend the environment config injection
-        const injection = `
-// Environment configuration injected at build time
-if (typeof window !== 'undefined') {
-  window.ATTENDANCE_CONFIG = ${JSON.stringify(envConfig, null, 2)};
-}
-`;
+        const configJson = JSON.stringify(envConfig, null, 2);
+        const injection = '// Environment configuration injected at build time\nif (typeof window !== "undefined") {\n  window.ATTENDANCE_CONFIG = ' + configJson + ';\n}\n';
         
         fs.writeFileSync('config.js', injection + configContent);
         console.log('Configuration injected successfully');
         
-        // Also update the HTML file with the correct stylesheet paths if STYLEENDPOINT is set
         if (process.env.STYLEENDPOINT) {
+          if (!isValidUrl(process.env.STYLEENDPOINT)) {
+            console.error('Error: STYLEENDPOINT is not a valid URL. Skipping HTML modification.');
+            process.exit(1);
+          }
+          
           let htmlContent = fs.readFileSync('attendancetracker.html', 'utf8');
           const styleEndpoint = process.env.STYLEENDPOINT;
           
-          // Update stylesheet hrefs to use the STYLEENDPOINT
           htmlContent = htmlContent.replace(
             /href="\.\.\/styles\/attendancetracker\.css"/g,
-            `href="${styleEndpoint}attendancetracker.css"`
+            'href="' + styleEndpoint + 'attendancetracker.css"'
           );
           htmlContent = htmlContent.replace(
             /href="\.\.\/styles\/form-styles\.css"/g,
-            `href="${styleEndpoint}form-styles.css"`
+            'href="' + styleEndpoint + 'form-styles.css"'
           );
           
           fs.writeFileSync('attendancetracker.html', htmlContent);
           console.log('Stylesheet paths updated successfully');
         }
-        EOF
+        INJECT_SCRIPT
         
         node inject-config.js
       env:
-        # Map GitHub secrets/variables to environment variables
         ENDPOINT: ${{ vars.ENDPOINT }}
         STYLEENDPOINT: ${{ vars.STYLEENDPOINT }}
     
