@@ -36,12 +36,7 @@ const attendanceConfig = {
 if (typeof module !== 'undefined' && module.exports) {
   // Node.js environment
   module.exports = attendanceConfig;
-} else {
+} else if (typeof window !== 'undefined') {
   // Browser environment - attach to window object
-  window.AttendanceConfig = attendanceConfig;
-}
-
-// For immediate use, also make available as a global
-if (typeof window !== 'undefined') {
   window.AttendanceConfig = attendanceConfig;
 }

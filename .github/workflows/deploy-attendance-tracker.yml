@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
     
@@ -36,7 +36,8 @@ jobs:
         // Read the original config file
         let configContent = fs.readFileSync('config.js', 'utf8');
         
-        // Inject environment variables as a global ATTENDANCE_CONFIG object
+        // Inject environment variables as a global AttendanceConfig object
+        // Note: We set window.ATTENDANCE_CONFIG which is read by config.js
         const envConfig = {
           ENDPOINT: process.env.ENDPOINT,
           STYLEENDPOINT: process.env.STYLEENDPOINT
