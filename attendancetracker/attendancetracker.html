@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance Tracker</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{STYLEENDPOINT}}attendancetracker.css" />
+  <link rel="stylesheet" href="{{STYLEENDPOINT}}form-styles.css" />
+</head>
+<body>
+  <form id="dynamicForm"></form>
+  <div id="attendance-tracker">
+    <form id="auth-form" class="section active">
+      <h1>Login to Track Attendance</h1>
+      <div>
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required aria-required="true" />
+      </div>
+      <div>
+        <label for="ministry">Ministry:</label>
+        <select id="ministry" name="ministry" required aria-required="true">
+        </select>
+      </div>
+      <div>
+        <label for="location">Location:</label>
+        <select id="location" name="location" required aria-required="true">
+        </select>
+      </div>
+      <button type="submit">Log In</button>
+    </form>
+    <div id="standalone-registration">
+      <h2>New Registration</h2>
+      <p>Need to register? Select one of the options below:</p>
+      <div class="button-group">
+        <button type="button" id="new-student">New Student</button>
+        <button type="button" id="new-volunteer">New Site Volunteer</button>
+      </div>
+    </div>
+    <div id="post-auth-buttons" class="button-group section">
+      <h2>Attendance Management</h2>
+      <h3>Select an option below to either view existing attendance records or submit attendance for a specific date and time.</h3>
+      <div class="button-group">
+        <button id="view-attendance">View Attendance</button>
+        <button id="submit-attendance">Submit Attendance</button>
+      </div>
+    </div>
+    <div id="new-person-form-container" class="section">
+      <h2>Add New Person</h2>
+      <form id="new-person-form">
+        <input type="hidden" id="person-type" name="person-type" value="" />
+        
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 0%"></div>
+        </div>
+
+        <div class="progress-steps">
+          <div class="step-indicator active"></div>
+          <div class="step-indicator"></div>
+          <div class="step-indicator"></div>
+        </div>
+
+        <!-- Section 1: Ministry Information (for volunteers) -->
+        <div class="form-section active" data-step="1">
+          <h3>Ministry Information</h3>
+          <div id="volunteer-fields" style="display: none;">
+            <div class="form-group">
+              <label for="volunteer-ministry">Ministry:</label>
+              <select id="volunteer-ministry" name="ministry">
+              </select>
+              <div class="error-message">Please select a ministry</div>
+            </div>
+            <div class="form-group">
+              <label for="volunteer-location">Location:</label>
+              <select id="volunteer-location" name="location">
+              </select>
+              <div class="error-message">Please select a location</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Personal Information -->
+        <div class="form-section" data-step="2">
+          <h3>Personal Information</h3>
+          <div class="form-group">
+            <label for="first-name">First Name:</label>
+            <input type="text" id="first-name" name="firstName" required pattern="[A-Za-z-' ]+" minlength="2" />
+            <div class="error-message">Please enter a valid first name (letters, hyphens, and apostrophes only)</div>
+          </div>
+          <div class="form-group">
+            <label for="last-name">Last Name:</label>
+            <input type="text" id="last-name" name="lastName" required pattern="[A-Za-z-' ]+" minlength="2" />
+            <div class="error-message">Please enter a valid last name (letters, hyphens, and apostrophes only)</div>
+          </div>
+          <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+" />
+            <div class="error-message">Please enter a valid email address</div>
+          </div>
+          <div class="form-group">
+            <label for="phone-number">Phone Number:</label>
+            <input type="tel" id="phone-number" name="phoneNumber" required pattern="[0-9()-. ]+" minlength="10" />
+            <div class="error-message">Please enter a valid phone number (at least 10 digits)</div>
+          </div>
+          <div class="form-group">
+            <label for="birthdate">Birthdate:</label>
+            <input type="date" id="birthdate" name="birthdate" required max="${new Date().toISOString().split('T')[0]}" />
+            <div class="error-message">Please enter a valid birthdate (cannot be in the future)</div>
+          </div>
+          <div class="form-group">
+            <label for="gender">Gender:</label>
+            <select id="gender" name="gender" required>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+            <div class="error-message">Please select a gender</div>
+          </div>
+        </div>
+
+        <!-- Section 3: Address -->
+        <div class="form-section" data-step="3">
+          <h3>Address Information</h3>
+          <div class="form-group">
+            <label for="street-1">Street Address:</label>
+            <input type="text" id="street-1" name="street1" required minlength="5" />
+            <div class="error-message">Please enter a valid street address</div>
+          </div>
+          <div class="form-group">
+            <label for="street-2">Apartment/Suite/Unit (Optional):</label>
+            <input type="text" id="street-2" name="street2" />
+          </div>
+          <div class="form-group">
+            <label for="city">City:</label>
+            <input type="text" id="city" name="city" required pattern="[A-Za-z- ]+" minlength="2" />
+            <div class="error-message">Please enter a valid city name</div>
+          </div>
+          <div class="form-group">
+            <label for="state">State:</label>
+            <select id="state" name="state" required>
+              <option value="">Select State</option>
+            </select>
+            <div class="error-message">Please select a state</div>
+          </div>
+          <div class="form-group">
+            <label for="zip">ZIP Code:</label>
+            <input type="text" id="zip" name="zip" required pattern="[0-9]{5}(-[0-9]{4})?" />
+            <div class="error-message">Please enter a valid ZIP code (12345 or 12345-6789)</div>
+          </div>
+          <div class="form-group">
+            <label for="country">Country:</label>
+            <select id="country" name="country" required>
+              <option value="">Select Country</option>
+            </select>
+            <div class="error-message">Please select a country</div>
+          </div>
+          <div class="form-group">
+            <input type="checkbox" id="emailOptIn" name="emailUpdates" checked style="width: auto; margin-right: 10px;">
+            <label for="emailOptIn" style="display: inline;">I would like to receive occasional email updates and announcements related to Refuge International</label>
+          </div>
+        </div>
+
+        <div class="form-navigation">
+          <button type="button" class="nav-button button-prev" style="display: none">Previous</button>
+          <button type="button" class="nav-button button-next">Next</button>
+          <button type="submit" class="nav-button button-submit" style="display: none">Submit</button>
+        </div>
+      </form>
+      <button class="back-button" id="back-new-person">Back to Main Menu</button>
+    </div>
+    <div id="view-attendance-form" class="section">
+      <h2>View Attendance Records</h2>
+      <h3>Select a Single Date, Date Range, or All Time</h3>
+      <p>Use the options below to filter attendance records. You can view records for a single date, a date range, or all time if you prefer no date filtering.</p>
+      <form id="attendance-form">
+        <div>
+          <label for="date-mode">Date Mode:</label>
+          <select id="date-mode" name="date-mode" required aria-required="true">
+            <option value="single">Single Date</option>
+            <option value="range">Date Range</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
+        <div id="single-date-container">
+          <label for="activity-date">Select Date:</label>
+          <input type="date" id="activity-date" name="activity-date" />
+        </div>
+        <div id="date-range-container" style="display: none;">
+          <div>
+            <label for="start-date">Start Date:</label>
+            <input type="date" id="start-date" name="start-date" />
+          </div>
+          <div>
+            <label for="end-date">End Date:</label>
+            <input type="date" id="end-date" name="end-date" />
+          </div>
+        </div>
+        <button type="submit">View</button>
+        <button type="button" id="back-view-form" class="secondary-button">Back</button>
+      </form>
+    </div>
+    <div id="submit-attendance-form" class="section">
+      <h2>Submit Attendance</h2>
+      <h3>Record Attendance for a Specific Date & Time</h3>
+      <p>Please choose the date and specify the start and end times for the session. Then, you can select attendees and add notes before submitting.</p>
+      <form id="submit-attendance-form-element">
+        <div>
+          <label for="submit-activity-date">Date:</label>
+          <input type="date" id="submit-activity-date" name="submit-activity-date" required aria-required="true" />
+        </div>
+        <div>
+          <label for="start-time">Start Time:</label>
+          <input type="time" id="start-time" name="start-time" required aria-required="true" step="900" />
+        </div>
+        <div>
+          <label for="end-time">End Time:</label>
+          <input type="time" id="end-time" name="end-time" required aria-required="true" step="900" />
+        </div>
+        <button type="submit">Collect Attendance</button>
+        <button type="button" id="back-submit-attendance" class="secondary-button">Back</button>
+      </form>
+    </div>
+    <div id="view-attendance-table-container" class="section">
+      <h2>Attendance Records</h2>
+      <p>Below is a list of attendance records based on your selected filters. Use the search box or column sorting to find specific records. You can edit them and then submit changes if needed.</p>
+      <table id="view-attendance-table" class="display" style="width:100%">
+        <thead>
+          <tr>
+            <th style="display: none;">EventID</th>
+            <th style="display: none;">PersonID</th>
+            <th>Attendee Type</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Start DateTime</th>
+            <th>End DateTime</th>
+            <th>Notes</th>
+            <th>Level</th>
+            <th>Assessment Score</th>
+            <th>Class Placement</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+      <button id="submit-changes" class="submit-changes-button" style="display: none;">Submit Changes</button>
+      <div class="button-container">
+        <button class="export-button" id="export-csv">Export Report</button>
+        <button class="back-button" id="back-view-table">Back</button>
+      </div>
+    </div>
+    <div id="submit-attendance-table-container" class="section">
+      <div class="session-info">
+        <h1 id="ministry-location"></h1>
+        <h2 id="session-datetime"></h2>
+      </div>
+      <p>Select the attendees you wish to include for the chosen date and time. You can also add notes, level, assessment score, and class placement for each attendee before final submission.</p>
+      <table id="submit-attendance-table" class="display" style="width:100%">
+        <thead>
+          <tr>
+            <th>Present</th>
+            <th style="display: none;">EventID</th>
+            <th style="display: none;">PersonID</th>
+            <th>Attendee Type</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Notes</th>
+            <th>Level</th>
+            <th>Assessment Score</th>
+            <th>Class Placement</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+      <div id="final-submit-attendance-container" style="display: none; margin-top: 20px;">
+        <button id="final-submit-attendance">Submit Attendance</button>
+        <button class="back-button" id="back-submit-table">Back</button>
+      </div>
+    </div>
+    <div id="loading-indicator">
+      <p>Loading...</p>
+    </div>
+  </div>
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" aria-label="Close">&times;</span>
+      <h2>Edit Attendance Record</h2>
+      <form id="edit-form">
+        <input type="hidden" id="edit-EventID" name="EventID" />
+        <input type="hidden" id="edit-PersonID" name="PersonID" />
+        <div>
+          <label for="edit-attendee-type">Attendee Type:</label>
+          <select id="edit-attendee-type" name="attendeeType" required aria-required="true">
+          </select>
+        </div>
+        <div>
+          <label for="edit-first-name">First Name:</label>
+          <input type="text" id="edit-first-name" name="firstName" required aria-required="true" />
+        </div>
+        <div>
+          <label for="edit-last-name">Last Name:</label>
+          <input type="text" id="edit-last-name" name="lastName" required aria-required="true" />
+        </div>
+        <div>
+          <label for="edit-start-datetime">Start Date/Time:</label>
+          <input type="datetime-local" id="edit-start-datetime" name="startDateTime" required aria-required="true" />
+        </div>
+        <div>
+          <label for="edit-end-datetime">End Date/Time:</label>
+          <input type="datetime-local" id="edit-end-datetime" name="endDateTime" required aria-required="true" />
+        </div>
+        <div>
+          <label for="edit-notes">Notes:</label>
+          <textarea id="edit-notes" name="notes" rows="3"></textarea>
+        </div>
+        <div>
+          <label for="edit-level">Level:</label>
+          <select id="edit-level" name="level">
+          </select>
+        </div>
+        <div>
+          <label for="edit-assessment-score">Assessment Score:</label>
+          <select id="edit-assessment-score" name="assessmentScore">
+          </select>
+        </div>
+        <div>
+          <label for="edit-class-placement">Class Placement:</label>
+          <select id="edit-class-placement" name="classPlacement">
+          </select>
+        </div>
+        <button type="submit">Save Changes</button>
+        <button type="button" id="cancel-edit" class="secondary-button">Cancel</button>
+      </form>
+    </div>
+  </div>
+  <script src="./scripts/lookup.js" defer></script>
+  <script src="attendancetracker.js" defer></script>
+</body>
+</html>

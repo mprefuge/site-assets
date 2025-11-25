@@ -1,0 +1,606 @@
+:root {
+  --primary-color: #BD2135;
+  --secondary-color: #000000;
+  --accent-color: #FFC107;
+  --background-gradient: linear-gradient(to bottom right, #ffffff, #e0e0e0);
+  --text-color: #333333;
+  --heading-font: 'Montserrat', sans-serif;
+  --body-font: 'Roboto', sans-serif;
+  --button-hover-color: #a81a2e;
+  --button-disabled-bg: #cccccc;
+  --modal-bg: rgba(0,0,0,0.5);
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --transition-speed: 0.3s;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--background-gradient);
+  font-family: var(--body-font);
+  color: var(--text-color);
+}
+
+#attendance-tracker {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #fefefe;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  position: relative;
+  height: auto;
+  min-height: fit-content;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  font-family: var(--heading-font);
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+p {
+  font-size: 14px;
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+form div {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color var(--transition-speed);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--primary-color);
+  color: #fff;
+  margin-right: 10px;
+  transition: background-color var(--transition-speed), transform 0.2s;
+}
+
+button:hover {
+  background-color: var(--button-hover-color);
+  transform: translateY(-2px);
+}
+
+button:disabled {
+  background-color: var(--button-disabled-bg);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondary-button {
+  background-color: var(--secondary-color);
+}
+
+.secondary-button:hover {
+  background-color: #333333;
+}
+
+.accent-button {
+  background-color: var(--accent-color);
+}
+
+.accent-button:hover {
+  background-color: #e0a800;
+}
+
+.export-button {
+  background-color: #000;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  order: 2;
+}
+
+.export-button:hover {
+  background-color: #BD2135;
+}
+
+@media (max-width: 768px) {
+  #attendance-tracker {
+    margin: 10px;
+    padding: 15px;
+  }
+  .section {
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    width: calc(100% - 30px);
+  }
+}
+
+table.dataTable tbody tr:hover {
+  background-color: #f2f2f2;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: var(--modal-bg);
+  transition: opacity var(--transition-speed), visibility var(--transition-speed);
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 5% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 5px;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  transition: transform var(--transition-speed);
+}
+
+.modal-content.open {
+  transform: translateY(0);
+}
+
+.close-modal {
+  color: #aaa;
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color var(--transition-speed);
+}
+
+.close-modal:hover,
+.close-modal:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.selected-row {
+  background-color: #d4edda !important;
+}
+
+.pending-change {
+  background-color: #fff3cd !important;
+}
+
+#loading-indicator {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  z-index: 2000;
+}
+
+#loading-indicator p {
+  background-color: #000;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 18px;
+}
+
+table.dataTable .edit-button,
+.edit-button {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform 0.2s;
+  font-size: 14px;
+}
+
+table.dataTable .edit-button:hover,
+.edit-button:hover {
+  background-color: var(--button-hover-color) !important;
+  transform: translateY(-1px);
+}
+
+#submit-changes.submit-changes-button,
+.submit-changes-button {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+  margin-top: 20px;
+}
+
+#submit-changes.submit-changes-button:hover,
+.submit-changes-button:hover {
+  background-color: var(--button-hover-color) !important;
+}
+
+.navigation-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+#toast-container {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%);
+}
+
+#toast-container > div {
+  width: 400px;
+  text-align: center;
+  opacity: 1;
+}
+
+.section {
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-speed), visibility var(--transition-speed);
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  width: calc(100% - 40px);
+  height: 0;
+  overflow: hidden;
+}
+
+.section.active {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.back-button {
+  background-color: var(--secondary-color);
+  color: #fff;
+  margin-top: 20px;
+  order: 2;
+}
+
+.back-button:hover {
+  background-color: #333333;
+}
+
+.submit-changes-button {
+  background-color: var(--accent-color);
+  color: #000;
+  margin-top: 20px;
+}
+
+.submit-changes-button:hover {
+  background-color: #e0a800;
+}
+
+#submit-attendance-table input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+#submit-attendance-table th:first-child,
+#submit-attendance-table td:first-child {
+  text-align: center;
+  width: 80px;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.button-group button {
+  width: 100%;
+  padding: 15px 20px;
+  font-size: 16px;
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform 0.2s;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.button-group button:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+#dynamic-form-section {
+  background-color: #fefefe;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+#dynamicForm {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#registration-section {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid #ccc;
+  position: relative;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+#registration-section h2 {
+  margin-bottom: 10px;
+  color: var(--secondary-color);
+}
+
+#registration-section p {
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+#registration-section .button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+#registration-section .button-group button {
+  width: 100%;
+  background-color: var(--secondary-color);
+  color: #fff;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform 0.2s;
+}
+
+#registration-section .button-group button:hover {
+  background-color: var(--button-hover-color);
+  transform: translateY(-2px);
+}
+
+#standalone-registration {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid #ccc;
+  background-color: #fefefe;
+  order: 2;
+}
+
+#standalone-registration h2 {
+  font-family: var(--heading-font);
+  color: var(--secondary-color);
+  margin-bottom: 10px;
+}
+
+#standalone-registration p {
+  font-size: 14px;
+  color: var(--text-color);
+  margin-bottom: 20px;
+}
+
+#standalone-registration .button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+#standalone-registration .button-group button {
+  width: 100%;
+  padding: 15px 20px;
+  font-size: 16px;
+  background-color: var(--secondary-color);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform 0.2s;
+}
+
+#standalone-registration .button-group button:hover {
+  background-color: var(--button-hover-color);
+  transform: translateY(-2px);
+}
+
+#post-auth-buttons {
+  order: 1;
+}
+
+#view-attendance-table-container,
+#submit-attendance-table-container,
+#new-person-form-container {
+  display: flex;
+  flex-direction: column;
+}
+
+#view-attendance-table,
+#submit-attendance-table,
+#new-person-form {
+  order: 1;
+}
+
+.form-section {
+  display: none;
+  animation: fadeIn 0.5s ease;
+  padding: 2rem;
+}
+
+.form-section.active {
+  display: block;
+}
+
+.progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--ri-border);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.step-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ri-border);
+}
+
+.step-indicator.active {
+  background: var(--primary-color);
+}
+
+.step-indicator.completed {
+  background: var(--success-color);
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ri-border);
+}
+
+.nav-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.button-prev {
+  background: var(--secondary-color);
+  color: #fff;
+}
+
+.button-next, .button-submit {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+}
+
+.button-next:hover, .button-submit:hover {
+  background: var(--button-hover-color);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.error-message {
+  color: var(--primary-color);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: none;
+}
+
+.form-control.error,
+input.error,
+select.error {
+  border-color: var(--primary-color);
+  border-width: 2px;
+  background-color: rgba(189, 33, 53, 0.05);
+}
+
+.attendance-fields-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.check-message {
+  display: none;
+  color: var(--text-color);
+  font-style: italic;
+  font-size: 0.9em;
+  margin-top: 5px;
+}
+
+.attendance-row-unchecked .check-message {
+  display: block;
+}
+
+.attendance-row-unchecked input,
+.attendance-row-unchecked select {
+  background-color: #f5f5f5;
+}
