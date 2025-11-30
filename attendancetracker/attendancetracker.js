@@ -1,22 +1,43 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Configuration
+  const CONFIG = {
+    ENDPOINT: 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM',
+    TOASTR_OPTIONS: {
+      closeButton: true,
+      progressBar: true,
+      positionClass: "toast-top-center",
+      timeOut: "3000",
+      showMethod: "fadeIn",
+      hideMethod: "fadeOut",
+      preventDuplicates: true
+    }
+  };
+
   window.authorizedUser = {};
   window.pendingChanges = [];
   window.selectedAttendance = [];
   window.viewAttendanceFilters = {};
   let allAttendanceData = [];
-  const ENDPOINT = 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM';
+  let hasUnsavedChanges = false;
   const today = new Date().toISOString().substring(0,10);
-  toastr.options = {
-    "closeButton": true,
-    "progressBar": true,
-    "positionClass": "toast-top-center",
-    "timeOut": "3000",
-    "showMethod": "fadeIn",
-    "hideMethod": "fadeOut",
-    "preventDuplicates": true
-  };
-  function showLoading() {
-    document.getElementById('loading-indicator').style.display = 'block';
+  
+  toastr.options = CONFIG.TOASTR_OPTIONS;
+
+  // Set birthdate max date dynamically
+  function setBirthdateMax() {
+    const birthdateInput = document.getElementById('birthdate');
+    if (birthdateInput) {
+      birthdateInput.max = today;
+    }
+  }
+
+  function showLoading(message = 'Loading...') {
+    const indicator = document.getElementById('loading-indicator');
+    const messageEl = document.getElementById('loading-message');
+    if (messageEl) {
+      messageEl.textContent = message;
+    }
+    indicator.style.display = 'block';
   }
   function hideLoading() {
     document.getElementById('loading-indicator').style.display = 'none';
@@ -176,8 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authSubmitButton = e.target.querySelector('button[type="submit"]');
     try {
       disableButton(authSubmitButton, 'Authorizing...');
-      showLoading();
-      const response = await fetch(ENDPOINT, {
+      showLoading('Authorizing...');
+      const response = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -374,10 +395,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const viewSubmitButton = e.target.querySelector('button[type="submit"]');
     disableButton(viewSubmitButton, 'Loading...');
-    console.log('View Attendance Payload:', payload);
     try {
-      showLoading();
-      const response = await fetch(ENDPOINT, {
+      showLoading('Fetching attendance records...');
+      const response = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -385,11 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload)
       });
       hideLoading();
-      console.log('View Attendance Response Status:', response.status);
-      console.log('View Attendance Response Headers:', response.headers);
       if (response.status === 200) {
         const attendanceData = await response.json();
-        console.log('View Attendance Response Data:', attendanceData);
         allAttendanceData = attendanceData;
         showSection('view-attendance-table-container');
         populateViewAttendanceTable(attendanceData);
@@ -397,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         enableButton(viewSubmitButton, 'View');
       } else {
         const errorData = await response.json();
-        console.error('View Attendance Error:', errorData);
         toastr.error(`Failed to retrieve attendance: ${errorData.message || 'Unknown error.'}`);
         enableButton(viewSubmitButton, 'View');
       }
@@ -435,27 +451,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const submitAttendanceButton = e.target.querySelector('button[type="submit"]');
     disableButton(submitAttendanceButton, 'Collecting...');
-    console.log('Collect Attendance Payload:', payload);
     try {
-      showLoading();
-      const response = await fetch(ENDPOINT, {
+      showLoading('Collecting attendance data...');
+      const response = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       hideLoading();
-      console.log('Collect Attendance Response Status:', response.status);
-      console.log('Collect Attendance Response Headers:', response.headers);
       if (response.status === 200) {
         const attendanceData = await response.json();
-        console.log('Collect Attendance Response Data:', attendanceData);
         showSection('submit-attendance-table-container');
         populateSubmitAttendanceTable(attendanceData, startDateTime, endDateTime);
         toastr.success('Attendance collection successful.');
         enableButton(submitAttendanceButton, 'Collect Attendance');
       } else {
         const errorData = await response.json();
-        console.error('Collect Attendance Error:', errorData);
         toastr.error(`Failed to collect attendance: ${errorData.message || 'Unknown error.'}`);
         enableButton(submitAttendanceButton, 'Collect Attendance');
       }
@@ -519,8 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton = e.target.querySelector('button[type="submit"]');
     disableButton(submitButton, 'Submitting...');
     try {
-      showLoading();
-      const response = await fetch(ENDPOINT, {
+      showLoading('Creating new registration...');
+      const response = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1023,7 +1034,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const recordValue = record[config.id];
         if (recordValue) {
           select.value = recordValue;
-          console.log(`Setting ${config.id} to ${recordValue}`); // Debug log
         }
         
         select.addEventListener('change', (e) => {
@@ -1096,14 +1106,14 @@ document.addEventListener('DOMContentLoaded', () => {
       window.selectedAttendance = window.selectedAttendance.filter(att => att.PersonID !== record.PersonID);
       row.classList.remove('selected-row');
     }
-    console.log('Current selected attendance:', window.selectedAttendance);
+    hasUnsavedChanges = window.selectedAttendance.length > 0;
   }
   function updateSelectedAttendance(PersonID, field, value) {
     const attendee = window.selectedAttendance.find(a => a.PersonID === PersonID);
     if (attendee) {
       // Update the existing attendee's field
       attendee[field] = value;
-      console.log(`Updated ${field} to ${value} for attendee ${PersonID}`, attendee);
+      hasUnsavedChanges = true;
     } else {
       // If attendee not found, find their row and get current values
       const row = document.querySelector(`#submit-attendance-table tr:has(td:nth-child(3)[text()="${PersonID}"])`);
@@ -1132,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         attendance[field] = value;
         
         window.selectedAttendance.push(attendance);
-        console.log(`Created new attendance record with ${field}=${value} for attendee ${PersonID}`, attendance);
+        hasUnsavedChanges = true;
         
         // Check the checkbox
         const checkbox = row.querySelector('input[type="checkbox"]');
@@ -1234,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', () => {
           $(updatedRow).attr('title', 'This row has unsaved changes. Click "Submit Changes" to save all edits.');
           $(updatedRow).find('.edit-button').on('click', () => openEditModal(updatedRecord, updatedRow, 'view'));
         }
-        console.log('Current pending changes:', window.pendingChanges);
+        hasUnsavedChanges = window.pendingChanges.length > 0;
         if (window.pendingChanges.length > 0) {
           document.getElementById('submit-changes').style.display = 'block';
         }
@@ -1282,8 +1292,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitChangesButton = document.getElementById('submit-changes');
     disableButton(submitChangesButton, 'Submitting...');
     try {
-      showLoading();
-      const updateResponse = await fetch(ENDPOINT, {
+      showLoading('Saving changes...');
+      const updateResponse = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1302,7 +1312,7 @@ document.addEventListener('DOMContentLoaded', () => {
           location: window.authorizedUser.location,
           ...window.viewAttendanceFilters
         };
-        const viewResponse = await fetch(ENDPOINT, {
+        const viewResponse = await fetch(CONFIG.ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(viewPayload)
@@ -1310,6 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewResponse.status === 200) {
           const freshData = await viewResponse.json();
           window.pendingChanges = [];
+          hasUnsavedChanges = false;
           submitChangesButton.style.display = 'none';
           if ($.fn.DataTable.isDataTable('#view-attendance-table')) {
             $('#view-attendance-table').DataTable().destroy();
@@ -1320,16 +1331,13 @@ document.addEventListener('DOMContentLoaded', () => {
           toastr.success('All changes have been submitted successfully.');
         } else {
           const errorData = await viewResponse.json();
-          console.error('View Refresh Error:', errorData);
           toastr.warning('Changes saved but table refresh failed. Please reload the page.');
         }
       } else {
         const errorData = await updateResponse.json();
-        console.error('Submit Changes Error:', errorData);
         toastr.error(`Failed to submit changes: ${errorData.message || 'Unknown error.'}`);
       }
     } catch (error) {
-      console.error('Submit Changes Fetch Error:', error);
       toastr.error('An error occurred while submitting your changes. Please try again later.');
     } finally {
       hideLoading();
@@ -1362,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return record;
     });
-    console.log('Final updated attendance array:', updatedAttendance);
+
     const payload = {
       type: "submitAttendance",
       name: window.authorizedUser.name,
@@ -1372,10 +1380,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const finalSubmitButton = document.getElementById('final-submit-attendance');
     disableButton(finalSubmitButton, 'Submitting...');
-    console.log('Final Submit Attendance Payload:', payload);
     try {
-      showLoading();
-      const response = await fetch(ENDPOINT, {
+      showLoading('Submitting attendance...');
+      const response = await fetch(CONFIG.ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1383,8 +1390,8 @@ document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
       if (response.status === 200) {
         const responseData = await response.json();
-        console.log('Final Submit Attendance Response Data:', responseData);
         window.selectedAttendance = [];
+        hasUnsavedChanges = false;
         resetSubmitAttendanceTable();
         showSection('post-auth-buttons');
         document.getElementById('final-submit-attendance-container').style.display = 'none';
@@ -1481,6 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.selectedAttendance = [];
     window.viewAttendanceFilters = {};
     allAttendanceData = [];
+    hasUnsavedChanges = false;
     document.getElementById('submit-changes').style.display = 'none';
     document.getElementById('final-submit-attendance-container').style.display = 'none';
     resetSubmitAttendanceTable();
@@ -1582,6 +1590,28 @@ document.addEventListener('DOMContentLoaded', () => {
       populateSelects();
     }
     setDefaultValues();
+    setBirthdateMax();
+    
+    // Warn users before leaving with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
+    
+    // Add keyboard accessibility for close modal button
+    const closeModalBtn = document.querySelector('.close-modal');
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          closeEditModal();
+        }
+      });
+    }
+    
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length) {
@@ -1605,17 +1635,6 @@ document.addEventListener('DOMContentLoaded', () => {
         header.querySelector('#location-name').textContent = window.authorizedUser.location;
       } else {
         header.style.display = 'none';
-      }
-    });
-  }
-  function showSection(sectionId) {
-    const sections = document.querySelectorAll('.section:not(#registration-section)');
-    sections.forEach(section => {
-      if (section.id === sectionId) {
-        section.classList.add('active');
-        updateMinistryHeaders();
-      } else {
-        section.classList.remove('active');
       }
     });
   }

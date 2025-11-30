@@ -1,44 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Attendance Tracker</title>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" defer></script>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://mprefuge.github.io/site-assets/styles/attendancetracker.css" />
-  <link rel="stylesheet" href="https://mprefuge.github.io/site-assets/styles/form-styles.css" />
-</head>
-<body>
-  <form id="dynamicForm"></form>
-  <div id="attendance-tracker">
-    <form id="auth-form" class="section active">
-      <h1>Login to Track Attendance</h1>
-      <div>
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" required aria-required="true" />
+<!-- Attendance Tracker - Squarespace Embed -->
+<!-- External Dependencies -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://mprefuge.github.io/site-assets/styles/attendancetracker.css" />
+<link rel="stylesheet" href="https://mprefuge.github.io/site-assets/styles/form-styles.css" />
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+<!-- Skip Link for Accessibility -->
+<a href="#attendance-tracker" class="skip-link">Skip to main content</a>
+
+<div id="attendance-tracker" role="main" aria-label="Attendance Tracker Application">
+    <form id="auth-form" class="section active" aria-labelledby="auth-form-title">
+      <h1 id="auth-form-title">Login to Track Attendance</h1>
+      <div class="form-group">
+        <label for="name">Name:<span class="required-indicator" aria-hidden="true">*</span></label>
+        <input type="text" id="name" name="name" required aria-required="true" autocomplete="name" placeholder="Enter your full name" />
       </div>
-      <div>
-        <label for="ministry">Ministry:</label>
+      <div class="form-group">
+        <label for="ministry">Ministry:<span class="required-indicator" aria-hidden="true">*</span></label>
         <select id="ministry" name="ministry" required aria-required="true">
+          <option value="">-- Select Ministry --</option>
         </select>
       </div>
-      <div>
-        <label for="location">Location:</label>
+      <div class="form-group">
+        <label for="location">Location:<span class="required-indicator" aria-hidden="true">*</span></label>
         <select id="location" name="location" required aria-required="true">
+          <option value="">-- Select Location --</option>
         </select>
       </div>
-      <button type="submit">Log In</button>
+      <button type="submit" aria-describedby="login-help">Log In</button>
+      <p id="login-help" class="help-text"><span class="required-indicator">*</span> Required fields</p>
     </form>
-    <div id="standalone-registration">
-      <h2>New Registration</h2>
+    <div id="standalone-registration" role="region" aria-labelledby="registration-title">
+      <h2 id="registration-title">New Registration</h2>
       <p>Need to register? Select one of the options below:</p>
       <div class="button-group">
-        <button type="button" id="new-student">New Student</button>
-        <button type="button" id="new-volunteer">New Site Volunteer</button>
+        <button type="button" id="new-student" aria-label="Register a new student">
+          <span class="button-icon" aria-hidden="true">📚</span> New Student
+        </button>
+        <button type="button" id="new-volunteer" aria-label="Register a new site volunteer">
+          <span class="button-icon" aria-hidden="true">🤝</span> New Site Volunteer
+        </button>
       </div>
     </div>
     <div id="post-auth-buttons" class="button-group section">
@@ -87,29 +93,30 @@
         <div class="form-section" data-step="2">
           <h3>Personal Information</h3>
           <div class="form-group">
-            <label for="first-name">First Name:</label>
-            <input type="text" id="first-name" name="firstName" required pattern="[A-Za-z-' ]+" minlength="2" />
-            <div class="error-message">Please enter a valid first name (letters, hyphens, and apostrophes only)</div>
+            <label for="first-name">First Name:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="text" id="first-name" name="firstName" required pattern="[A-Za-z-' ]+" minlength="2" autocomplete="given-name" placeholder="Enter first name" />
+            <div class="error-message" role="alert">Please enter a valid first name (letters, hyphens, and apostrophes only)</div>
           </div>
           <div class="form-group">
-            <label for="last-name">Last Name:</label>
-            <input type="text" id="last-name" name="lastName" required pattern="[A-Za-z-' ]+" minlength="2" />
-            <div class="error-message">Please enter a valid last name (letters, hyphens, and apostrophes only)</div>
+            <label for="last-name">Last Name:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="text" id="last-name" name="lastName" required pattern="[A-Za-z-' ]+" minlength="2" autocomplete="family-name" placeholder="Enter last name" />
+            <div class="error-message" role="alert">Please enter a valid last name (letters, hyphens, and apostrophes only)</div>
           </div>
           <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+" />
-            <div class="error-message">Please enter a valid email address</div>
+            <label for="email">Email:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="email" id="email" name="email" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+" autocomplete="email" placeholder="example@email.com" />
+            <div class="error-message" role="alert">Please enter a valid email address</div>
           </div>
           <div class="form-group">
-            <label for="phone-number">Phone Number:</label>
-            <input type="tel" id="phone-number" name="phoneNumber" required pattern="[0-9()-. ]+" minlength="10" />
-            <div class="error-message">Please enter a valid phone number (at least 10 digits)</div>
+            <label for="phone-number">Phone Number:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="tel" id="phone-number" name="phoneNumber" required pattern="[0-9()-. ]+" minlength="10" autocomplete="tel" placeholder="(555) 123-4567" />
+            <div class="error-message" role="alert">Please enter a valid phone number (at least 10 digits)</div>
           </div>
           <div class="form-group">
-            <label for="birthdate">Birthdate:</label>
-            <input type="date" id="birthdate" name="birthdate" required max="${new Date().toISOString().split('T')[0]}" />
-            <div class="error-message">Please enter a valid birthdate (cannot be in the future)</div>
+            <label for="birthdate">Birthdate:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="date" id="birthdate" name="birthdate" required aria-describedby="birthdate-help" />
+            <div id="birthdate-help" class="help-text">Date cannot be in the future</div>
+            <div class="error-message" role="alert">Please enter a valid birthdate (cannot be in the future)</div>
           </div>
           <div class="form-group">
             <label for="gender">Gender:</label>
@@ -126,18 +133,18 @@
         <div class="form-section" data-step="3">
           <h3>Address Information</h3>
           <div class="form-group">
-            <label for="street-1">Street Address:</label>
-            <input type="text" id="street-1" name="street1" required minlength="5" />
-            <div class="error-message">Please enter a valid street address</div>
+            <label for="street-1">Street Address:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="text" id="street-1" name="street1" required minlength="5" autocomplete="address-line1" placeholder="123 Main Street" />
+            <div class="error-message" role="alert">Please enter a valid street address</div>
           </div>
           <div class="form-group">
             <label for="street-2">Apartment/Suite/Unit (Optional):</label>
-            <input type="text" id="street-2" name="street2" />
+            <input type="text" id="street-2" name="street2" autocomplete="address-line2" placeholder="Apt 4B" />
           </div>
           <div class="form-group">
-            <label for="city">City:</label>
-            <input type="text" id="city" name="city" required pattern="[A-Za-z- ]+" minlength="2" />
-            <div class="error-message">Please enter a valid city name</div>
+            <label for="city">City:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="text" id="city" name="city" required pattern="[A-Za-z- ]+" minlength="2" autocomplete="address-level2" placeholder="Louisville" />
+            <div class="error-message" role="alert">Please enter a valid city name</div>
           </div>
           <div class="form-group">
             <label for="state">State:</label>
@@ -147,9 +154,9 @@
             <div class="error-message">Please select a state</div>
           </div>
           <div class="form-group">
-            <label for="zip">ZIP Code:</label>
-            <input type="text" id="zip" name="zip" required pattern="[0-9]{5}(-[0-9]{4})?" />
-            <div class="error-message">Please enter a valid ZIP code (12345 or 12345-6789)</div>
+            <label for="zip">ZIP Code:<span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="text" id="zip" name="zip" required pattern="[0-9]{5}(-[0-9]{4})?" autocomplete="postal-code" placeholder="40202" />
+            <div class="error-message" role="alert">Please enter a valid ZIP code (12345 or 12345-6789)</div>
           </div>
           <div class="form-group">
             <label for="country">Country:</label>
@@ -282,14 +289,16 @@
         <button class="back-button" id="back-submit-table">Back</button>
       </div>
     </div>
-    <div id="loading-indicator">
-      <p>Loading...</p>
+    <div id="loading-indicator" role="status" aria-live="polite" aria-label="Loading content">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p id="loading-message">Loading...</p>
     </div>
   </div>
-  <div id="edit-modal" class="modal">
+  <div id="edit-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
     <div class="modal-content">
-      <span class="close-modal" aria-label="Close">&times;</span>
-      <h2>Edit Attendance Record</h2>
+      <span class="close-modal" role="button" tabindex="0" aria-label="Close modal (Press Escape)">&times;</span>
+      <h2 id="edit-modal-title">Edit Attendance Record</h2>
+      <p class="modal-hint"><kbd>Esc</kbd> to close</p>
       <form id="edit-form">
         <input type="hidden" id="edit-EventID" name="EventID" />
         <input type="hidden" id="edit-PersonID" name="PersonID" />
@@ -338,7 +347,5 @@
       </form>
     </div>
   </div>
-  <script src="./scripts/lookup.js" defer></script>
-  <script src="attendancetracker.js" defer></script>
-</body>
-</html>
+  <script src="https://mprefuge.github.io/site-assets/scripts/lookup.js"></script>
+  <script src="https://mprefuge.github.io/site-assets/attendancetracker/attendancetracker.js"></script>
