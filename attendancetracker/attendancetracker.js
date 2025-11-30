@@ -1,11 +1,15 @@
 (function() {
   'use strict';
 
+  console.log('attendancetracker.js IIFE starting, readyState:', document.readyState);
+
   function initAttendanceTracker() {
+    console.log('initAttendanceTracker() called, AttendanceTrackerInitialized:', window.AttendanceTrackerInitialized);
     if (window.AttendanceTrackerInitialized) {
       return;
     }
     window.AttendanceTrackerInitialized = true;
+    console.log('Proceeding with initialization...');
 
     const CONFIG = {
       ENDPOINT: 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM',
