@@ -6,6 +6,7 @@
   }
   window.AttendanceTrackerLoaded = true;
 
+  const SCRIPT_ELEMENT = document.currentScript;
   const BASE_URL = 'https://mprefuge.github.io/site-assets';
   
   const CSS_DEPENDENCIES = [
@@ -432,25 +433,20 @@
     }
   }
 
-  function injectHTML() {
-    const currentScript = document.currentScript;
-    let container;
+  function injectHTML(insertionPoint) {
+    let container = document.createElement('div');
+    container.id = 'attendance-tracker-container';
 
-    if (currentScript && currentScript.parentNode) {
-      container = document.createElement('div');
-      container.id = 'attendance-tracker-container';
-      currentScript.parentNode.insertBefore(container, currentScript.nextSibling);
+    if (insertionPoint && insertionPoint.parentNode) {
+      insertionPoint.parentNode.insertBefore(container, insertionPoint.nextSibling);
     } else {
-      container = document.createElement('div');
-      container.id = 'attendance-tracker-container';
       document.body.appendChild(container);
     }
 
     container.innerHTML = HTML_TEMPLATE;
   }
 
-  function showInitialLoading() {
-    const currentScript = document.currentScript;
+  function showInitialLoading(insertionPoint) {
     let loadingDiv = document.createElement('div');
     loadingDiv.id = 'attendance-tracker-initial-loading';
     loadingDiv.innerHTML = `
@@ -484,8 +480,8 @@
       <p>Loading Attendance Tracker...</p>
     `;
 
-    if (currentScript && currentScript.parentNode) {
-      currentScript.parentNode.insertBefore(loadingDiv, currentScript.nextSibling);
+    if (insertionPoint && insertionPoint.parentNode) {
+      insertionPoint.parentNode.insertBefore(loadingDiv, insertionPoint.nextSibling);
     } else {
       document.body.appendChild(loadingDiv);
     }
@@ -500,11 +496,11 @@
   }
 
   async function initialize() {
-    const loadingDiv = showInitialLoading();
+    const loadingDiv = showInitialLoading(SCRIPT_ELEMENT);
 
     try {
       await loadAllCSS();
-      injectHTML();
+      injectHTML(loadingDiv);
       await loadAllJS();
       hideInitialLoading(loadingDiv);
       document.dispatchEvent(new CustomEvent('attendanceTrackerReady'));
