@@ -1,33 +1,39 @@
-document.addEventListener('DOMContentLoaded', () => {
-  // Configuration
-  const CONFIG = {
-    ENDPOINT: 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM',
-    TOASTR_OPTIONS: {
-      closeButton: true,
-      progressBar: true,
-      positionClass: "toast-top-center",
-      timeOut: "3000",
-      showMethod: "fadeIn",
-      hideMethod: "fadeOut",
-      preventDuplicates: true
+(function() {
+  'use strict';
+
+  function initAttendanceTracker() {
+    if (window.AttendanceTrackerInitialized) {
+      return;
     }
-  };
+    window.AttendanceTrackerInitialized = true;
 
-  window.authorizedUser = {};
-  window.pendingChanges = [];
-  window.selectedAttendance = [];
-  window.viewAttendanceFilters = {};
-  let allAttendanceData = [];
-  let hasUnsavedChanges = false;
-  const today = new Date().toISOString().substring(0,10);
-  
-  toastr.options = CONFIG.TOASTR_OPTIONS;
+    const CONFIG = {
+      ENDPOINT: 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a7b747841a844965aec1b0b330673366/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BUkHEC6ChgAr738T-ZPqXmQpmE7jwdPbIVtWQd-UWtM',
+      TOASTR_OPTIONS: {
+        closeButton: true,
+        progressBar: true,
+        positionClass: "toast-top-center",
+        timeOut: "3000",
+        showMethod: "fadeIn",
+        hideMethod: "fadeOut",
+        preventDuplicates: true
+      }
+    };
 
-  // Set birthdate max date dynamically
-  function setBirthdateMax() {
-    const birthdateInput = document.getElementById('birthdate');
-    if (birthdateInput) {
-      birthdateInput.max = today;
+    window.authorizedUser = {};
+    window.pendingChanges = [];
+    window.selectedAttendance = [];
+    window.viewAttendanceFilters = {};
+    let allAttendanceData = [];
+    let hasUnsavedChanges = false;
+    const today = new Date().toISOString().substring(0,10);
+    
+    toastr.options = CONFIG.TOASTR_OPTIONS;
+
+    function setBirthdateMax() {
+      const birthdateInput = document.getElementById('birthdate');
+      if (birthdateInput) {
+        birthdateInput.max = today;
     }
   }
 
@@ -588,7 +594,6 @@ document.addEventListener('DOMContentLoaded', () => {
       locationSelect.required = false;
     }
 
-    // Reset form navigation
     const sections = document.querySelectorAll('.form-section');
     sections.forEach(section => {
       section.classList.remove('active');
@@ -616,7 +621,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Remove existing event listeners
     const newNextButton = nextButton?.cloneNode(true);
     const newPrevButton = prevButton?.cloneNode(true);
     if (nextButton && newNextButton) {
@@ -673,7 +677,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const inputs = section.querySelectorAll('input[required], select[required]');
       let isValid = true;
 
-      // First, hide all error messages in the section
       section.querySelectorAll('.error-message').forEach(msg => {
         msg.style.display = 'none';
       });
@@ -688,12 +691,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (input.required && !input.value) {
           fieldValid = false;
         } else if (input.value) {
-          // Pattern validation
           if (input.pattern && !new RegExp(input.pattern).test(input.value)) {
             fieldValid = false;
           }
 
-          // Specific field validations
           switch (input.type) {
             case 'email':
               if (!validateEmail(input.value)) {
@@ -712,7 +713,6 @@ document.addEventListener('DOMContentLoaded', () => {
               break;
           }
 
-          // Length validation
           if (input.minLength && input.value.length < input.minLength) {
             fieldValid = false;
           }
@@ -1012,15 +1012,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = document.createElement('select');
         select.disabled = true;
         select.classList.add('attendance-fields-disabled');
-        select.setAttribute('data-field', config.id); // Add data attribute to identify field
+        select.setAttribute('data-field', config.id);
         
-        // Add empty option with specific text
         const emptyOption = document.createElement('option');
         emptyOption.value = '';
         emptyOption.textContent = config.text;
         select.appendChild(emptyOption);
         
-        // Populate options
         if (window.lookup && Array.isArray(config.data)) {
           config.data.forEach(item => {
             const option = document.createElement('option');
@@ -1030,7 +1028,6 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
         
-        // Set value only if it exists in record for this specific field
         const recordValue = record[config.id];
         if (recordValue) {
           select.value = recordValue;
@@ -1073,7 +1070,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleCheckboxChange(record, startDateTime, endDateTime, isChecked) {
     const row = event.target.closest('tr');
     if (isChecked) {
-      // Create initial attendance object with exact record values
       const attendance = {
         EventID: record.EventID,
         PersonID: record.PersonID,
@@ -1088,13 +1084,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ClassPlacement: record.ClassPlacement || ''
       };
 
-      // Get current form values only for fields that have been modified
       const notesInput = row.querySelector('td:nth-child(7) input[type="text"]');
       const levelSelect = row.querySelector('select[data-field="Level"]');
       const assessmentSelect = row.querySelector('select[data-field="AssessmentScore"]');
       const placementSelect = row.querySelector('select[data-field="ClassPlacement"]');
 
-      // Only update if values exist and are different from record
       if (notesInput?.value !== record.Notes) attendance.Notes = notesInput?.value || '';
       if (levelSelect?.value !== record.Level) attendance.Level = levelSelect?.value || '';
       if (assessmentSelect?.value !== record.AssessmentScore) attendance.AssessmentScore = assessmentSelect?.value || '';
@@ -1111,11 +1105,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateSelectedAttendance(PersonID, field, value) {
     const attendee = window.selectedAttendance.find(a => a.PersonID === PersonID);
     if (attendee) {
-      // Update the existing attendee's field
       attendee[field] = value;
       hasUnsavedChanges = true;
     } else {
-      // If attendee not found, find their row and get current values
       const row = document.querySelector(`#submit-attendance-table tr:has(td:nth-child(3)[text()="${PersonID}"])`);
       if (row) {
         const notesInput = row.querySelector('td:nth-child(7) input');
@@ -1123,7 +1115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const assessmentSelect = row.querySelector('td:nth-child(9) select');
         const placementSelect = row.querySelector('td:nth-child(10) select');
         
-        // Create new attendance record with current select values
         const attendance = {
           EventID: row.cells[1].textContent,
           PersonID: PersonID,
@@ -1138,13 +1129,11 @@ document.addEventListener('DOMContentLoaded', () => {
           ClassPlacement: placementSelect ? placementSelect.value : ''
         };
         
-        // Set the newly changed field
         attendance[field] = value;
         
         window.selectedAttendance.push(attendance);
         hasUnsavedChanges = true;
         
-        // Check the checkbox
         const checkbox = row.querySelector('input[type="checkbox"]');
         if (checkbox && !checkbox.checked) {
           checkbox.checked = true;
@@ -1592,7 +1581,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setDefaultValues();
     setBirthdateMax();
     
-    // Warn users before leaving with unsaved changes
     window.addEventListener('beforeunload', (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
@@ -1601,7 +1589,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     
-    // Add keyboard accessibility for close modal button
     const closeModalBtn = document.querySelector('.close-modal');
     if (closeModalBtn) {
       closeModalBtn.addEventListener('keydown', (e) => {
@@ -1659,4 +1646,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   init();
   document.addEventListener('keydown', handleEscapeKey);
-});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAttendanceTracker);
+  } else {
+    initAttendanceTracker();
+  }
+
+})();
