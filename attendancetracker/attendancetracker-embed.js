@@ -437,8 +437,11 @@
 
   async function loadAllJS() {
     for (const dep of JS_DEPENDENCIES) {
+      console.log('Loading:', dep.src);
       await loadScript(dep.src, dep.test);
+      console.log('Loaded:', dep.src, 'Test result:', dep.test ? dep.test() : 'no test');
     }
+    console.log('All JS loaded. window.lookup:', typeof window.lookup, window.lookup ? 'has servingAreas:' + !!window.lookup.servingAreas : '');
   }
 
   function injectHTML(insertionPoint) {

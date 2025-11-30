@@ -1575,8 +1575,13 @@
     }
   }
   function init() {
+    console.log('init() called. window.lookup:', typeof window.lookup, window.lookup ? Object.keys(window.lookup) : 'undefined');
+    console.log('ministry element:', document.getElementById('ministry'));
     if (window.lookup) {
       populateSelects();
+      console.log('populateSelects() completed');
+    } else {
+      console.log('window.lookup not available, skipping populateSelects');
     }
     setDefaultValues();
     setBirthdateMax();
