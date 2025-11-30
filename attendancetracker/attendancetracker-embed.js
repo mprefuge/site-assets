@@ -437,11 +437,8 @@
 
   async function loadAllJS() {
     for (const dep of JS_DEPENDENCIES) {
-      console.log('Loading:', dep.src);
       await loadScript(dep.src, dep.test);
-      console.log('Loaded:', dep.src, 'Test result:', dep.test ? dep.test() : 'no test');
     }
-    console.log('All JS loaded. window.lookup:', typeof window.lookup, window.lookup ? 'has servingAreas:' + !!window.lookup.servingAreas : '');
   }
 
   function injectHTML(insertionPoint) {
@@ -506,6 +503,96 @@
     }
   }
 
+  function populateDropdowns() {
+    if (!window.lookup) {
+      console.error('lookup.js not loaded');
+      return;
+    }
+    
+    const ministrySelect = document.getElementById('ministry');
+    const locationSelect = document.getElementById('location');
+    
+    if (ministrySelect && window.lookup.servingAreas) {
+      window.lookup.servingAreas.forEach(area => {
+        const option = document.createElement('option');
+        option.value = area.value;
+        option.textContent = area.text;
+        ministrySelect.appendChild(option);
+      });
+    }
+    
+    if (locationSelect && window.lookup.eslLocations) {
+      window.lookup.eslLocations.forEach(location => {
+        const option = document.createElement('option');
+        option.value = location.value;
+        option.textContent = location.text;
+        locationSelect.appendChild(option);
+      });
+    }
+    
+    const stateSelect = document.getElementById('state');
+    if (stateSelect && window.lookup.states) {
+      window.lookup.states.forEach(state => {
+        const option = document.createElement('option');
+        option.value = state.value;
+        option.textContent = state.text;
+        stateSelect.appendChild(option);
+      });
+      stateSelect.value = 'Kentucky';
+    }
+    
+    const countrySelect = document.getElementById('country');
+    if (countrySelect && window.lookup.countries) {
+      window.lookup.countries.forEach(country => {
+        const option = document.createElement('option');
+        option.value = country.value;
+        option.textContent = country.text;
+        countrySelect.appendChild(option);
+      });
+      countrySelect.value = 'United States';
+    }
+    
+    const editAttendeeTypeSelect = document.getElementById('edit-attendee-type');
+    if (editAttendeeTypeSelect && window.lookup.attendeeType) {
+      window.lookup.attendeeType.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.value;
+        option.textContent = type.text;
+        editAttendeeTypeSelect.appendChild(option);
+      });
+    }
+    
+    const editLevelSelect = document.getElementById('edit-level');
+    if (editLevelSelect && window.lookup.studentLevel) {
+      window.lookup.studentLevel.forEach(level => {
+        const option = document.createElement('option');
+        option.value = level.value;
+        option.textContent = level.text;
+        editLevelSelect.appendChild(option);
+      });
+    }
+    
+    const editAssessmentScoreSelect = document.getElementById('edit-assessment-score');
+    if (editAssessmentScoreSelect && window.lookup.assessmentScore) {
+      window.lookup.assessmentScore.forEach(score => {
+        const option = document.createElement('option');
+        option.value = score.value;
+        option.textContent = score.text;
+        editAssessmentScoreSelect.appendChild(option);
+      });
+    }
+    
+    const editClassPlacementSelect = document.getElementById('edit-class-placement');
+    if (editClassPlacementSelect && window.lookup.classPlacement) {
+      window.lookup.classPlacement.forEach(placement => {
+        const option = document.createElement('option');
+        option.value = placement.value;
+        option.textContent = placement.text;
+        editClassPlacementSelect.appendChild(option);
+      });
+    }
+  }
+
   async function initialize() {
     const loadingDiv = showInitialLoading(SCRIPT_ELEMENT);
 
@@ -513,6 +600,7 @@
       await loadAllCSS();
       injectHTML(loadingDiv);
       await loadAllJS();
+      populateDropdowns();
       hideInitialLoading(loadingDiv);
       document.dispatchEvent(new CustomEvent('attendanceTrackerReady'));
 
