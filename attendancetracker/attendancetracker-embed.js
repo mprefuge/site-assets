@@ -396,18 +396,25 @@
         return;
       }
 
-      if (document.querySelector(`script[src="${src}"]`)) {
+      function waitForTest(callback, timeout = 10000) {
+        if (!testFn) {
+          callback();
+          return;
+        }
+        const startTime = Date.now();
         const checkLoaded = setInterval(() => {
-          if (testFn && testFn()) {
+          if (testFn()) {
             clearInterval(checkLoaded);
-            resolve();
+            callback();
+          } else if (Date.now() - startTime > timeout) {
+            clearInterval(checkLoaded);
+            callback();
           }
         }, 50);
-        
-        setTimeout(() => {
-          clearInterval(checkLoaded);
-          resolve();
-        }, 10000);
+      }
+
+      if (document.querySelector(`script[src="${src}"]`)) {
+        waitForTest(resolve);
         return;
       }
 
@@ -415,7 +422,7 @@
       script.src = src;
       script.async = false;
       script.onload = () => {
-        setTimeout(resolve, 50);
+        waitForTest(resolve);
       };
       script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
       document.body.appendChild(script);
