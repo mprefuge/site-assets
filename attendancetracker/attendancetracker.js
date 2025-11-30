@@ -78,7 +78,7 @@
     const editLevelSelect = document.getElementById('edit-level');
     const editAssessmentScoreSelect = document.getElementById('edit-assessment-score');
     const editClassPlacementSelect = document.getElementById('edit-class-placement');
-    if (window.lookup && Array.isArray(window.lookup.servingAreas)) {
+    if (ministrySelect && window.lookup && Array.isArray(window.lookup.servingAreas)) {
       window.lookup.servingAreas.forEach(area => {
         const option = document.createElement('option');
         option.value = area.value;
@@ -86,7 +86,7 @@
         ministrySelect.appendChild(option);
       });
     }
-    if (window.lookup && Array.isArray(window.lookup.eslLocations)) {
+    if (locationSelect && window.lookup && Array.isArray(window.lookup.eslLocations)) {
       window.lookup.eslLocations.forEach(location => {
         const option = document.createElement('option');
         option.value = location.value;
@@ -94,7 +94,7 @@
         locationSelect.appendChild(option);
       });
     }
-    if (window.lookup && Array.isArray(window.lookup.attendeeType)) {
+    if (editAttendeeTypeSelect && window.lookup && Array.isArray(window.lookup.attendeeType)) {
       window.lookup.attendeeType.forEach(type => {
         const option = document.createElement('option');
         option.value = type.value;
@@ -102,7 +102,7 @@
         editAttendeeTypeSelect.appendChild(option);
       });
     }
-    if (window.lookup && Array.isArray(window.lookup.studentLevel)) {
+    if (editLevelSelect && window.lookup && Array.isArray(window.lookup.studentLevel)) {
       window.lookup.studentLevel.forEach(level => {
         const option = document.createElement('option');
         option.value = level.value;
@@ -110,7 +110,7 @@
         editLevelSelect.appendChild(option);
       });
     }
-    if (window.lookup && Array.isArray(window.lookup.assessmentScore)) {
+    if (editAssessmentScoreSelect && window.lookup && Array.isArray(window.lookup.assessmentScore)) {
       window.lookup.assessmentScore.forEach(score => {
         const option = document.createElement('option');
         option.value = score.value;
@@ -118,7 +118,7 @@
         editAssessmentScoreSelect.appendChild(option);
       });
     }
-    if (window.lookup && Array.isArray(window.lookup.classPlacement)) {
+    if (editClassPlacementSelect && window.lookup && Array.isArray(window.lookup.classPlacement)) {
       window.lookup.classPlacement.forEach(placement => {
         const option = document.createElement('option');
         option.value = placement.value;
@@ -127,25 +127,25 @@
       });
     }
     const stateSelect = document.getElementById('state');
-    if (window.lookup && Array.isArray(window.lookup.states)) {
+    if (stateSelect && window.lookup && Array.isArray(window.lookup.states)) {
       window.lookup.states.forEach(state => {
         const option = document.createElement('option');
         option.value = state.value;
         option.textContent = state.text;
         stateSelect.appendChild(option);
       });
+      stateSelect.value = 'Kentucky';
     }
-    stateSelect.value = 'Kentucky';
     const countrySelect = document.getElementById('country');
-    if (window.lookup && Array.isArray(window.lookup.countries)) {
+    if (countrySelect && window.lookup && Array.isArray(window.lookup.countries)) {
       window.lookup.countries.forEach(country => {
         const option = document.createElement('option');
         option.value = country.value;
         option.textContent = country.text;
         countrySelect.appendChild(option);
       });
+      countrySelect.value = 'United States';
     }
-    countrySelect.value = 'United States';
   }
   function handleDateModeChange() {
     const dateMode = document.getElementById('date-mode').value;

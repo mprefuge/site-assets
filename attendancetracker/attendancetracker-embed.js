@@ -8,21 +8,22 @@
 
   const SCRIPT_ELEMENT = document.currentScript;
   const BASE_URL = 'https://mprefuge.github.io/site-assets';
+  const CACHE_BUST = 'v=' + Date.now();
   
   const CSS_DEPENDENCIES = [
     'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
     'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto&display=swap',
-    `${BASE_URL}/styles/attendancetracker.css`,
-    `${BASE_URL}/styles/form-styles.css`
+    `${BASE_URL}/styles/attendancetracker.css?${CACHE_BUST}`,
+    `${BASE_URL}/styles/form-styles.css?${CACHE_BUST}`
   ];
 
   const JS_DEPENDENCIES = [
     { src: 'https://code.jquery.com/jquery-3.6.0.min.js', test: () => typeof jQuery !== 'undefined' },
     { src: 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', test: () => typeof jQuery !== 'undefined' && jQuery.fn.DataTable },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js', test: () => typeof toastr !== 'undefined' },
-    { src: `${BASE_URL}/scripts/lookup.js`, test: () => typeof window.lookup !== 'undefined' },
-    { src: `${BASE_URL}/attendancetracker/attendancetracker.js`, test: () => true }
+    { src: `${BASE_URL}/scripts/lookup.js?${CACHE_BUST}`, test: () => typeof window.lookup !== 'undefined' },
+    { src: `${BASE_URL}/attendancetracker/attendancetracker.js?${CACHE_BUST}`, test: () => true }
   ];
 
   const HTML_TEMPLATE = `
