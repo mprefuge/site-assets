@@ -4,7 +4,7 @@
     // ============================================
     // CONFIGURATION - Update this with your API URL
     // ============================================
-    const API_BASE_URL = 'http://localhost:7071/api';//'https://attendancetrackerfa.azurewebsites.net/api'; // Change to your Azure Function URL in production
+    const API_BASE_URL = 'https://attendancetrackerfa.azurewebsites.net/api'; // 'http://localhost:7071/api'; //Change to your Azure Function URL in production
     // Organization logo used in UI and exported files
     const ORG_LOGO_URL = 'https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png';
     // Example: const API_BASE_URL = 'https://your-function-app.azurewebsites.net/api';
