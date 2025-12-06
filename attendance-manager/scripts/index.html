@@ -1,0 +1,726 @@
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attendance Tracker</title>
+    <link rel="stylesheet" href="styles/attendance-manager.css">
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script></head>
+  <body>
+<div class="att-tracker hints-enabled">
+  <div class="att-card">
+    <div class="att-hints-toggle att-hidden">
+      <span class="att-hints-label">Hints</span>
+      <div id="att-hints-switch" class="att-hints-switch active" title="Toggle step-by-step hints" role="switch" tabindex="0" aria-label="Toggle step-by-step hints" aria-checked="true"></div>
+      <button id="att-walkthrough-start" class="att-walkthrough-btn att-hidden" title="Start guided tour">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        Tour
+      </button>
+    </div>
+    <div class="att-logo">
+      <img src="https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png" alt="Refuge International" class="att-logo-img">
+    </div>
+    <div id="att-user-menu-wrapper" class="att-user-menu-wrapper" aria-hidden="true">
+      <button id="att-user-menu-btn" class="att-user-menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Open user menu">RI</button>
+      <div id="att-user-menu" class="att-user-menu" role="menu" aria-hidden="true">
+        <div class="att-user-menu-head">
+          <div class="att-user-menu-info">
+            <div class="att-user-menu-name"><strong id="att-user-name"></strong></div>
+            <div class="att-user-menu-meta">
+              <div class="att-user-menu-ministry"><span id="att-user-ministry"></span></div>
+              <div class="att-user-menu-location"><span id="att-user-location"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="att-user-menu-actions">
+          <button id="att-logout-btn" class="att-btn att-btn-secondary">Sign Out</button>
+        </div>
+      </div>
+    </div>
+    <h1>Attendance Manager</h1>    
+    <div id="att-auth-section">
+      <h2>Sign In</h2>      
+      <div class="att-form-group">
+        <label for="att-name">Your Name</label>
+        <input type="text" id="att-name" placeholder="Enter your full name">
+      </div>
+      <div class="att-form-group">
+        <label for="att-ministry">Ministry</label>
+        <select id="att-ministry" aria-label="Ministry"><option value="">Select a Ministry Area</option>
+<option value="Adopt-A-Family">Adopt-A-Family</option>
+<option value="Conversation Club">Conversation Club</option>
+<option value="English Mentoring">English Mentoring</option>
+<option value="ESL Network">ESL Network</option>
+<option value="Nations Next Door">Nations Next Door</option>
+<option value="Right Start">Right Start</option>
+<option value="Translator">Translator</option>
+<option value="Welcome Center Use">Welcome Center Use</option>
+<option value="Other">Other</option></select>
+      </div>
+      <div class="att-form-group">
+        <label for="att-location">Location</label>
+        <select id="att-location" aria-label="Location"><option value="">Select a location</option>
+<option value="Beechmont Townhomes">Beechmont Townhomes</option>
+<option value="Bridge Creek">Bridge Creek</option>
+<option value="C3AG">C3AG</option>
+<option value="Cornerstone Baptist Church">Cornerstone Baptist Church</option>
+<option value="Corydon Baptist Church">Corydon Baptist Church</option>
+<option value="DEcAF">DEcAF</option>
+<option value="Farmdale Baptist Church">Farmdale Baptist Church</option>
+<option value="Gethsemane Baptist Church">Gethsemane Baptist Church</option>
+<option value="Hope Place">Hope Place</option>
+<option value="Journey Church">Journey Church</option>
+<option value="Ninth &amp; O Baptist Church">Ninth &amp; O Baptist Church</option>
+<option value="Ormsby Heights Baptist Church">Ormsby Heights Baptist Church</option>
+<option value="Shively Baptist Church">Shively Baptist Church</option>
+<option value="Other">Other</option></select>
+      </div>
+      <button class="att-btn att-btn-primary att-btn-block" id="att-auth-btn">
+        <span id="att-auth-btn-text">Sign In</span>
+        <span id="att-auth-spinner" class="att-spinner att-hidden"></span>
+      </button>
+      <div id="att-auth-error" class="att-alert att-alert-error att-hidden"></div>
+    </div>    
+    <div id="att-main-section" class="att-hidden">      
+      <div class="att-tabs">
+        <button class="att-tab active" data-tab="collect">Collect Attendance</button>
+        <button class="att-tab" data-tab="view">View Records</button>
+        <button class="att-tab" data-tab="register">New Registration</button>
+        <button class="att-tab" data-tab="export">Export</button>        
+        <button class="att-tab att-tab-gear" data-tab="config" title="Event Configuration" aria-label="Event Configuration">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
+            <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.09c0-.6-.37-1.14-.95-1.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06c.3-.3.49-.71.53-1.17V15a2 2 0 1 1 0-4v-.09c-.04-.46-.23-.87-.53-1.17l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06c.49.49 1.22.6 1.82.33.58-.26.95-.8.95-1.4V3a2 2 0 1 1 4 0v.09c0 .6.37 1.14.95 1.4.6.27 1.33.16 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.3.3-.49.71-.53 1.17V9a2 2 0 1 1 0 4v.09c.04.46.23.87.53 1.17z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </button>
+      </div>      
+      <div id="att-tab-collect" class="att-tab-content">
+        <h2 class="sr-only">Collect Attendance</h2>
+        <div class="att-hint-box" role="note" data-hint-id="collect-recording-attendance">
+          <div class="att-hint-content">
+            <div class="att-hint-header">
+              <strong>Recording attendance</strong>
+              <button class="att-hint-dismiss" aria-label="Dismiss hint" data-hint-id="collect-recording-attendance">Got it</button>
+            </div>
+            <div class="att-hint-body">Find people quickly with search, check present, and press <strong>Submit Attendance</strong> to save.</div>
+          </div>
+        </div>
+        <div id="att-event-preview" class="att-form-row" style="align-items:center; gap:12px; margin-bottom:12px;">
+          <div style="flex:1">
+            <label style="font-size:13px; font-weight:700; color:#374151;">Event</label>
+            <div id="att-event-preview-display" style="display:flex; gap:10px; align-items:center; color:#374151;">
+              <div id="att-event-preview-text" style="font-size:14px;">
+                <strong id="att-preview-name">(loading...)</strong>
+                <div id="att-preview-daytime" style="font-size:12px; color:#6b7280;">&nbsp;</div>
+                <div id="att-preview-exactdate" style="font-size:12px; color:#6b7280;">&nbsp;</div>
+                <div id="att-preview-location" style="font-size:12px; color:#6b7280;">&nbsp;</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="att-event-edit-inline-btn" class="att-btn att-btn-outline" title="Edit event for this submission" aria-label="Edit event">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"></path>
+                <path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="att-event-inline-editor" class="att-form-row att-hidden" style="margin-bottom:12px; gap:12px; align-items:center;">
+          <div style="flex:1; display:flex; gap:8px; align-items:center;">
+            <input type="text" id="att-inline-event-name" placeholder="Event name (e.g. ESL Class)" style="flex:1; min-width:180px;">
+            <select id="att-inline-event-day" style="width:140px;">
+              <option value="">Day</option>
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
+            <input type="time" id="att-inline-event-start" style="width:110px;">
+            <input type="time" id="att-inline-event-end" style="width:110px;">
+            <input type="datetime-local" id="att-inline-event-start-datetime" class="att-hidden" style="width:220px;">
+            <input type="datetime-local" id="att-inline-event-end-datetime" class="att-hidden" style="width:220px;">
+          </div>
+          <div style="flex:1; display:flex; gap:8px; align-items:center; margin-top:8px;">
+            <div style="flex:1; position:relative;">
+              <input type="text" id="att-inline-event-location" placeholder="Location (address or site)" style="width:100%;">
+              <div id="att-inline-event-location-suggestions" class="att-address-suggestions att-hidden" style="position:absolute; left:0; right:0; z-index:1200; max-height:180px; overflow:auto;"></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="att-inline-save-btn" class="att-btn att-btn-primary">Save</button>
+            <button id="att-inline-cancel-btn" class="att-btn att-btn-outline">Cancel</button>
+          </div>
+        </div>
+        <div id="att-custom-range" class="att-form-row att-hidden">
+          <div class="att-form-group">
+            <label for="att-start-datetime">Start Date &amp; Time</label>
+            <input type="datetime-local" id="att-start-datetime">
+          </div>
+          <div class="att-form-group">
+            <label for="att-end-datetime">End Date &amp; Time</label>
+            <input type="datetime-local" id="att-end-datetime">
+          </div>
+        </div>
+        <div id="att-load-error" class="att-alert att-alert-error att-hidden"></div>
+        <div id="att-attendees-section" class="att-hidden">
+          <h3>Select Attendees <span id="att-selected-count" class="att-count-badge">0</span></h3>
+          <div class="att-type-filter" style="display:flex; gap:8px; margin-bottom:8px;">
+            <button id="att-filter-type-all" class="att-filter-btn active" data-type="All">All</button>
+            <button id="att-filter-type-students" class="att-filter-btn" data-type="Student">Students</button>
+            <button id="att-filter-type-volunteers" class="att-filter-btn" data-type="Volunteer">Volunteers</button>
+            <button id="att-filter-type-children" class="att-filter-btn" data-type="Child">Children</button>
+          </div>
+          <div class="att-search-box" style="margin-top:6px; margin-bottom:6px;">
+            <svg class="att-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input type="text" class="att-search-input" id="att-search-attendees" placeholder="Search attendees...">
+          </div>
+          <div class="att-attendee-list">
+            <div class="att-select-all">
+              <input type="checkbox" id="att-select-all-checkbox" class="att-attendee-checkbox">
+              <label for="att-select-all-checkbox">Select All</label>
+            </div>
+            <div id="att-attendees-container"></div>
+          </div>
+          <div class="att-btn-group">
+            <button class="att-btn att-btn-success" id="att-submit-attendance-btn">
+              <span id="att-submit-btn-text">Submit Attendance</span>
+              <span id="att-submit-spinner" class="att-spinner att-hidden"></span>
+            </button>
+          </div>
+          <div id="att-submit-success" class="att-alert att-alert-success att-hidden"></div>
+          <div id="att-submit-error" class="att-alert att-alert-error att-hidden"></div>
+        </div>
+      </div>
+      <div id="att-tab-config" class="att-tab-content att-hidden">
+        <h2 class="sr-only">Event Configuration</h2>
+        <div class="att-hint-box" role="note" data-hint-id="config-setting-up-event">
+          <div class="att-hint-content">
+            <div class="att-hint-header">
+              <strong>Event setup</strong>
+              <button class="att-hint-dismiss" aria-label="Dismiss hint" data-hint-id="config-setting-up-event">Got it</button>
+            </div>
+            <div class="att-hint-body">Set the default event name, location and times — these will be attached to attendance records.</div>
+          </div>
+        </div>
+        <p class="att-form-description">Configure default event details used when creating attendance records.</p>
+        <div class="att-form-row">
+          <div class="att-form-group">
+            <label for="att-event-name">Event Name</label>
+            <input type="text" id="att-event-name" placeholder="e.g., ESL Class, Youth Group, Children's Ministry">
+          </div>
+          <div class="att-form-group">
+            <label for="att-event-location">Location</label>
+            <div class="att-address-wrapper">
+              <input type="text" id="att-event-location" placeholder="e.g., Main Campus, Room 101, Online">
+              <div id="att-event-location-suggestions" class="att-address-suggestions att-hidden"></div>
+            </div>
+          </div>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group">
+            <label for="att-event-day">Day of Week</label>
+            <select id="att-event-day">
+              <option value="">Select a day</option>
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
+          </div>
+          <div class="att-form-group">
+            <label for="att-event-start-time">Start Time</label>
+            <input type="time" id="att-event-start-time">
+          </div>
+          <div class="att-form-group">
+            <label for="att-event-end-time">End Time</label>
+            <input type="time" id="att-event-end-time">
+          </div>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group att-full-width">
+            <label for="att-event-description">Event Description (Optional)</label>
+            <textarea id="att-event-description" rows="3" placeholder="Additional details about the event..."></textarea>
+          </div>
+        </div>
+        <div class="att-btn-group">
+          <button class="att-btn att-btn-primary" id="att-save-config-btn">
+            <span id="att-save-config-btn-text">Save Configuration</span>
+            <span id="att-save-config-spinner" class="att-spinner att-hidden"></span>
+          </button>
+          <button class="att-btn att-btn-secondary" id="att-reset-config-btn">Reset to Defaults</button>
+        </div>
+        <div id="att-config-success" class="att-alert att-alert-success att-hidden"></div>
+        <div id="att-config-error" class="att-alert att-alert-error att-hidden"></div>
+      </div>   
+      <div id="att-tab-view" class="att-tab-content att-hidden">
+        <h2 class="sr-only">View Attendance Records</h2>
+        <div class="att-hint-box" role="note" data-hint-id="view-viewing-history">
+          <div class="att-hint-content">
+            <div class="att-hint-header">
+              <strong>Viewing history</strong>
+              <button class="att-hint-dismiss" aria-label="Dismiss hint" data-hint-id="view-viewing-history">Got it</button>
+            </div>
+            <div class="att-hint-body">Choose a date range and click <strong>View Records</strong>. Click any record to edit details.</div>
+          </div>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group" style="flex:1 1 100%;">
+            <label>Date Range</label>
+            <div class="att-filter-buttons">
+              <button class="att-filter-btn" data-range="last-year">Last Year</button>
+              <button class="att-filter-btn" data-range="year-to-date">Year to Date</button>
+              <button class="att-filter-btn" data-range="last-month">Last Month</button>
+              <button class="att-filter-btn" data-range="last-week">Last Week</button>
+              <button class="att-filter-btn" data-range="custom">Custom Range</button>
+            </div>
+          </div>
+        </div>
+        <div id="att-view-custom-range" class="att-form-row att-hidden">
+          <div class="att-form-group">
+            <label for="att-view-start-date">Start Date</label>
+            <input type="date" id="att-view-start-date">
+          </div>
+          <div class="att-form-group">
+            <label for="att-view-end-date">End Date</label>
+            <input type="date" id="att-view-end-date">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin:8px 0 12px;">
+          <button id="att-view-filter-all" class="att-filter-btn active" data-type="All">All</button>
+          <button id="att-view-filter-students" class="att-filter-btn" data-type="Student">Students</button>
+          <button id="att-view-filter-volunteers" class="att-filter-btn" data-type="Volunteer">Volunteers</button>
+          <button id="att-view-filter-children" class="att-filter-btn" data-type="Child">Children</button>
+        </div>
+        <button class="att-btn att-btn-primary" id="att-view-records-btn">
+          <span id="att-view-btn-text">View Records</span>
+          <span id="att-view-spinner" class="att-spinner att-hidden"></span>
+        </button>
+        <div id="att-view-error" class="att-alert att-alert-error att-hidden"></div>
+        <div id="att-records-section" class="att-hidden">
+          <h3>Attendance Records <span id="att-records-count" class="att-count-badge">0</span></h3>
+          <div class="att-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="att-records-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="att-tab-register" class="att-tab-content att-hidden">
+        <h2 class="sr-only">New Registration</h2>
+        <div class="att-hint-box" role="note" data-hint-id="register-adding-people">
+          <div class="att-hint-content">
+            <div class="att-hint-header">
+              <strong>Add people</strong>
+              <button class="att-hint-dismiss" aria-label="Dismiss hint" data-hint-id="register-adding-people">Got it</button>
+            </div>
+            <div class="att-hint-body">Choose a registration type and complete the short form. Students may include children.</div>
+          </div>
+        </div>
+        <div id="att-reg-type-selection">
+          <p style="color: #666; margin-bottom: 16px;">Select the type of registration:</p>
+          <div class="att-reg-type-cards">
+            <div class="att-reg-type-card" data-type="Student" onclick="window.attSelectRegType('Student')">
+              <div class="att-reg-icon">🎓</div>
+              <div class="att-reg-title">New Student</div>
+              <div class="att-reg-desc">Register as a student participant</div>
+            </div>
+            <div class="att-reg-type-card" data-type="Volunteer" onclick="window.attSelectRegType('Volunteer')">
+              <div class="att-reg-icon">🤝</div>
+              <div class="att-reg-title">New Site Volunteer</div>
+              <div class="att-reg-desc">Register as a ministry volunteer</div>
+            </div>
+          </div>
+        </div>
+        <div id="att-reg-form-container" class="att-hidden">
+          <button type="button" class="att-btn att-btn-secondary" id="att-back-to-type" style="margin-bottom: 20px;">
+            ← Change Registration Type
+          </button>
+          <div id="att-reg-type-label" class="att-alert att-alert-info" style="margin-bottom: 20px;"></div>
+          <div class="att-form-steps" id="att-form-steps">
+            <div class="att-form-step active" data-step="1">
+              <div class="att-step-number">1</div>
+              <div class="att-step-label">Personal Info</div>
+            </div>
+            <div class="att-step-divider"></div>
+            <div class="att-form-step" data-step="2">
+              <div class="att-step-number">2</div>
+              <div class="att-step-label">Address</div>
+            </div>
+            <div class="att-step-divider"></div>
+            <div class="att-form-step" data-step="3">
+              <div class="att-step-number">3</div>
+              <div class="att-step-label">Additional Info</div>
+            </div>
+            <div class="att-step-divider att-student-only"></div>
+            <div class="att-form-step att-student-only" data-step="4">
+              <div class="att-step-number">4</div>
+              <div class="att-step-label">Childcare</div>
+            </div>
+          </div>
+          <form id="att-register-form">
+            <input type="hidden" id="att-reg-type" value="">
+            <div class="att-form-page active" data-page="1">
+              <div class="att-form-section">
+                <h3>Personal Information</h3>
+                <div class="att-form-row">
+                  <div class="att-form-group">
+                    <label for="att-reg-firstname">First Name *</label>
+                    <input type="text" id="att-reg-firstname" required="">
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-lastname">Last Name *</label>
+                    <input type="text" id="att-reg-lastname" required="">
+                  </div>
+                </div>
+                <div class="att-form-row">
+                  <div class="att-form-group">
+                    <label for="att-reg-email">Email *</label>
+                    <input type="email" id="att-reg-email" required="">
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-phone">Phone Number *</label>
+                    <input type="tel" id="att-reg-phone" required="">
+                  </div>
+                </div>
+                <div class="att-form-row">
+                  <div class="att-form-group">
+                    <label for="att-reg-birthdate">Birthdate</label>
+                    <input type="date" id="att-reg-birthdate">
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-gender">Gender</label>
+                    <select id="att-reg-gender">
+                      <option value="">Select...</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="att-form-nav">
+                <div></div>
+                <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
+              </div>
+            </div>
+            <div class="att-form-page" data-page="2">
+              <div class="att-form-section">
+                <h3>Address</h3>
+                <div class="att-form-group att-address-wrapper">
+                  <label for="att-reg-address-search">Search Address</label>
+                  <input type="text" id="att-reg-address-search" placeholder="Start typing an address..." autocomplete="off">
+                  <div id="att-address-suggestions" class="att-address-suggestions att-hidden"></div>
+                  <span class="att-address-manual" id="att-toggle-manual-address">Enter address manually</span>
+                </div>
+                <div id="att-manual-address-fields">
+                  <div class="att-form-group">
+                    <label for="att-reg-street1">Street Address</label>
+                    <input type="text" id="att-reg-street1" placeholder="Street address">
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-street2">Apt/Suite/Unit</label>
+                    <input type="text" id="att-reg-street2" placeholder="Apartment, suite, unit, etc.">
+                  </div>
+                  <div class="att-form-row">
+                    <div class="att-form-group">
+                      <label for="att-reg-city">City</label>
+                      <input type="text" id="att-reg-city">
+                    </div>
+                    <div class="att-form-group">
+                      <label for="att-reg-state">State</label>
+                      <input type="text" id="att-reg-state">
+                    </div>
+                  </div>
+                  <div class="att-form-row">
+                    <div class="att-form-group">
+                      <label for="att-reg-zip">ZIP Code</label>
+                      <input type="text" id="att-reg-zip">
+                    </div>
+                    <div class="att-form-group">
+                      <label for="att-reg-country">Country</label>
+                      <input type="text" id="att-reg-country" value="USA">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="att-form-nav">
+                <button type="button" class="att-btn att-btn-secondary" onclick="window.attPrevPage()">← Back</button>
+                <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
+              </div>
+            </div>
+            <div class="att-form-page" data-page="3">
+              <div class="att-form-section">
+                <h3>Additional Information</h3>
+                <div class="att-form-group">
+                  <label for="att-reg-church">Church Name</label>
+                  <input type="text" id="att-reg-church">
+                </div>
+                <div class="att-checkbox-group">
+                  <input type="checkbox" id="att-reg-email-optin" checked="">
+                  <label for="att-reg-email-optin">Subscribe to email updates</label>
+                </div>
+              </div>
+              <div id="att-student-fields" class="att-form-section att-hidden">
+                <h3>Student Information</h3>
+                <div class="att-form-row">
+                  <div class="att-form-group">
+                    <label for="att-reg-level">Level</label>
+                    <input type="text" id="att-reg-level" placeholder="e.g., Beginner, Intermediate, Advanced">
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-class">Class Placement</label>
+                    <input type="text" id="att-reg-class" placeholder="e.g., Class A, Class B">
+                  </div>
+                </div>
+                <div class="att-form-group">
+                  <label for="att-reg-assessment">Assessment Score</label>
+                  <input type="text" id="att-reg-assessment" placeholder="Assessment score if available">
+                </div>
+              </div>
+              <div class="att-form-nav">
+                <button type="button" class="att-btn att-btn-secondary" onclick="window.attPrevPage()">← Back</button>
+                <button type="button" class="att-btn att-btn-primary att-volunteer-submit att-hidden" onclick="window.attSubmitReg()">Complete Registration</button>
+                <button type="button" class="att-btn att-btn-primary att-student-next" onclick="window.attNextPage()">Next →</button>
+              </div>
+            </div>
+            <div class="att-form-page att-student-only" data-page="4">
+              <div class="att-form-section">
+                <h3>Childcare Registration</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 16px;">
+                  If you have children who need childcare during the program, add them below.
+                </p>
+                <div id="att-children-container"></div>
+                <button type="button" class="att-btn att-btn-outline" id="att-add-child-btn">
+                  + Add Child
+                </button>
+              </div>
+              <div class="att-form-nav">
+                <button type="button" class="att-btn att-btn-secondary" onclick="window.attPrevPage()">← Back</button>
+                <button type="button" class="att-btn att-btn-primary" onclick="window.attSubmitReg()">
+                  <span id="att-reg-btn-text">Complete Registration</span>
+                  <span id="att-reg-spinner" class="att-spinner att-hidden"></span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div id="att-reg-success" class="att-alert att-alert-success att-hidden"></div>
+        <div id="att-reg-error" class="att-alert att-alert-error att-hidden"></div>
+      </div>
+      <div id="att-tab-export" class="att-tab-content att-hidden">
+        <h2 class="sr-only">Export Data</h2>
+        <div class="att-hint-box" role="note" data-hint-id="export-exporting-data">
+          <div class="att-hint-content">
+            <div class="att-hint-header">
+              <strong>Export data</strong>
+              <button class="att-hint-dismiss" aria-label="Dismiss hint" data-hint-id="export-exporting-data">Got it</button>
+            </div>
+            <div class="att-hint-body">Pick your export type and date range, preview results, then export CSV — filters apply before export.</div>
+          </div>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group" style="flex:1 1 100%;">
+            <label>Date Range</label>
+            <div class="att-filter-buttons">
+              <button class="att-filter-btn" data-range="last-year">Last Year</button>
+              <button class="att-filter-btn" data-range="year-to-date">Year to Date</button>
+              <button class="att-filter-btn" data-range="last-month">Last Month</button>
+              <button class="att-filter-btn" data-range="last-week">Last Week</button>
+              <button class="att-filter-btn" data-range="custom">Custom Range</button>
+            </div>
+          </div>
+        </div>        
+        <div id="att-export-custom-range" class="att-form-row att-hidden">
+          <div class="att-form-group">
+            <label for="att-export-start-date">Start Date</label>
+            <input type="date" id="att-export-start-date">
+          </div>
+          <div class="att-form-group">
+            <label for="att-export-end-date">End Date</label>
+            <input type="date" id="att-export-end-date">
+          </div>
+        </div>
+        <div class="att-form-group">
+          <label>Export Type</label>
+          <div id="att-export-type-toggle" style="display:flex; gap:8px;">
+            <button class="att-btn att-export-type-btn active" data-type="attendance">Attendance Records</button>
+            <button class="att-btn att-export-type-btn" data-type="attendees">Attendee List</button>
+          </div>
+        </div>
+        <div id="att-export-type-filters" class="att-form-group" style="display:flex; gap:8px; align-items:center;">
+          <label style="margin-right:8px; font-weight:700; font-size:13px; color:#374151;">Include</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="att-export-filter-all" class="att-filter-btn active" data-type="All">All</button>
+            <button id="att-export-filter-students" class="att-filter-btn" data-type="Student">Students</button>
+            <button id="att-export-filter-volunteers" class="att-filter-btn" data-type="Volunteer">Volunteers</button>
+            <button id="att-export-filter-children" class="att-filter-btn" data-type="Children">Children</button>
+          </div>
+        </div>
+        <button class="att-btn att-btn-secondary att-hidden" id="att-preview-btn" style="margin-bottom: 16px;">
+          <span id="att-preview-btn-text">Preview Data</span>
+          <span id="att-preview-spinner" class="att-spinner att-hidden"></span>
+        </button>        
+        <div id="att-export-preview" class="att-hidden">
+          <div class="att-export-summary">
+            <h3>Export Preview <span id="att-export-count" class="att-count-badge">0</span></h3>
+            <div class="att-export-counts">
+              <span class="att-export-count-item"><strong>Students:</strong> <span id="att-preview-students">0</span></span>
+              <span class="att-export-count-item"><strong>Volunteers:</strong> <span id="att-preview-volunteers">0</span></span>
+              <span class="att-export-count-item"><strong>Children:</strong> <span id="att-preview-children">0</span></span>
+            </div>
+          </div>
+          <div class="att-table-wrapper" style="max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                </tr>
+              </thead>
+              <tbody id="att-export-preview-tbody"></tbody>
+            </table>
+          </div>          
+          <div class="att-form-row" style="align-items: flex-end;">
+            <div class="att-form-group" style="flex: 1;">
+              <label for="att-export-format">Export Format</label>
+              <select id="att-export-format">
+                <option value="xlsx">Excel Spreadsheet (.xlsx)</option>
+                <option value="csv">Comma Separated Values (.csv)</option>
+                <option value="json">JSON (.json)</option>
+              </select>
+            </div>
+            <div class="att-form-group" style="flex: 0;">
+              <button class="att-btn att-btn-primary" id="att-export-btn">
+                <span id="att-export-btn-text">📥 Export</span>
+                <span id="att-export-spinner" class="att-spinner att-hidden"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="att-export-error" class="att-alert att-alert-error att-hidden"></div>
+        <div id="att-export-success" class="att-alert att-alert-success att-hidden"></div>
+      </div>
+    </div>
+  </div>  
+  <div id="att-edit-modal" class="att-modal-overlay att-hidden">
+    <div class="att-modal">
+      <div class="att-modal-header">
+        <h3 class="att-modal-title">Edit Attendance Record</h3>
+        <button class="att-modal-close" id="att-modal-close">×</button>
+      </div>
+      <div class="att-modal-body">
+        <input type="hidden" id="att-edit-event-id">
+        <input type="hidden" id="att-edit-person-id">
+        <div class="att-form-row">
+          <div class="att-form-group">
+            <label for="att-edit-firstname">First Name</label>
+            <input type="text" id="att-edit-firstname">
+          </div>
+          <div class="att-form-group">
+            <label for="att-edit-lastname">Last Name</label>
+            <input type="text" id="att-edit-lastname">
+          </div>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group">
+            <label for="att-edit-start">Start Date/Time</label>
+            <input type="datetime-local" id="att-edit-start">
+          </div>
+          <div class="att-form-group">
+            <label for="att-edit-end">End Date/Time</label>
+            <input type="datetime-local" id="att-edit-end">
+          </div>
+        </div>
+        <div class="att-form-group">
+          <label for="att-edit-type">Attendee Type</label>
+          <select id="att-edit-type">
+            <option value="Student">Student</option>
+            <option value="Volunteer">Volunteer</option>
+            <option value="Child">Child</option>
+          </select>
+        </div>
+        <div class="att-form-group">
+          <label for="att-edit-notes">Notes</label>
+          <textarea id="att-edit-notes"></textarea>
+        </div>
+        <div class="att-form-row">
+          <div class="att-form-group">
+            <label for="att-edit-level">Level</label>
+            <input type="text" id="att-edit-level">
+          </div>
+          <div class="att-form-group">
+            <label for="att-edit-class">Class Placement</label>
+            <input type="text" id="att-edit-class">
+          </div>
+        </div>
+      </div>
+      <div class="att-modal-footer">
+        <button class="att-btn att-btn-secondary" id="att-modal-cancel">Cancel</button>
+        <button class="att-btn att-btn-primary" id="att-modal-save">
+          <span id="att-modal-save-text">Save Changes</span>
+          <span id="att-modal-save-spinner" class="att-spinner att-hidden"></span>
+        </button>
+      </div>
+      <div id="att-modal-error" class="att-alert att-alert-error att-hidden" style="margin: 0 24px 16px;"></div>
+    </div>
+  </div>  
+  <div id="att-walkthrough-overlay" class="att-walkthrough-overlay">
+    <div class="att-walkthrough-modal">
+      <div class="att-walkthrough-header">
+        <h3>Welcome to the Attendance Tracker</h3>
+        <p>Let's take a quick tour to get you started</p>
+        <button id="att-walkthrough-close" class="att-walkthrough-close">×</button>
+      </div>
+      <div class="att-walkthrough-progress" id="att-walkthrough-progress">
+      </div>
+      <div class="att-walkthrough-content" id="att-walkthrough-content">
+      </div>
+      <div class="att-walkthrough-footer">
+        <span class="att-walkthrough-step-count" id="att-walkthrough-step-count">Step 1 of 6</span>
+        <div class="att-walkthrough-nav">
+          <button id="att-walkthrough-prev" class="att-walkthrough-btn-prev">← Back</button>
+          <button id="att-walkthrough-next" class="att-walkthrough-btn-next">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+    try {
+      const cs = document.characterSet || document.charset || '';
+      if (cs && cs.toLowerCase() !== 'utf-8') {
+        console.warn('Warning: page not served as UTF-8 (document.characterSet=' + cs + '). This can cause symbols and emoji to render incorrectly.');
+      }
+    } catch (e) {
+      console.warn('Unable to determine document charset for encoding checks');
+    }
+  </script>
+  <script src="https://mprefuge.github.io/site-assets/scripts/lookup.js"></script>
+  <script src="scripts/am-session.js"></script>
+  <script src="scripts/am-script.js"></script>
+  
+</body></html>

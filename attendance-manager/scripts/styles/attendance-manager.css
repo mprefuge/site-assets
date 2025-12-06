@@ -1,0 +1,1647 @@
+/* Attendance Tracker styles moved from index.html */
+/* Core styles for Refuge International attendance tracker */
+.att-tracker * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.att-tracker {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  color: #1a1a1a;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* design tokens / branding */
+  --accent: #BD2135; /* primary brand accent */
+  --accent-600: #9a1a2b;
+  --muted: #6b7280;
+  --text: #0b1720;
+  --hint-bg: #fffaf8; /* subtle warm background for hints */
+}
+
+.att-tracker .att-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 0 32px;
+  margin-bottom: 24px;
+  border-top: 5px solid #BD2135;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Top-right initials-only user menu */
+.att-user-menu-wrapper { position: absolute; top: 14px; right: 14px; z-index: 1500; }
+.att-user-menu-wrapper[aria-hidden="true"] { display: none; }
+.att-user-menu-btn {
+  width:40px; height:40px; border-radius:50%; border:none; cursor:pointer; background:#BD2135; color:#fff; font-weight:800; display:inline-flex; align-items:center; justify-content:center; font-size:13px; box-shadow:0 6px 18px rgba(11,34,60,0.08);
+}
+.att-user-menu {
+  display:block; position:absolute; right:0; top:48px; width:240px; background:#fff; border-radius:10px; padding:12px; box-shadow:0 18px 48px rgba(11,34,60,0.14); border:1px solid rgba(11,22,32,0.06);
+  opacity:0; visibility:hidden; transform:translateY(-8px); pointer-events:none; transition: opacity 160ms ease, transform 180ms ease, visibility 160ms ease;
+}
+.att-user-menu[data-visible="true"] { opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
+.att-user-menu-head { display:flex; gap:10px; align-items:center; padding-bottom:6px; border-bottom:1px solid rgba(15,23,42,0.06); }
+.att-user-menu-name strong { font-weight:700; color:#0b1720; }
+.att-user-menu-meta { font-size:12px; color:#6b7280; margin-top:6px; display:block; }
+.att-user-menu-ministry,
+.att-user-menu-location { margin-top:4px; color:#6b7280; font-size:12px; }
+.att-user-menu-actions { display:flex; gap:8px; margin-top:12px; justify-content:flex-end; }
+.att-user-menu-actions .att-btn { width:100%; display:block; }
+.att-user-menu-actions .att-btn-secondary { justify-content:center; }
+
+/* branding accent and small animation tweaks */
+.att-user-menu { border-left: 6px solid #BD2135; }
+.att-user-menu .att-btn { padding: 8px 14px; border-radius:8px; font-size:13px; }
+.att-user-menu .att-btn-secondary { background: rgba(189,33,53,0.06); color: #111827; border: 1px solid rgba(189,33,53,0.12); }
+.att-user-menu .att-btn-secondary:hover { background: rgba(189,33,53,0.12); }
+
+.att-user-menu::after {
+  /* subtle caret above the menu to visually connect to the initials button */
+  content: '';
+  position: absolute;
+  right: 22px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: #fff;
+  border-left:1px solid rgba(11,22,32,0.06);
+  border-top:1px solid rgba(11,22,32,0.06);
+  box-shadow: -6px -6px 10px rgba(0,0,0,0.03);
+}
+
+/* The menu is controlled by JS via data-visible — hover/click behavior implemented in JS for stability */
+
+@media (max-width:520px) {
+  .att-user-menu { right:6px; top:52px; width:200px; }
+}
+
+.att-tracker .att-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(189, 33, 53, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.att-tracker .att-logo {
+  text-align: center;
+  margin: 12px 0 18px;
+  padding-top: 12px;
+}
+
+.att-tracker .att-logo-img {
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px auto;
+  object-fit: contain;
+}
+
+.att-tracker .att-logo-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #BD2135;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.att-tracker h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.att-tracker .att-subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 32px;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.att-tracker h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 24px 0;
+  padding-bottom: 12px;
+  border-bottom: 3px solid #BD2135;
+  display: inline-block;
+}
+
+.att-tracker h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 24px 0 16px 0;
+}
+
+.att-tracker .att-form-group {
+  margin-bottom: 20px;
+}
+
+.att-tracker .att-form-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.att-tracker .att-form-row .att-form-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.att-tracker label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.att-tracker input[type="text"],
+.att-tracker input[type="email"],
+.att-tracker input[type="tel"],
+.att-tracker input[type="date"],
+.att-tracker input[type="datetime-local"],
+.att-tracker select,
+.att-tracker textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.att-tracker input::placeholder,
+.att-tracker textarea::placeholder {
+  color: #9ca3af;
+}
+
+.att-tracker input:hover,
+.att-tracker select:hover,
+.att-tracker textarea:hover {
+  border-color: #d1d5db;
+}
+
+.att-tracker input:focus,
+.att-tracker select:focus,
+.att-tracker textarea:focus {
+  outline: none;
+  border-color: #BD2135;
+  box-shadow: 0 0 0 4px rgba(189, 33, 53, 0.1);
+}
+
+.att-tracker .att-form-description {
+  color: #666;
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.att-tracker .att-full-width {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+.att-tracker textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.att-tracker .att-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  letter-spacing: 0.3px;
+}
+
+.att-tracker .att-btn-primary {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(189, 33, 53, 0.25);
+}
+
+.att-tracker .att-btn-primary:hover {
+  background: linear-gradient(135deg, #d4263c 0%, #BD2135 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(189, 33, 53, 0.35);
+}
+
+.att-tracker .att-btn-primary:active {
+  transform: translateY(0);
+}
+
+.att-tracker .att-btn-secondary {
+  background: #fff;
+  color: #1a1a1a;
+  border: 2px solid #e5e7eb;
+}
+
+.att-tracker .att-btn-secondary:hover {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.att-tracker .att-btn-outline {
+  background: transparent;
+  color: #BD2135;
+  border: 2px solid #BD2135;
+}
+
+.att-tracker .att-btn-outline:hover {
+  background: #BD2135;
+  color: #fff;
+}
+
+.att-tracker .att-btn-success {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(189, 33, 53, 0.25);
+}
+
+.att-tracker .att-btn-success:hover {
+  background: linear-gradient(135deg, #d4263c 0%, #BD2135 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(189, 33, 53, 0.35);
+}
+
+.att-tracker .att-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.att-tracker .att-btn-block {
+  width: 100%;
+}
+
+.att-tracker .att-btn-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.att-tracker .att-btn-lg {
+  padding: 18px 36px;
+  font-size: 16px;
+}
+
+.att-tracker .att-filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.att-tracker .att-filter-btn {
+  padding: 8px 16px;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.att-tracker .att-filter-btn:hover {
+  border-color: #BD2135;
+  color: #BD2135;
+}
+
+.att-tracker .att-filter-btn.active {
+  background: #BD2135;
+  border-color: #BD2135;
+  color: #fff;
+}
+
+.att-tracker .att-filter-btn.active:hover {
+  background: #a01a2a;
+  border-color: #a01a2a;
+}
+
+/* Export type toggle (Attendance Records / Attendee List) */
+.att-tracker .att-export-type-btn {
+  padding: 8px 16px;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.att-tracker .att-export-type-btn:hover {
+  border-color: #BD2135;
+  color: #BD2135;
+}
+.att-tracker .att-export-type-btn.active {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  border-color: #BD2135;
+  box-shadow: 0 6px 18px rgba(189,33,53,0.18);
+  transform: translateY(-1px);
+}
+
+.att-tracker .att-hidden {
+  display: none !important;
+}
+
+/* Utility class for screen-reader-only content (visually hidden but available to assistive tech) */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.att-tracker .att-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  padding: 6px;
+  border-radius: 14px;
+  margin-bottom: 28px;
+  align-items: center;
+}
+
+.att-tracker .att-tab {
+  flex: 1;
+  padding: 14px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.att-tracker .att-tab-gear {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 8px;
+  border-radius: 999px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  color: #1a1a1a;
+}
+
+.att-tracker .att-tab-gear:hover {
+  border-color: #BD2135;
+  color: #BD2135;
+  background: rgba(189, 33, 53, 0.06);
+}
+
+.att-tracker .att-tab:hover {
+  color: #1a1a1a;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.att-tracker .att-tab.active {
+  background: #fff;
+  color: #BD2135;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.att-tracker .att-alert {
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.att-tracker .att-alert-error {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.att-tracker .att-alert-success {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.att-tracker .att-alert-info {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.att-tracker .att-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: att-spin 0.7s linear infinite;
+}
+
+@keyframes att-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.att-tracker .att-attendee-list {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.att-tracker .att-attendee-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.15s ease;
+  gap: 16px;
+}
+
+.att-tracker .att-attendee-item:last-child {
+  border-bottom: none;
+}
+
+.att-tracker .att-attendee-item:hover {
+  background: #f9fafb;
+}
+
+.att-tracker .att-attendee-item.selected {
+  background: linear-gradient(135deg, #fef7f7 0%, #fff1f2 100%);
+  border-left: 4px solid #BD2135;
+  padding-left: 16px;
+}
+
+.att-tracker .att-attendee-checkbox {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #BD2135;
+}
+
+.att-tracker .att-attendee-info {
+  flex: 1;
+}
+
+.att-tracker .att-attendee-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 15px;
+}
+
+.att-tracker .att-attendee-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-left: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.att-tracker .att-attendee-details {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.att-tracker .att-table-wrapper {
+  overflow-x: auto;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.att-tracker table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.att-tracker th {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #fff;
+  padding: 16px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.att-tracker th:first-child {
+  border-radius: 10px 0 0 0;
+}
+
+.att-tracker th:last-child {
+  border-radius: 0 10px 0 0;
+}
+
+.att-tracker td {
+  padding: 14px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+}
+
+.att-tracker tr:last-child td {
+  border-bottom: none;
+}
+
+.att-tracker tbody tr:hover td {
+  background: #f9fafb;
+}
+
+.att-tracker .att-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.att-tracker .att-badge-student {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+}
+
+.att-tracker .att-badge-volunteer {
+  background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%);
+  color: #fff;
+}
+
+.att-tracker .att-badge-child {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+
+/* old .att-user-info styles removed — user menu now lives in top-right */
+
+.att-tracker .att-search-box {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.att-tracker .att-search-input {
+  width: 100%;
+  padding: 12px 48px 12px 16px;
+}
+
+.att-tracker .att-search-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.att-tracker .att-select-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+}
+
+.att-tracker .att-count-badge {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.att-tracker .att-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #6b7280;
+}
+
+.att-tracker .att-empty-state svg {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 20px;
+  opacity: 0.4;
+}
+
+.att-tracker .att-form-section {
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.att-tracker .att-form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.att-tracker .att-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.att-tracker .att-checkbox-group input {
+  width: 20px;
+  height: 20px;
+  accent-color: #BD2135;
+  cursor: pointer;
+}
+
+.att-tracker .att-checkbox-group label {
+  margin-bottom: 0;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.att-tracker .att-export-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.att-tracker .att-export-summary {
+  background: linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 100%);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.att-tracker .att-export-summary h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.att-tracker .att-export-counts {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.att-tracker .att-export-count-item {
+  font-size: 14px;
+  color: #666;
+}
+
+.att-tracker .att-export-count-item strong {
+  color: #1a1a1a;
+}
+
+.att-tracker .att-export-count-item span {
+  color: #BD2135;
+  font-weight: 600;
+}
+
+.att-tracker .att-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 24px;
+}
+
+.att-tracker .att-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+}
+
+.att-tracker .att-modal-header {
+  padding: 24px 28px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #fff;
+  border-radius: 16px 16px 0 0;
+}
+
+.att-tracker .att-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.att-tracker .att-modal-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  font-size: 24px;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.att-tracker .att-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.att-tracker .att-modal-body {
+  padding: 28px;
+}
+
+.att-tracker .att-modal-footer {
+  padding: 20px 28px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f9fafb;
+  border-radius: 0 0 16px 16px;
+}
+
+.att-tracker .att-child-card {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.att-tracker .att-child-card h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.att-tracker .att-remove-child {
+  background: none;
+  border: none;
+  color: #BD2135;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.att-tracker .att-remove-child:hover {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.att-tracker .att-reg-type-cards {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.att-tracker .att-reg-type-card {
+  flex: 1;
+  padding: 32px 24px;
+  border: 3px solid #e5e7eb;
+  border-radius: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: #fff;
+}
+
+.att-tracker .att-reg-type-card:hover {
+  border-color: #BD2135;
+  background: #fef7f7;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(189, 33, 53, 0.1);
+}
+
+.att-tracker .att-reg-type-card.selected {
+  border-color: #BD2135;
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(189, 33, 53, 0.25);
+}
+
+.att-tracker .att-reg-type-card .att-reg-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.att-tracker .att-reg-type-card .att-reg-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.att-tracker .att-reg-type-card .att-reg-desc {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+.att-tracker .att-form-steps {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 0;
+}
+
+.att-tracker .att-form-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.att-tracker .att-step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.att-tracker .att-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #9ca3af;
+  display: none;
+  transition: all 0.3s ease;
+}
+
+.att-tracker .att-form-step.active .att-step-number {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(189, 33, 53, 0.3);
+}
+
+.att-tracker .att-form-step.active .att-step-label {
+  color: #BD2135;
+}
+
+.att-tracker .att-form-step.completed .att-step-number {
+  background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%);
+  color: #fff;
+}
+
+.att-tracker .att-form-step.completed .att-step-label {
+  color: #374151;
+}
+
+.att-tracker .att-step-divider {
+  width: 48px;
+  height: 3px;
+  background: #e5e7eb;
+  margin: 0 8px;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.att-tracker .att-form-step.completed+.att-step-divider {
+  background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%);
+}
+
+.att-tracker .att-form-page {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.att-tracker .att-form-page.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.att-tracker .att-form-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid #e5e7eb;
+}
+
+.att-tracker .att-address-wrapper {
+  position: relative;
+}
+
+.att-tracker .att-address-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.att-tracker .att-address-suggestion {
+  padding: 14px 18px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.15s;
+}
+
+.att-tracker .att-address-suggestion:last-child {
+  border-bottom: none;
+}
+
+.att-tracker .att-address-suggestion:hover {
+  background: #f9fafb;
+  color: #BD2135;
+}
+
+.att-tracker .att-address-manual {
+  font-size: 13px;
+  color: #BD2135;
+  cursor: pointer;
+  margin-top: 8px;
+  display: inline-block;
+  font-weight: 500;
+}
+
+.att-tracker .att-address-manual:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 640px) {
+  .att-tracker .att-step-label {
+    display: block;
+  }
+}
+
+@media (max-width: 640px) {
+  .att-tracker {
+    padding: 16px;
+  }
+
+  .att-tracker .att-card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .att-tracker h1 {
+    font-size: 26px;
+  }
+
+  .att-tracker h2 {
+    font-size: 18px;
+  }
+
+  .att-tracker .att-form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .att-tracker .att-btn-group {
+    flex-direction: column;
+  }
+
+  .att-tracker .att-tabs {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .att-tracker .att-tab {
+    border-radius: 8px;
+  }
+
+  .att-tracker .att-reg-type-cards {
+    flex-direction: column;
+  }
+
+  .att-tracker .att-step-divider {
+    width: 24px;
+  }
+
+  .att-tracker .att-export-options {
+    flex-direction: column;
+  }
+
+  /* old .att-user-info responsive variant removed */
+}
+
+.att-tracker .att-hints-toggle {
+  position: absolute;
+  top: 20px;
+  right: 72px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 50;
+}
+
+.att-tracker .att-hints-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.att-tracker .att-hints-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #eef2f6;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.25s;
+  outline: none;
+}
+
+.att-tracker .att-hints-switch:focus {
+  box-shadow: 0 0 0 4px rgba(189,33,53,0.12);
+}
+
+.att-tracker .att-hints-switch.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-600) 100%);
+}
+
+.att-tracker .att-hints-switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.att-tracker .att-hints-switch.active::before {
+  transform: translateX(20px);
+}
+
+.att-tracker .att-walkthrough-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(189, 33, 53, 0.08);
+  color: #BD2135;
+  border: 1px solid rgba(189, 33, 53, 0.2);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.att-tracker .att-walkthrough-btn:hover {
+  background: #BD2135;
+  color: #fff;
+  border-color: #BD2135;
+}
+
+.att-tracker .att-hint-box {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: start;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(189,33,53,0.02), rgba(11,22,32,0.02));
+  border-left: 6px solid var(--accent);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 12px 0;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  box-shadow: 0 8px 28px rgba(11,22,32,0.04);
+}
+
+/* (visibility controlled by JS) */
+
+@keyframes att-hint-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.att-tracker .att-hint-box::before {
+  /* brand SVG icon via data URI for pixel-perfect rendering */
+  content: '';
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  box-shadow: 0 6px 14px rgba(11,22,32,0.06);
+  align-self: center;
+  justify-self: center;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs></defs><circle cx='12' cy='12' r='11' fill='%23BD2135' /><text x='12' y='16' font-size='12' text-anchor='middle' fill='%23ffffff' font-family='Inter, Arial, sans-serif' font-weight='700'>i</text></svg>");
+}
+
+.att-tracker .att-hint-box .att-hint-header strong {
+  /* header/title only: block label */
+  display: block;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* body text strong should remain inline so it doesn't introduce awkward line breaks */
+.att-tracker .att-hint-box .att-hint-body strong {
+  display: inline;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* improve wrapping: avoid forcing important words on their own line */
+.att-tracker .att-hint-box .att-hint-body {
+  word-break: normal;
+  hyphens: auto;
+}
+
+.att-tracker .att-hint-box ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.att-tracker .att-hint-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(11,22,32,0.08);
+}
+
+.att-tracker.hints-enabled .att-hint-box {
+  width: 100%;
+}
+
+/* content column: body styles */
+.att-tracker .att-hint-box > *:not(::before) {
+  margin: 0;
+}
+.att-tracker .att-hint-box p,
+.att-tracker .att-hint-box > text,
+.att-tracker .att-hint-box > span,
+.att-tracker .att-hint-box div {
+  color: var(--text);
+  margin: 0;
+  font-size: 14px;
+}
+
+.att-tracker .att-hint-box .att-hint-body {
+  color: #374151;
+  margin-top: 4px;
+}
+
+/* header inside the hint content to group title + dismiss */
+.att-tracker .att-hint-box .att-hint-header {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.att-tracker .att-hint-box .att-hint-dismiss {
+  background: transparent;
+  border: 1px solid rgba(11,22,32,0.06);
+  color: var(--accent);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+}
+.att-tracker .att-hint-box .att-hint-dismiss:hover {
+  background: rgba(189,33,53,0.06);
+}
+
+/* once dismissed, don't show even when hints are enabled */
+.att-tracker.hints-enabled .att-hint-box.att-hint-dismissed {
+  display: none !important;
+}
+
+/* small animation on dismiss */
+.att-tracker .att-hint-box.att-hint-dismissed {
+  opacity: 0; transform: translateY(-6px); transition: opacity 220ms ease, transform 220ms ease;
+}
+
+/* no display override here — keep grid layout */
+
+.att-tracker .att-hint-box li {
+  margin-bottom: 6px;
+}
+
+.att-tracker .att-walkthrough-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  z-index: 10001;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: att-overlay-fade 0.3s ease;
+}
+
+.att-tracker .att-walkthrough-overlay.active {
+  display: flex;
+}
+
+@keyframes att-overlay-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.att-tracker .att-walkthrough-modal {
+  background: #fff;
+  border-radius: 20px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: att-modal-slide 0.4s ease;
+}
+
+@keyframes att-modal-slide {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.att-tracker .att-walkthrough-header {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  padding: 28px 32px;
+  position: relative;
+}
+
+.att-tracker .att-walkthrough-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  padding: 0;
+  display: block;
+}
+
+.att-tracker .att-walkthrough-header p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.att-tracker .att-walkthrough-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.att-tracker .att-walkthrough-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.att-tracker .att-walkthrough-progress {
+  display: flex;
+  gap: 6px;
+  padding: 20px 32px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.att-tracker .att-walkthrough-progress-step {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  transition: all 0.3s;
+}
+
+.att-tracker .att-walkthrough-progress-step.completed {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+}
+
+.att-tracker .att-walkthrough-progress-step.current {
+  background: linear-gradient(135deg, #374151 0%, #1a1a1a 100%);
+}
+
+.att-tracker .att-walkthrough-content {
+  padding: 32px;
+  min-height: 220px;
+}
+
+.att-tracker .att-walkthrough-step-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, rgba(189, 33, 53, 0.1) 0%, rgba(189, 33, 53, 0.05) 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+.att-tracker .att-walkthrough-step-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+.att-tracker .att-walkthrough-step-description {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.7;
+}
+
+.att-tracker .att-walkthrough-step-description ul {
+  margin: 12px 0 0 0;
+  padding-left: 20px;
+}
+
+.att-tracker .att-walkthrough-step-description li {
+  margin-bottom: 8px;
+}
+
+.att-tracker .att-walkthrough-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.att-tracker .att-walkthrough-step-count {
+  font-size: 13px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.att-tracker .att-walkthrough-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.att-tracker .att-walkthrough-btn-prev,
+.att-tracker .att-walkthrough-btn-next {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.att-tracker .att-walkthrough-btn-prev {
+  background: #fff;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.att-tracker .att-walkthrough-btn-prev:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.att-tracker .att-walkthrough-btn-prev:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.att-tracker .att-walkthrough-btn-next {
+  background: linear-gradient(135deg, #BD2135 0%, #9a1a2b 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(189, 33, 53, 0.25);
+}
+
+.att-tracker .att-walkthrough-btn-next:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(189, 33, 53, 0.35);
+}
+
+.att-tracker .att-walkthrough-btn-finish {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.att-tracker .att-walkthrough-btn-finish:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.att-tracker .att-highlight-pulse {
+  /* Make the highlighted element clearly visible above the overlay
+     and provide a stronger contrast so users can see *inactive* buttons
+     while they're being referenced in the tour. */
+  animation: att-pulse-highlight 2s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(189, 33, 53, 0.28) !important;
+  position: relative;
+  z-index: 10002; /* above the overlay (10001) */
+  background: #ffffff; /* lift it visually */
+  color: #BD2135 !important; /* make the label pop */
+  font-weight: 700;
+  transform: translateZ(0) scale(1.02);
+  border-radius: 10px;
+  border: 2px solid rgba(189,33,53,0.18);
+}
+
+@keyframes att-pulse-highlight {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(189, 33, 53, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(189, 33, 53, 0.15);
+  }
+}
+
+@media (max-width: 640px) {
+  .att-tracker .att-hints-toggle {
+    position: relative;
+    top: auto;
+    right: auto;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .att-tracker .att-walkthrough-modal {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .att-tracker .att-walkthrough-content {
+    padding: 24px;
+    min-height: auto;
+  }
+
+  .att-tracker .att-walkthrough-footer {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .att-tracker .att-logo-img {
+    width: 144px;
+    height: 144px;
+    display: block;
+    margin: 0 auto 0 auto;
+    object-fit: contain;
+  }
+}
+
+/* On larger screens keep the walkthrough modal docked to the lower-right
+   so it doesn't sit on top of the primary UI elements (tabs/buttons). */
+@media (min-width: 900px) {
+  .att-tracker .att-walkthrough-overlay {
+    align-items: flex-end;    /* vertical (bottom) */
+    justify-content: flex-end; /* horizontal (right) */
+    padding: 32px;
+  }
+
+  .att-tracker .att-walkthrough-modal {
+    max-width: 420px;
+    width: 420px;
+    margin: 0; /* ensure it hugs the corner */
+  }
+}
