@@ -3074,7 +3074,7 @@
 
       // Otherwise inject the module script and start when ready
       const script = document.createElement('script');
-      script.src = 'scripts/am-walkthrough.js';
+      script.src = 'https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-walkthrough.js';
       script.async = true;
       script.onload = () => {
         if (window.attWalkthrough && typeof window.attWalkthrough.startWalkthrough === 'function') {
