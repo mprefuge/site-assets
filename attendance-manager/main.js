@@ -37,11 +37,11 @@
         });
 
         // Load in order
-        return appendCss('styles/attendance-manager.css')
+        return appendCss('https://mprefuge.github.io/site-assets/attendance-manager/styles/attendance-manager.css')
             .then(() => appendScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'))
-            .then(() => appendScript('../scripts/lookup.js'))
-            .then(() => appendScript('scripts/am-session.js'))
-            .then(() => appendScript('scripts/am-script.js'));
+            .then(() => appendScript('https://mprefuge.github.io/site-assets/scripts/lookup.js'))
+            .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-session.js'))
+            .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-script.js'));
     }
 
     /**
