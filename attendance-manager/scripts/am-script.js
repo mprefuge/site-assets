@@ -1221,6 +1221,8 @@
       updateWalkthroughVisibility();
       // hide hints toggle on sign-out
       updateHintsToggleVisibility();
+      // disable hints when logged out so unauthenticated users don't see hints
+      try { hintsEnabled = false; updateHintVisibility(); } catch (e) {}
       // show quick registration options again for unauthenticated users
       updateQuickRegVisibility();
       // ensure tabs are limited for unauthenticated users
@@ -1267,6 +1269,12 @@
       updateWalkthroughVisibility();
       // show hints toggle now that a user is signed in
       updateHintsToggleVisibility();
+      // restore hints preference for signed-in users and update visibility
+      try {
+        const v = localStorage.getItem('att-hints-enabled');
+        hintsEnabled = v === null ? true : (v === 'true');
+      } catch (e) { hintsEnabled = true; }
+      try { updateHintVisibility(); } catch (e) {}
       // if a user is signed in, ensure registration-level ministry/location fields are hidden
       try {
         const ministryPage = document.querySelector('.att-form-page[data-page="1"]');
@@ -1376,6 +1384,9 @@
         } catch (e) {
           localStorage.removeItem('att-user');
         }
+      } else {
+        // Ensure hints are disabled for unauthenticated state
+        try { hintsEnabled = false; updateHintVisibility(); updateHintsToggleVisibility(); } catch (e) {}
       }
     }
 
@@ -2287,10 +2298,16 @@
     };
 
     window.attPrevPage = function () {
-      const minPage = currentUser ? 2 : 1; // don't allow unauthenticated users to go below 1, signed-in shouldn't go to 1
+      const minPage = currentUser ? 2 : 1; // signed-in users shouldn't go to page 1 (ministry), unauthenticated min is 1
       if (currentFormPage > minPage) {
         currentFormPage--;
         updateFormPage();
+        return;
+      }
+
+      // If we're at the minimum page for an unauthenticated flow, pressing Back should return to the sign-in screen
+      if (!currentUser && currentFormPage === minPage) {
+        backToTypeSelection();
       }
     };
 
@@ -3409,7 +3426,7 @@
     viewRecordsBtn.addEventListener('click', viewRecords);
 
     // Registration form events
-    backToTypeBtn.addEventListener('click', backToTypeSelection);
+    if (backToTypeBtn) backToTypeBtn.addEventListener('click', backToTypeSelection);
     addChildBtn.addEventListener('click', addChildEntry);
     addressSearchInput.addEventListener('input', (e) => searchAddress(e.target.value));
     toggleManualAddress.addEventListener('click', toggleManualAddressEntry);

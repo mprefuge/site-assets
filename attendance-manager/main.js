@@ -399,9 +399,7 @@
           </div>
         </div>
         <div id="att-reg-form-container" class="att-hidden">
-          <button type="button" class="att-btn att-btn-secondary" id="att-back-to-type" style="margin-bottom: 20px;">
-            ← Change Registration Type
-          </button>
+          <!-- top 'Change Registration Type' moved to bottom nav; removed here -->
           <div id="att-reg-type-label" class="att-alert att-alert-info" style="margin-bottom: 20px;"></div>
           <div class="att-form-steps" id="att-form-steps">
             <div class="att-form-step active" data-step="1">
