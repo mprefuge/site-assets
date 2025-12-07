@@ -311,12 +311,18 @@
             console.info('populateLookupSelects: fetched remote data', data);
             // Expect { ministries: [...], locations: [...] }
             if (data && Array.isArray(data.ministries)) {
-              const mins = data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }));
+              // Ensure default blank placeholder is first
+              const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
+                data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }))
+              );
               ministrySelect.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
 
             if (data && Array.isArray(data.locations)) {
-              const locsArr = data.locations.map(l => ({ value: l, text: l }));
+              // Ensure default blank placeholder is first
+              const locsArr = [{ value: '', text: 'Select a location' }].concat(
+                data.locations.map(l => ({ value: l, text: l }))
+              );
               locationSelect.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
             try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
