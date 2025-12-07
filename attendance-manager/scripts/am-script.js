@@ -2296,7 +2296,8 @@
     }
 
     function validateCurrentPage() {
-      if (currentFormPage === 1) {
+      // Personal info lives on page 2 now (page 1 is Ministry Info)
+      if (currentFormPage === 2) {
         const firstName = $('att-reg-firstname').value.trim();
         const lastName = $('att-reg-lastname').value.trim();
         const email = $('att-reg-email').value.trim();
