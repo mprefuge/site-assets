@@ -14,59 +14,34 @@
   window.AttendanceManagerLoaded = true;
 
   /**
-   * Load external dependencies
+   * Load external dependencies in sequence (ensures scripts that look up DOM run after injection).
+   * Order is important: CSS -> ExcelJS -> lookup -> am-session -> am-script
    */
-  function loadDependencies() {
-    return new Promise((resolve, reject) => {
-      const dependencies = [
-        {
-          type: 'css',
-          url: 'https://mprefuge.github.io/site-assets/attendance-manager/styles/attendance-manager.css'
-        },
-        {
-          type: 'script',
-          url: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
-        },
-        {
-          type: 'script',
-          url: 'https://mprefuge.github.io/site-assets/scripts/lookup.js'
-        },
-        {
-          type: 'script',
-          url: 'https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-session.js'
-        },
-        {
-          type: 'script',
-          url: 'https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-script.js'
-        }
-      ];
-
-      let loaded = 0;
-      const total = dependencies.length;
-
-      dependencies.forEach(dep => {
-        if (dep.type === 'css') {
-          const link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = dep.url;
-          link.onload = () => {
-            loaded++;
-            if (loaded === total) resolve();
-          };
-          link.onerror = () => reject(new Error(`Failed to load CSS: ${dep.url}`));
-          document.head.appendChild(link);
-        } else if (dep.type === 'script') {
-          const script = document.createElement('script');
-          script.src = dep.url;
-          script.onload = () => {
-            loaded++;
-            if (loaded === total) resolve();
-          };
-          script.onerror = () => reject(new Error(`Failed to load script: ${dep.url}`));
-          document.head.appendChild(script);
-        }
-      });
+  function loadDependenciesSequentially() {
+    const appendCss = (url) => new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url;
+      link.onload = resolve;
+      link.onerror = () => reject(new Error(`Failed to load CSS: ${url}`));
+      document.head.appendChild(link);
     });
+
+    const appendScript = (url) => new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.async = false; // preserve execution order
+      s.onload = resolve;
+      s.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+      document.head.appendChild(s);
+    });
+
+    // Load in order
+    return appendCss('https://mprefuge.github.io/site-assets/attendance-manager/styles/attendance-manager.css')
+      .then(() => appendScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'))
+      .then(() => appendScript('https://mprefuge.github.io/site-assets/scripts/lookup.js'))
+      .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-session.js'))
+      .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-script.js'));
   }
 
   /**
@@ -803,7 +778,7 @@
       console.warn('Unable to determine document charset for encoding checks');
     }
 
-    // Find or create container
+    // Find or create container and inject HTML before loading scripts so they can attach handlers
     let container = document.getElementById('attendance-manager-container');
     if (!container) {
       container = document.createElement('div');
@@ -811,28 +786,21 @@
       document.body.appendChild(container);
     }
 
-    // Inject HTML
+    // Inject HTML first so scripts that query DOM find elements
     container.innerHTML = getHTMLTemplate();
 
-    console.log('Attendance Manager injected successfully');
+    // Then load the remaining dependencies (scripts) in the correct order
+    loadDependenciesSequentially()
+      .then(() => console.log('Attendance Manager injected and dependencies loaded'))
+      .catch(err => console.error('Failed to load Attendance Manager dependencies:', err));
   }
 
   /**
    * Start loading process
    */
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      loadDependencies()
-        .then(init)
-        .catch(err => {
-          console.error('Failed to load Attendance Manager:', err);
-        });
-    });
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    loadDependencies()
-      .then(init)
-      .catch(err => {
-        console.error('Failed to load Attendance Manager:', err);
-      });
+    init();
   }
 })();
