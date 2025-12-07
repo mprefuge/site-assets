@@ -1269,10 +1269,8 @@
       updateHintsToggleVisibility();
       // if a user is signed in, ensure registration-level ministry/location fields are hidden
       try {
-        const regMinEl = $('att-reg-ministry');
-        const regLocEl = $('att-reg-location');
-        if (regMinEl) regMinEl.closest('.att-form-group').style.display = 'none';
-        if (regLocEl) regLocEl.closest('.att-form-group').style.display = 'none';
+        const ministryPage = document.querySelector('.att-form-page[data-page="1"]');
+        if (ministryPage) ministryPage.style.display = 'none';
       } catch (e) { /* ignore */ }
       // hide quick-registration if present (signed-in users don't need it)
       updateQuickRegVisibility();
@@ -2222,20 +2220,15 @@
         hideElement(studentNext);
       }
 
-      // Reset to first page
-      currentFormPage = 1;
+      // Reset to first visible page (skip Ministry page if user signed-in)
+      currentFormPage = currentUser ? 2 : 1;
       updateFormPage();
 
-      // If there is NOT a logged-in user, ensure registration ministry/location selects are visible
-      const showRegLookup = !currentUser;
+      // Show or hide the entire Ministry Info page depending on auth state
       try {
-        const regMinEl = $('att-reg-ministry');
-        const regLocEl = $('att-reg-location');
-        if (regMinEl) regMinEl.closest('.att-form-group').style.display = showRegLookup ? '' : 'none';
-        if (regLocEl) regLocEl.closest('.att-form-group').style.display = showRegLookup ? '' : 'none';
-      } catch (e) {
-        // ignore if DOM structure differs
-      }
+        const ministryPage = document.querySelector('.att-form-page[data-page="1"]');
+        if (ministryPage) ministryPage.style.display = currentUser ? 'none' : '';
+      } catch (e) {}
     };
 
     // Back to type selection
@@ -2249,13 +2242,15 @@
       document.querySelectorAll('.att-reg-type-card').forEach(card => {
         card.classList.remove('selected');
       });
-      currentFormPage = 1;
+      currentFormPage = currentUser ? 2 : 1;
       updateFormPage();
     }
 
     // Form pagination
     function getTotalPages() {
-      return selectedRegType === 'Student' ? 4 : 3;
+      // Return the page number of the last page for the chosen registration type
+      // Student registration pages are 1..5, volunteer 1..4
+      return selectedRegType === 'Student' ? 5 : 4;
     }
 
     window.attNextPage = function () {
@@ -2269,7 +2264,8 @@
     };
 
     window.attPrevPage = function () {
-      if (currentFormPage > 1) {
+      const minPage = currentUser ? 2 : 1; // don't allow unauthenticated users to go below 1, signed-in shouldn't go to 1
+      if (currentFormPage > minPage) {
         currentFormPage--;
         updateFormPage();
       }
@@ -2318,7 +2314,7 @@
         }
       }
 
-      if (currentFormPage === 3 && !currentUser) {
+      if (currentFormPage === 1 && !currentUser) {
         const regMin = $('att-reg-ministry');
         const regLoc = $('att-reg-location');
         const minVal = regMin ? regMin.value.trim() : '';
@@ -2619,16 +2615,10 @@
       try { window.attSelectRegType(type); } catch (e) {}
       // ensure registration ministry/location fields are visible for unauthenticated users
       if (!currentUser) {
-        const regMinEl = $('att-reg-ministry');
-        const regLocEl = $('att-reg-location');
-        if (regMinEl && regLocEl) {
-          try {
-            regMinEl.closest('.att-form-group').style.display = '';
-            regLocEl.closest('.att-form-group').style.display = '';
-          } catch (e) {
-            // ignore
-          }
-        }
+        try {
+          const ministryPage = document.querySelector('.att-form-page[data-page="1"]');
+          if (ministryPage) ministryPage.style.display = '';
+        } catch (e) {}
       }
     };
 

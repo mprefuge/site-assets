@@ -406,27 +406,57 @@
           <div class="att-form-steps" id="att-form-steps">
             <div class="att-form-step active" data-step="1">
               <div class="att-step-number">1</div>
-              <div class="att-step-label">Personal Info</div>
+              <div class="att-step-label">Ministry Info</div>
             </div>
             <div class="att-step-divider"></div>
             <div class="att-form-step" data-step="2">
               <div class="att-step-number">2</div>
-              <div class="att-step-label">Address</div>
+              <div class="att-step-label">Personal Info</div>
             </div>
+            <div class="att-step-divider"></div>
             <div class="att-step-divider"></div>
             <div class="att-form-step" data-step="3">
               <div class="att-step-number">3</div>
+              <div class="att-step-label">Address</div>
+            </div>
+            <div class="att-step-divider"></div>
+            <div class="att-step-divider"></div>
+            <div class="att-form-step" data-step="4">
+              <div class="att-step-number">4</div>
               <div class="att-step-label">Additional Info</div>
             </div>
             <div class="att-step-divider att-student-only"></div>
-            <div class="att-form-step att-student-only" data-step="4">
-              <div class="att-step-number">4</div>
+            <div class="att-form-step att-student-only" data-step="5">
+              <div class="att-step-number">5</div>
               <div class="att-step-label">Childcare</div>
             </div>
           </div>
-          <form id="att-register-form">
+            <form id="att-register-form">
             <input type="hidden" id="att-reg-type" value="">
             <div class="att-form-page active" data-page="1">
+              <div class="att-form-section">
+                <h3>Ministry Info</h3>
+                <div class="att-form-row">
+                  <div class="att-form-group">
+                    <label for="att-reg-ministry">Ministry Area *</label>
+                    <select id="att-reg-ministry" aria-label="Registration ministry">
+                      <option value="">Select a Ministry Area</option>
+                    </select>
+                  </div>
+                  <div class="att-form-group">
+                    <label for="att-reg-location">Location *</label>
+                    <select id="att-reg-location" aria-label="Registration location">
+                      <option value="">Select a location</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="att-form-nav">
+                <div></div>
+                <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
+              </div>
+            </div>
+            <div class="att-form-page" data-page="2">
               <div class="att-form-section">
                 <h3>Personal Information</h3>
                 <div class="att-form-row">
@@ -469,7 +499,8 @@
                 <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
               </div>
             </div>
-            <div class="att-form-page" data-page="2">
+            
+            <div class="att-form-page" data-page="3">
               <div class="att-form-section">
                 <h3>Address</h3>
                 <div class="att-form-group att-address-wrapper">
@@ -514,27 +545,14 @@
                 <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
               </div>
             </div>
-            <div class="att-form-page" data-page="3">
+            <div class="att-form-page" data-page="4">
               <div class="att-form-section">
                 <h3>Additional Information</h3>
                   <div class="att-form-group">
                   <label for="att-reg-church">Church Name</label>
                   <input type="text" id="att-reg-church">
                 </div>
-                  <div id="att-reg-min-max" style="display:flex; gap:8px; margin-top:8px;">
-                    <div class="att-form-group" style="flex:1; min-width:160px;">
-                      <label for="att-reg-ministry">Ministry Area</label>
-                      <select id="att-reg-ministry" aria-label="Registration ministry">
-                        <option value="">Select a Ministry Area</option>
-                      </select>
-                    </div>
-                    <div class="att-form-group" style="flex:1; min-width:160px;">
-                      <label for="att-reg-location">Location</label>
-                      <select id="att-reg-location" aria-label="Registration location">
-                        <option value="">Select a location</option>
-                      </select>
-                    </div>
-                  </div>
+                  <!-- ministry & location are on page 1 (Ministry Info); removed duplicates -->
                 <div class="att-checkbox-group">
                   <input type="checkbox" id="att-reg-email-optin" checked="">
                   <label for="att-reg-email-optin">Subscribe to email updates</label>
@@ -569,7 +587,7 @@
                 <button type="button" class="att-btn att-btn-primary att-student-next" onclick="window.attNextPage()">Next →</button>
               </div>
             </div>
-            <div class="att-form-page att-student-only" data-page="4">
+            <div class="att-form-page att-student-only" data-page="5">
               <div class="att-form-section">
                 <h3>Childcare Registration</h3>
                 <p style="color: #666; font-size: 14px; margin-bottom: 16px;">
