@@ -85,9 +85,9 @@
     </div>    
     <div id="att-main-section" class="att-hidden">      
       <div class="att-tabs">
-        <button class="att-tab active" data-tab="collect">Collect Attendance</button>
+        <button class="att-tab active" data-tab="register">New Registration</button>
+        <button class="att-tab" data-tab="collect">Collect Attendance</button>
         <button class="att-tab" data-tab="view">View Records</button>
-        <button class="att-tab" data-tab="register">New Registration</button>
         <button class="att-tab" data-tab="export">Export</button>        
         <button class="att-tab att-tab-gear" data-tab="config" title="Event Configuration" aria-label="Event Configuration">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
@@ -96,7 +96,7 @@
           </svg>
         </button>
       </div>      
-      <div id="att-tab-collect" class="att-tab-content">
+      <div id="att-tab-collect" class="att-tab-content att-hidden">
         <h2 class="sr-only">Collect Attendance</h2>
         <div class="att-hint-box" role="note" data-hint-id="collect-recording-attendance">
           <div class="att-hint-content">
@@ -333,7 +333,7 @@
           </div>
         </div>
       </div>
-      <div id="att-tab-register" class="att-tab-content att-hidden">
+      <div id="att-tab-register" class="att-tab-content">
         <h2 class="sr-only">New Registration</h2>
         <div class="att-hint-box" role="note" data-hint-id="register-adding-people">
           <div class="att-hint-content">

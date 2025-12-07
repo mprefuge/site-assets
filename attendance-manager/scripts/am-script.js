@@ -933,6 +933,16 @@
         hideElement(eventLocationSuggestions);
         return;
       }
+      // show a temporary 'searching' indicator while the network request runs
+      try {
+        eventLocationSuggestions.innerHTML = `
+          <div class="att-loading-inner" style="padding:12px 18px; display:flex; align-items:center; gap:8px;">
+            <span class="att-spinner" aria-hidden="true"></span>
+            <div style="font-size:14px; color:var(--muted);">Searching…</div>
+          </div>
+        `;
+        showElement(eventLocationSuggestions);
+      } catch (e) {}
 
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`);
@@ -966,6 +976,7 @@
 
       } catch (err) {
         console.warn('Address lookup failed', err);
+        // If the lookup fails, clear the suggestions and hide the UI
         eventLocationSuggestions.innerHTML = '';
         hideElement(eventLocationSuggestions);
       }
@@ -2140,6 +2151,16 @@
 
       clearTimeout(addressDebounceTimer);
       addressDebounceTimer = setTimeout(async () => {
+        // show a brief searching indicator while the remote lookup runs
+        try {
+          addressSuggestions.innerHTML = `
+            <div class="att-loading-inner" style="padding:12px 18px; display:flex; align-items:center; gap:8px;">
+              <span class="att-spinner" aria-hidden="true"></span>
+              <div style="font-size:14px; color:var(--muted);">Searching…</div>
+            </div>
+          `;
+          showElement(addressSuggestions);
+        } catch (e) {}
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=5&q=${encodeURIComponent(query)}`,
@@ -2150,10 +2171,12 @@
           if (results.length > 0) {
             displayAddressSuggestions(results);
           } else {
+            addressSuggestions.innerHTML = '';
             hideElement(addressSuggestions);
           }
         } catch (error) {
           console.error('Address search error:', error);
+          addressSuggestions.innerHTML = '';
           hideElement(addressSuggestions);
         }
       }, 300);
