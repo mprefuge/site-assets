@@ -462,7 +462,7 @@
                   <div id="att-address-suggestions" class="att-address-suggestions att-hidden"></div>
                   <span class="att-address-manual" id="att-toggle-manual-address">Enter address manually</span>
                 </div>
-                <div id="att-manual-address-fields">
+                <div id="att-manual-address-fields" class="att-hidden">
                   <div class="att-form-group">
                     <label for="att-reg-street1">Street Address</label>
                     <input type="text" id="att-reg-street1" placeholder="Street address">
