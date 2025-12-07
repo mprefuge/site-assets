@@ -1392,22 +1392,18 @@
     // Limit which tabs are visible for unauthenticated users
     function updateTabsForAuth() {
       try {
-        const allowedUnauth = new Set(['register']);
+        // For unauthenticated users hide the entire tab bar (they use the quick-register controls)
         Array.from(tabs).forEach(tab => {
-          const name = tab.dataset.tab;
-          if (!currentUser && !allowedUnauth.has(name)) tab.classList.add('att-hidden');
+          if (!currentUser) tab.classList.add('att-hidden');
           else tab.classList.remove('att-hidden');
         });
 
+        // For tab contents, keep them hidden for unauthenticated by default. When opening
+        // registration from the auth area we explicitly show the register content.
         Array.from(tabContents).forEach(content => {
-          const contentId = content.id.replace('att-tab-', '');
-          if (!currentUser && !allowedUnauth.has(contentId)) content.classList.add('att-hidden');
+          if (!currentUser) content.classList.add('att-hidden');
           else content.classList.remove('att-hidden');
         });
-
-        // Ensure a valid active tab is selected
-        const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'register';
-        if (!currentUser && activeTab !== 'register') switchTab('register');
       } catch (e) {
         // DOM may not be ready yet — ignore
       }
@@ -2222,6 +2218,11 @@
 
       // Reset to first visible page (skip Ministry page if user signed-in)
       currentFormPage = currentUser ? 2 : 1;
+      // Change label on the back button depending on whether this is an unauthenticated quick-register flow
+      try {
+        const btn = $('att-back-to-type');
+        if (btn) btn.textContent = currentUser ? '← Change Registration Type' : 'Back';
+      } catch (e) {}
       updateFormPage();
 
       // Show or hide the entire Ministry Info page depending on auth state
@@ -2233,6 +2234,28 @@
 
     // Back to type selection
     function backToTypeSelection() {
+      // If user is unauthenticated, the 'Back' button should return the user to the sign-in screen
+      if (!currentUser) {
+        hideElement(regFormContainer);
+        // reset form state
+        hideElement(regSuccess);
+        hideElement(regError);
+        selectedRegType = null;
+        regTypeInput.value = '';
+        document.querySelectorAll('.att-reg-type-card').forEach(card => card.classList.remove('selected'));
+        registerForm.reset();
+        $('att-reg-country').value = 'USA';
+
+        // Show the auth (sign in) view so the user can either sign in or select quick-register again
+        hideElement(mainSection);
+        showElement(authSection);
+        updateQuickRegVisibility();
+        // Make sure tabs are hidden for unauthenticated
+        updateTabsForAuth();
+        return;
+      }
+
+      // Otherwise behave as a normal 'change registration type' action
       hideElement(regFormContainer);
       showElement(regTypeSelection);
       hideElement(regSuccess);
