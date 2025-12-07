@@ -3,52 +3,52 @@
  * Usage: <script src="https://mprefuge.github.io/site-assets/attendance-manager/main.js"></script>
  */
 
-(function() {
-  'use strict';
+(function () {
+    'use strict';
 
-  // Prevent multiple initializations
-  if (window.AttendanceManagerLoaded) {
-    console.warn('Attendance Manager already loaded');
-    return;
-  }
-  window.AttendanceManagerLoaded = true;
+    // Prevent multiple initializations
+    if (window.AttendanceManagerLoaded) {
+        console.warn('Attendance Manager already loaded');
+        return;
+    }
+    window.AttendanceManagerLoaded = true;
 
-  /**
-   * Load external dependencies in sequence (ensures scripts that look up DOM run after injection).
-   * Order is important: CSS -> ExcelJS -> lookup -> am-session -> am-script
-   */
-  function loadDependenciesSequentially() {
-    const appendCss = (url) => new Promise((resolve, reject) => {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = url;
-      link.onload = resolve;
-      link.onerror = () => reject(new Error(`Failed to load CSS: ${url}`));
-      document.head.appendChild(link);
-    });
+    /**
+     * Load external dependencies in sequence (ensures scripts that look up DOM run after injection).
+     * Order is important: CSS -> ExcelJS -> lookup -> am-session -> am-script
+     */
+    function loadDependenciesSequentially() {
+        const appendCss = (url) => new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.onload = resolve;
+            link.onerror = () => reject(new Error(`Failed to load CSS: ${url}`));
+            document.head.appendChild(link);
+        });
 
-    const appendScript = (url) => new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = url;
-      s.async = false; // preserve execution order
-      s.onload = resolve;
-      s.onerror = () => reject(new Error(`Failed to load script: ${url}`));
-      document.head.appendChild(s);
-    });
+        const appendScript = (url) => new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = url;
+            s.async = false; // preserve execution order
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+            document.head.appendChild(s);
+        });
 
-    // Load in order
-    return appendCss('https://mprefuge.github.io/site-assets/attendance-manager/styles/attendance-manager.css')
-      .then(() => appendScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'))
-      .then(() => appendScript('https://mprefuge.github.io/site-assets/scripts/lookup.js'))
-      .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-session.js'))
-      .then(() => appendScript('https://mprefuge.github.io/site-assets/attendance-manager/scripts/am-script.js'));
-  }
+        // Load in order
+        return appendCss('styles/attendance-manager.css')
+            .then(() => appendScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'))
+            .then(() => appendScript('../scripts/lookup.js'))
+            .then(() => appendScript('scripts/am-session.js'))
+            .then(() => appendScript('scripts/am-script.js'));
+    }
 
-  /**
-   * Get the HTML template for the attendance manager
-   */
-  function getHTMLTemplate() {
-    return `
+    /**
+     * Get the HTML template for the attendance manager
+     */
+    function getHTMLTemplate() {
+        return `
 <div class="att-tracker hints-enabled">
   <div class="att-card">
     <div class="att-hints-toggle att-hidden">
@@ -91,35 +91,16 @@
         <input type="text" id="att-name" placeholder="Enter your full name">
       </div>
       <div class="att-form-group">
-        <label for="att-ministry">Ministry</label>
-        <select id="att-ministry" aria-label="Ministry"><option value="">Select a Ministry Area</option>
-<option value="Adopt-A-Family">Adopt-A-Family</option>
-<option value="Conversation Club">Conversation Club</option>
-<option value="English Mentoring">English Mentoring</option>
-<option value="ESL Network">ESL Network</option>
-<option value="Nations Next Door">Nations Next Door</option>
-<option value="Right Start">Right Start</option>
-<option value="Translator">Translator</option>
-<option value="Welcome Center Use">Welcome Center Use</option>
-<option value="Other">Other</option></select>
+      <label for="att-ministry">Ministry</label>
+      <select id="att-ministry" aria-label="Ministry">
+          <option value="">Select a Ministry Area</option>
+      </select>
       </div>
       <div class="att-form-group">
-        <label for="att-location">Location</label>
-        <select id="att-location" aria-label="Location"><option value="">Select a location</option>
-<option value="Beechmont Townhomes">Beechmont Townhomes</option>
-<option value="Bridge Creek">Bridge Creek</option>
-<option value="C3AG">C3AG</option>
-<option value="Cornerstone Baptist Church">Cornerstone Baptist Church</option>
-<option value="Corydon Baptist Church">Corydon Baptist Church</option>
-<option value="DEcAF">DEcAF</option>
-<option value="Farmdale Baptist Church">Farmdale Baptist Church</option>
-<option value="Gethsemane Baptist Church">Gethsemane Baptist Church</option>
-<option value="Hope Place">Hope Place</option>
-<option value="Journey Church">Journey Church</option>
-<option value="Ninth & O Baptist Church">Ninth & O Baptist Church</option>
-<option value="Ormsby Heights Baptist Church">Ormsby Heights Baptist Church</option>
-<option value="Shively Baptist Church">Shively Baptist Church</option>
-<option value="Other">Other</option></select>
+      <label for="att-location">Location</label>
+      <select id="att-location" aria-label="Location">
+          <option value="">Select a location</option>
+      </select>
       </div>
       <button class="att-btn att-btn-primary att-btn-block" id="att-auth-btn">
         <span id="att-auth-btn-text">Sign In</span>
@@ -762,45 +743,45 @@
   </div>
 </div>
     `;
-  }
-
-  /**
-   * Initialize the attendance manager
-   */
-  function init() {
-    // Check encoding warning script
-    try {
-      const cs = document.characterSet || document.charset || '';
-      if (cs && cs.toLowerCase() !== 'utf-8') {
-        console.warn('Warning: page not served as UTF-8 (document.characterSet=' + cs + '). This can cause symbols and emoji to render incorrectly.');
-      }
-    } catch (e) {
-      console.warn('Unable to determine document charset for encoding checks');
     }
 
-    // Find or create container and inject HTML before loading scripts so they can attach handlers
-    let container = document.getElementById('attendance-manager-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'attendance-manager-container';
-      document.body.appendChild(container);
+    /**
+     * Initialize the attendance manager
+     */
+    function init() {
+        // Check encoding warning script
+        try {
+            const cs = document.characterSet || document.charset || '';
+            if (cs && cs.toLowerCase() !== 'utf-8') {
+                console.warn('Warning: page not served as UTF-8 (document.characterSet=' + cs + '). This can cause symbols and emoji to render incorrectly.');
+            }
+        } catch (e) {
+            console.warn('Unable to determine document charset for encoding checks');
+        }
+
+        // Find or create container and inject HTML before loading scripts so they can attach handlers
+        let container = document.getElementById('attendance-manager-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'attendance-manager-container';
+            document.body.appendChild(container);
+        }
+
+        // Inject HTML first so scripts that query DOM find elements
+        container.innerHTML = getHTMLTemplate();
+
+        // Then load the remaining dependencies (scripts) in the correct order
+        loadDependenciesSequentially()
+            .then(() => console.log('Attendance Manager injected and dependencies loaded'))
+            .catch(err => console.error('Failed to load Attendance Manager dependencies:', err));
     }
 
-    // Inject HTML first so scripts that query DOM find elements
-    container.innerHTML = getHTMLTemplate();
-
-    // Then load the remaining dependencies (scripts) in the correct order
-    loadDependenciesSequentially()
-      .then(() => console.log('Attendance Manager injected and dependencies loaded'))
-      .catch(err => console.error('Failed to load Attendance Manager dependencies:', err));
-  }
-
-  /**
-   * Start loading process
-   */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+    /**
+     * Start loading process
+     */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
