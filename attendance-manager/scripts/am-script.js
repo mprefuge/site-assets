@@ -289,8 +289,12 @@
       ministrySelect.innerHTML = sa.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
       locationSelect.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
 
+      // Mark the current source so developers can inspect window.attLookupSource
+      try { window.attLookupSource = 'lookup'; } catch (e) { /* ignore */ }
+
       // Now attempt to fetch authoritative values from the remote endpoint and override when available
-      (function fetchAndReplace() {
+        (function fetchAndReplace() {
+          console.info('populateLookupSelects: attempting remote fetch to override lookup.js values');
         const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
 
         // Abort if fetch takes too long
@@ -304,6 +308,7 @@
             return r.json();
           })
           .then(data => {
+            console.info('populateLookupSelects: fetched remote data', data);
             // Expect { ministries: [...], locations: [...] }
             if (data && Array.isArray(data.ministries)) {
               const mins = data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }));
@@ -314,10 +319,19 @@
               const locsArr = data.locations.map(l => ({ value: l, text: l }));
               locationSelect.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
+            try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
+            console.info('populateLookupSelects: remote values applied to selects (source=api)');
+          })
+          .then(() => {
+            // finished
           })
           .catch(err => {
             // Don't block the UI — keep the lookup.js values already present
             console.warn('populateLookupSelects: could not fetch ministries/locations — using existing lookup data', err);
+            // If this is a CORS/opaque failure show hint for debugging
+            if (err.name === 'AbortError') {
+              console.warn('populateLookupSelects: fetch aborted (timeout)');
+            }
           });
       })();
 
