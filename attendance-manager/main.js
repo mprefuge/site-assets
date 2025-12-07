@@ -776,6 +776,107 @@
         // Inject HTML first so scripts that query DOM find elements
         container.innerHTML = getHTMLTemplate();
 
+        // Fetch ministries & locations and populate the selects on the sign-in page
+        // Endpoint returns: { locations: [...], ministries: [...] }
+        (function populateMinistriesAndLocations() {
+          const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+
+          const elMinistry = document.getElementById('att-ministry');
+          const elLocation = document.getElementById('att-location');
+          const elLoadError = document.getElementById('att-load-error');
+
+          if (!elMinistry || !elLocation) return; // nothing to do
+
+          // small helper to clear current options but keep first placeholder
+          function clearOptions(els) {
+            // keep the first option (assumed placeholder)
+            while (els.options && els.options.length > 1) {
+              els.remove(1);
+            }
+          }
+
+          clearOptions(elMinistry);
+          clearOptions(elLocation);
+
+          // Use an AbortController to avoid hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+          fetch(endpoint, { signal: controller.signal })
+            .then(resp => {
+              clearTimeout(timeoutId);
+              if (!resp.ok) throw new Error('Network response was not ok: ' + resp.status);
+              return resp.json();
+            })
+            .then(data => {
+              // Expect object { locations: [...], ministries: [...] }
+              if (data && Array.isArray(data.ministries)) {
+                data.ministries.forEach(m => {
+                  try {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m.replace(/_/g, ' ');
+                    elMinistry.appendChild(opt);
+                  } catch (e) { /* skip malformed entries */ }
+                });
+              }
+
+              if (data && Array.isArray(data.locations)) {
+                data.locations.forEach(loc => {
+                  try {
+                    const opt = document.createElement('option');
+                    opt.value = loc;
+                    opt.textContent = loc;
+                    elLocation.appendChild(opt);
+                  } catch (e) { /* skip malformed entries */ }
+                });
+              }
+            })
+            .catch(err => {
+              // Provide a visible but non-blocking error so users know population failed
+              if (elLoadError) {
+                elLoadError.classList.remove('att-hidden');
+                elLoadError.textContent = 'Unable to load ministry or location lists — using defaults.';
+              }
+
+              // Fallback sample data (provided data) so the UI remains useful offline
+              const fallback = {
+                locations: [
+                  'Select a location'
+                ],
+                ministries: [
+                  'Select a ministry'
+                ]
+              };
+
+              try {
+                // populate ministries if empty
+                if (Array.from(elMinistry.options).length <= 1 && Array.isArray(fallback.ministries)) {
+                  fallback.ministries.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m.replace(/_/g, ' ');
+                    elMinistry.appendChild(opt);
+                  });
+                }
+
+                // populate locations if empty
+                if (Array.from(elLocation.options).length <= 1 && Array.isArray(fallback.locations)) {
+                  fallback.locations.forEach(loc => {
+                    const opt = document.createElement('option');
+                    opt.value = loc;
+                    opt.textContent = loc;
+                    elLocation.appendChild(opt);
+                  });
+                }
+              } catch (e) {
+                console.warn('Fallback population failed:', e);
+              }
+
+              console.warn('Failed to load ministries/locations from ' + endpoint + ':', err);
+            });
+        })();
+
         // Then load the remaining dependencies (scripts) in the correct order
         loadDependenciesSequentially()
             .then(() => console.log('Attendance Manager injected and dependencies loaded'))
