@@ -502,6 +502,10 @@
   background: #fff;
 }
 
+/* Loading indicator shown above attendee list while data fetch is in progress */
+.att-tracker .att-attendees-loading { display:flex; align-items:center; justify-content:center; padding:12px 20px; border-bottom:1px solid #f3f4f6; }
+.att-tracker .att-attendees-loading .att-loading-inner { display:flex; align-items:center; }
+
 .att-tracker .att-attendee-item {
   display: flex;
   align-items: center;
@@ -558,6 +562,42 @@
 .att-tracker .att-attendee-details {
   font-size: 13px;
   color: #6b7280;
+
+}
+
+/* Class placement label shown at right of attendee row */
+.att-tracker .att-class-placement {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+/* Per-attendee note input */
+/* note input removed: editing now happens via modal */
+
+/* Actions area for attendee rows */
+.att-tracker .att-attendee-actions { display:flex; align-items:center; gap:8px; margin-left:12px; }
+.att-tracker .att-edit-record-btn {
+  display:none; /* only visible on selected rows */
+  border: none;
+  background: transparent;
+  color: var(--accent); /* brand color */
+  cursor: pointer;
+  width:32px; height:32px; border-radius:6px;
+  transition: background 0.12s ease, transform 0.06s ease, box-shadow 0.12s ease;
+}
+.att-tracker .att-edit-record-btn svg { stroke: currentColor; }
+.att-tracker .att-edit-record-btn:hover { background: rgba(189,33,53,0.08); color: var(--accent-600); transform: translateY(-1px); box-shadow: 0 6px 12px rgba(189,33,53,0.12); }
+.att-tracker .att-edit-record-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(189,33,53,0.12); }
+
+/* Hidden state used while modal editing is active */
+.att-tracker .att-edit-hidden { display: none !important; pointer-events: none !important; }
+.att-tracker .att-attendee-item.selected .att-edit-record-btn { display:inline-flex; align-items:center; justify-content:center; }
+
+/* small pip indicating non-empty metadata (notes/class/score) */
+.att-tracker .att-attendee-has-data { display:inline-block; width:8px; height:8px; background:#BD2135; border-radius:50%; margin-left:6px; }
+
+.att-tracker .att-attendee-time { font-size:12px; color:#6b7280; margin-top:6px; }
   margin-top: 4px;
 }
 

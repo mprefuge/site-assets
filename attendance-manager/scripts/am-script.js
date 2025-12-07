@@ -157,6 +157,9 @@
     let currentWalkthroughStep = 0;
     // dismissed hints (persisted) - will contain hint IDs
     let dismissedHints = new Set();
+    // When opening a collect-mode edit modal we hide the originating edit button so it doesn't
+    // duplicate UI; store ref here so we can restore when modal closes.
+    let __hiddenEditButton = null;
     // set of all hint IDs present in the app (captured on init)
     let knownHintIds = new Set();
 
@@ -663,6 +666,15 @@
         eventEndTimeInput.value = commonEnd || '20:00';
         // update preview after deriving defaults
         renderEventPreview();
+        // Also populate the Collect start/end inputs with the derived defaults
+        try {
+          const tempCfg = { day: eventDaySelect.value, startTime: eventStartTimeInput.value, endTime: eventEndTimeInput.value };
+          const c = computeEventDateRangeFromConfig(tempCfg);
+          if (c && $('att-start-datetime') && $('att-end-datetime')) {
+            $('att-start-datetime').value = formatDateTimeLocal(c.startIso);
+            $('att-end-datetime').value = formatDateTimeLocal(c.endIso);
+          }
+        } catch (e) {}
 
       } catch (error) {
         console.warn('deriveEventDefaults error', error);
@@ -730,6 +742,15 @@
         temporaryEventConfig = null; // saved config becomes canonical
         renderEventPreview();
 
+        // ensure the collect start/end inputs reflect the saved configuration
+        try {
+          const computedSaved = computeEventDateRangeFromConfig(getEventConfig() || {});
+          if (computedSaved && $('att-start-datetime') && $('att-end-datetime')) {
+            $('att-start-datetime').value = formatDateTimeLocal(computedSaved.startIso);
+            $('att-end-datetime').value = formatDateTimeLocal(computedSaved.endIso);
+          }
+        } catch (e) {}
+
         // Hide success message after 3 seconds
         setTimeout(() => {
           hideElement(configSuccess);
@@ -744,7 +765,17 @@
 
     // Renders the small event preview shown in the Collect Attendance tab
     function renderEventPreview() {
-      const cfg = temporaryEventConfig || getEventConfig() || {};
+      // Prefer temporary overrides, then saved config; if neither exist use the current form inputs
+      let cfg = temporaryEventConfig || getEventConfig();
+      if (!cfg) {
+        cfg = {
+          name: (eventNameInput && eventNameInput.value) || currentUser?.ministry || '(no name)',
+          day: (eventDaySelect && eventDaySelect.value) || '',
+          startTime: (eventStartTimeInput && eventStartTimeInput.value) || '',
+          endTime: (eventEndTimeInput && eventEndTimeInput.value) || '',
+          location: (eventLocationInput && eventLocationInput.value) || currentUser?.location || ''
+        };
+      }
       const name = cfg.name || currentUser?.ministry || '(no name)';
       const day = cfg.day || '';
       const start = cfg.startTime || '';
@@ -823,19 +854,29 @@
         inlineEnd.value = cfg.endTime || '';
       }
 
+      // hide the inline edit button while the inline editor is open
+      try {
+        const inlineBtn = $('att-event-edit-inline-btn');
+        if (inlineBtn) { inlineBtn.classList.add('att-edit-hidden'); try { inlineBtn.disabled = true; inlineBtn.style.display = 'none'; } catch (e) {} __hiddenEditButton = inlineBtn; }
+      } catch (e) {}
+
       showElement($('att-event-inline-editor'));
     }
 
     function closeInlineEditor() {
       hideElement($('att-event-inline-editor'));
+      // restore the inline edit button if we hid it
+      if (__hiddenEditButton) {
+        try { __hiddenEditButton.classList.remove('att-edit-hidden'); __hiddenEditButton.disabled = false; __hiddenEditButton.style.display = ''; } catch (e) {}
+        __hiddenEditButton = null;
+      }
     }
 
     function saveInlineConfig() {
       const cfg = {
         name: $('att-inline-event-name').value.trim(),
-        location: $('att-inline-event-location').value.trim() || getEventConfig()?.location || $('att-event-location').value || currentUser?.location || '',
-        locationLat: $('att-inline-event-location').dataset.lat || null,
-        locationLon: $('att-inline-event-location').dataset.lon || null
+        // Location is intentionally not edited inline; prefer saved config or top-level event location form
+        location: getEventConfig()?.location || $('att-event-location').value || currentUser?.location || ''
       };
 
       // If the inline one-time datetime inputs are visible, use those for a one-time event
@@ -858,12 +899,29 @@
 
       temporaryEventConfig = cfg;
       renderEventPreview();
+      // Update the collect start/end inputs so inline edits immediately affect the Collect view
+      try {
+        const computed = computeEventDateRangeFromConfig(temporaryEventConfig || cfg);
+        if (computed && $('att-start-datetime') && $('att-end-datetime')) {
+          if (computed.startIso) $('att-start-datetime').value = formatDateTimeLocal(computed.startIso);
+          if (computed.endIso) $('att-end-datetime').value = formatDateTimeLocal(computed.endIso);
+        }
+      } catch (e) {}
       closeInlineEditor();
     }
 
     function clearTemporaryEventConfig() {
       temporaryEventConfig = null;
       renderEventPreview();
+      // Restore collect start/end to the saved event config if present
+      try {
+        const cfg = getEventConfig() || {};
+        const computed = computeEventDateRangeFromConfig(cfg);
+        if (computed && $('att-start-datetime') && $('att-end-datetime')) {
+          $('att-start-datetime').value = formatDateTimeLocal(computed.startIso);
+          $('att-end-datetime').value = formatDateTimeLocal(computed.endIso);
+        }
+      } catch (e) {}
     }
 
     // Address lookup using OpenStreetMap Nominatim (open-source). Presents a simple suggestion dropdown.
@@ -914,49 +972,7 @@
     }
 
     // Inline event address search (separate suggestions list)
-    const inlineLocationSuggestions = $('att-inline-event-location-suggestions');
-    async function searchInlineEventAddress(query) {
-      if (!query || query.length < 3) {
-        inlineLocationSuggestions.innerHTML = '';
-        hideElement(inlineLocationSuggestions);
-        return;
-      }
-
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`);
-        const results = await res.json();
-
-        if (!Array.isArray(results) || results.length === 0) {
-          inlineLocationSuggestions.innerHTML = '';
-          hideElement(inlineLocationSuggestions);
-          return;
-        }
-
-        inlineLocationSuggestions.innerHTML = results.map(r => `
-        <div class=\"att-address-suggestion\" data-display='${r.display_name.replace(/'/g, "&#39;")}' data-lat='${r.lat}' data-lon='${r.lon}'>
-          ${r.display_name}
-        </div>
-      `).join('');
-
-        showElement(inlineLocationSuggestions);
-
-        inlineLocationSuggestions.querySelectorAll('.att-address-suggestion').forEach(el => {
-          el.addEventListener('click', () => {
-            const display = el.dataset.display;
-            const input = $('att-inline-event-location');
-            input.value = display;
-            if (el.dataset.lat) input.dataset.lat = el.dataset.lat;
-            if (el.dataset.lon) input.dataset.lon = el.dataset.lon;
-            hideElement(inlineLocationSuggestions);
-          });
-        });
-
-      } catch (err) {
-        console.warn('Inline address lookup failed', err);
-        inlineLocationSuggestions.innerHTML = '';
-        hideElement(inlineLocationSuggestions);
-      }
-    }
+    // Inline address lookup removed — inline editor no longer accepts location input
 
     // ============================================
     // API FUNCTIONS
@@ -1102,6 +1118,15 @@
       // ensure preview is in sync with saved settings
       temporaryEventConfig = null;
       renderEventPreview();
+      // Populate collect start/end inputs with saved or computed event range so Collect view defaults
+      try {
+        const cfg = getEventConfig() || {};
+        const computed = computeEventDateRangeFromConfig(cfg);
+        if (computed && computed.startIso && $('att-start-datetime') && $('att-end-datetime')) {
+          $('att-start-datetime').value = formatDateTimeLocal(computed.startIso);
+          $('att-end-datetime').value = formatDateTimeLocal(computed.endIso);
+        }
+      } catch (e) { /* non-fatal */ }
       // Ensure Tour button visibility matches signed-in state
       updateWalkthroughVisibility();
       // show hints toggle now that a user is signed in
@@ -1368,6 +1393,9 @@
     async function loadAttendees() {
       // Collect pulls attendees for all-time (backend returns most recent per person) - no date filters required here.
       hideElement(loadError);
+      // show loading indicator while attendees are fetched
+      const attendeesLoading = $('att-attendees-loading');
+      if (attendeesLoading) showElement(attendeesLoading);
       // Only disable any filter buttons located inside the Collect tab while loading
       const filterButtons = document.querySelectorAll('#att-tab-collect .att-filter-btn');
       filterButtons.forEach(b => b.disabled = true);
@@ -1398,6 +1426,8 @@
       } catch (error) {
         showError(loadError, 'Network error. Please try again.');
       } finally {
+        // hide loading indicator
+        if (attendeesLoading) hideElement(attendeesLoading);
         // re-enable filter buttons
         filterButtons.forEach(b => b.disabled = false);
       }
@@ -1429,28 +1459,52 @@
       }
 
       // Render attendees
-      attendeesContainer.innerHTML = attendees.map(attendee => `
+      attendeesContainer.innerHTML = attendees.map(attendee => {
+        const hasData = (attendee.Notes || attendee.ClassPlacement || attendee.AssessmentScore || attendee.Level) ? 'has' : '';
+        return `
       <div class="att-attendee-item" data-person-id="${attendee.PersonID}">
         <input type="checkbox" class="att-attendee-checkbox" id="att-cb-${attendee.PersonID}" 
                data-attendee='${JSON.stringify(attendee).replace(/'/g, "&#39;")}'>
         <div class="att-attendee-info">
-          <span class="att-attendee-name">${attendee.FirstName || ''} ${attendee.LastName || ''}</span>
-          <span class="att-badge ${getAttendeeTypeBadgeClass(attendee.AttendeeType)}">${attendee.AttendeeType || 'Unknown'}</span>
+          <div style="display:flex; gap:8px; align-items:center; justify-content:space-between;">
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="att-attendee-name">${attendee.FirstName || ''} ${attendee.LastName || ''}</span>
+              <span class="att-badge ${getAttendeeTypeBadgeClass(attendee.AttendeeType)}">${attendee.AttendeeType || 'Unknown'}</span>
+            </div>
+            <div style="text-align:right; font-size:12px; color:#6b7280;">
+              ${attendee.ClassPlacement ? `<div class="att-class-placement">${escapeHtml(attendee.ClassPlacement)}</div>` : ''}
+              ${attendee.Level ? `<div class="att-level">${escapeHtml(attendee.Level)}</div>` : ''}
+            </div>
+          </div>
           ${attendee.ClassPlacement || attendee.Level ?
           `<div class="att-attendee-details">${[attendee.ClassPlacement, attendee.Level].filter(Boolean).join(' \u2022 ')}</div>` : ''}
+          ${(attendee.StartDateTime || attendee.EndDateTime) ? `<div class="att-attendee-time">${attendee.StartDateTime ? formatTime(attendee.StartDateTime) : ''}${(attendee.StartDateTime && attendee.EndDateTime) ? ' - ' : ''}${attendee.EndDateTime ? formatTime(attendee.EndDateTime) : ''}</div>` : ''}
+        </div>
+        <div class="att-attendee-actions">
+          <button class="att-edit-record-btn" data-person-id="${attendee.PersonID}" title="Edit note / placement / assessment" aria-label="Edit details for ${escapeHtml(attendee.FirstName || '')} ${escapeHtml(attendee.LastName || '')}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"></path>
+              <path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"></path>
+            </svg>
+          </button>
+          ${hasData ? '<span class="att-attendee-has-data" title="Has notes or placement"></span>' : ''}
         </div>
       </div>
-    `).join('');
+    `;
+      }).join('');
 
       // Add click handlers to items
       attendeesContainer.querySelectorAll('.att-attendee-item').forEach(item => {
         item.addEventListener('click', (e) => {
-          if (e.target.type !== 'checkbox') {
-            const checkbox = item.querySelector('input[type="checkbox"]');
-            checkbox.checked = !checkbox.checked;
-            item.classList.toggle('selected', checkbox.checked);
-            updateSelectedCount();
-          }
+          // Ignore clicks coming from interactive controls (inputs, textareas, selects, buttons) so user can focus/type
+          const targetTag = (e.target && e.target.tagName || '').toLowerCase();
+          if (['input', 'textarea', 'select', 'button'].includes(targetTag)) return;
+
+          const checkbox = item.querySelector('input[type="checkbox"]');
+          if (!checkbox) return;
+          checkbox.checked = !checkbox.checked;
+          item.classList.toggle('selected', checkbox.checked);
+          updateSelectedCount();
         });
       });
 
@@ -1461,6 +1515,19 @@
           updateSelectedCount();
         });
       });
+
+      // Use event-delegation on the container to support dynamic rows
+      if (!attendeesContainer.__attEditHandlerAttached) {
+        attendeesContainer.addEventListener('click', function onAttendeesClick(e) {
+        const btn = e.target.closest && e.target.closest('.att-edit-record-btn');
+        if (btn && attendeesContainer.contains(btn)) {
+          e.stopPropagation();
+          const pid = btn.dataset.personId;
+          openCollectEditModal(pid);
+        }
+        });
+        attendeesContainer.__attEditHandlerAttached = true;
+      }
     }
 
     function filterAttendees(searchTerm) {
@@ -1532,11 +1599,12 @@
 
       const attendance = Array.from(selectedCheckboxes).map(cb => {
         const attendee = JSON.parse(cb.dataset.attendee);
+        // Notes/class/assessment values are saved on the attendee dataset (edited via the modal)
         return {
           PersonID: attendee.PersonID,
           // Use computed ISO datetimes if event config provides a day/time; otherwise use inputs
-          StartDateTime: effectiveStartIso,
-          EndDateTime: effectiveEndIso,
+          StartDateTime: attendee.StartDateTime || effectiveStartIso,
+          EndDateTime: attendee.EndDateTime || effectiveEndIso,
           AttendeeType: attendee.AttendeeType || 'Student',
           Notes: attendee.Notes || '',
           Level: attendee.Level || '',
@@ -1666,7 +1734,7 @@
         <td>${record.Notes || ''}</td>
         <td>
           <button class="att-btn att-btn-secondary" style="padding: 6px 12px; font-size: 12px;" 
-                  onclick="window.attEditRecord('${record.EventID}')">Edit</button>
+            onclick="window.attEditRecord('${record.EventID}', this)">Edit</button>
         </td>
       </tr>
     `).join('');
@@ -1688,7 +1756,15 @@
     // ============================================
     // EDIT RECORD MODAL
     // ============================================
-    window.attEditRecord = function (eventId) {
+    window.attEditRecord = function (eventId, triggerBtn) {
+      // If a trigger button was passed in (records table), hide it while modal is active
+      try {
+        if (triggerBtn && triggerBtn.classList) {
+          triggerBtn.classList.add('att-edit-hidden');
+          try { triggerBtn.disabled = true; triggerBtn.style.display = 'none'; } catch(e) {}
+          __hiddenEditButton = triggerBtn;
+        }
+      } catch (e) {}
       const record = recordsData.find(r => r.EventID === eventId);
       if (!record) return;
 
@@ -1707,8 +1783,66 @@
       showElement(editModal);
     };
 
+    // Open the same edit modal but in "collect" mode for a person (no EventID)
+    function openCollectEditModal(personId) {
+      // locate the attendee record from the cached attendeesData or DOM
+      let record = attendeesData.find(a => a.PersonID === personId);
+      if (!record) {
+        const cb = document.getElementById(`att-cb-${personId}`);
+        if (cb && cb.dataset && cb.dataset.attendee) {
+          try { record = JSON.parse(cb.dataset.attendee); } catch (e) { record = null; }
+        }
+      }
+      if (!record) return;
+
+      // put empty event id so saveRecordChanges will treat this as a local update
+      $('att-edit-event-id').value = '';
+      $('att-edit-person-id').value = record.PersonID || '';
+      $('att-edit-firstname').value = record.FirstName || '';
+      $('att-edit-lastname').value = record.LastName || '';
+      // Default start/end to attendee values, falling back to the computed event range
+      try {
+        const effectiveEventCfg = temporaryEventConfig || getEventConfig() || {};
+        const computed = computeEventDateRangeFromConfig(effectiveEventCfg);
+        const startVal = record.StartDateTime ? formatDateTimeLocal(record.StartDateTime) : (computed ? formatDateTimeLocal(computed.startIso) : '');
+        const endVal = record.EndDateTime ? formatDateTimeLocal(record.EndDateTime) : (computed ? formatDateTimeLocal(computed.endIso) : '');
+        $('att-edit-start').value = startVal;
+        $('att-edit-end').value = endVal;
+      } catch (e) {
+        $('att-edit-start').value = record.StartDateTime ? formatDateTimeLocal(record.StartDateTime) : '';
+        $('att-edit-end').value = record.EndDateTime ? formatDateTimeLocal(record.EndDateTime) : '';
+      }
+      $('att-edit-type').value = getNormalizedAttendeeType(record) || 'Student';
+      $('att-edit-notes').value = record.Notes || '';
+      $('att-edit-level').value = record.Level || '';
+      $('att-edit-class').value = record.ClassPlacement || '';
+      $('att-edit-assessment').value = record.AssessmentScore || '';
+
+      hideElement(modalError);
+      // hide the per-row edit button while modal is active
+      try {
+        const cbElem = document.getElementById(`att-cb-${personId}`);
+        if (cbElem) {
+          const row = cbElem.closest('.att-attendee-item');
+          const btn = row ? row.querySelector('.att-edit-record-btn') : null;
+            if (btn) {
+            btn.classList.add('att-edit-hidden');
+            try { btn.disabled = true; btn.style.display = 'none'; } catch (e) {}
+            __hiddenEditButton = btn;
+          }
+        }
+      } catch (e) {}
+
+      showElement(editModal);
+    }
+
     function closeModal() {
       hideElement(editModal);
+      // restore any hidden edit button when closing
+      if (__hiddenEditButton) {
+        try { __hiddenEditButton.classList.remove('att-edit-hidden'); __hiddenEditButton.disabled = false; __hiddenEditButton.style.display = ''; } catch (e) {}
+        __hiddenEditButton = null;
+      }
     }
 
     async function saveRecordChanges() {
@@ -1725,9 +1859,120 @@
         AttendeeType: $('att-edit-type').value,
         Notes: $('att-edit-notes').value,
         Level: $('att-edit-level').value,
-        ClassPlacement: $('att-edit-class').value
+        ClassPlacement: $('att-edit-class').value,
+        AssessmentScore: $('att-edit-assessment').value
       }];
 
+      // If this is a collect-mode edit (no EventID), update local attendee state and DOM
+      if (!eventId) {
+        try {
+          const personId = $('att-edit-person-id').value;
+          // find attendee in attendeesData and update in-place
+          let idx = attendeesData.findIndex(a => a.PersonID === personId);
+          const updated = {
+            ...((idx >= 0) ? attendeesData[idx] : {}),
+            FirstName: $('att-edit-firstname').value,
+            LastName: $('att-edit-lastname').value,
+            AttendeeType: $('att-edit-type').value,
+            Notes: $('att-edit-notes').value,
+            Level: $('att-edit-level').value,
+            ClassPlacement: $('att-edit-class').value,
+            AssessmentScore: $('att-edit-assessment').value,
+            // capture explicit start/end if provided in the modal
+            StartDateTime: (function () {
+              const v = $('att-edit-start').value; try { return v ? new Date(v).toISOString() : ''; } catch (e) { return '' }
+            })(),
+            EndDateTime: (function () {
+              const v = $('att-edit-end').value; try { return v ? new Date(v).toISOString() : ''; } catch (e) { return '' }
+            })()
+          };
+
+          if (idx >= 0) {
+            attendeesData[idx] = updated;
+          } else {
+            attendeesData.push(updated);
+            idx = attendeesData.length - 1;
+          }
+
+          // update the DOM checkbox dataset for this person if present
+          const cb = document.getElementById(`att-cb-${personId}`);
+          if (cb) {
+            try { cb.dataset.attendee = JSON.stringify(updated).replace(/'/g, "&#39;"); } catch (e) {}
+            // update row UI for class placement / level / has-data indicator
+            const row = cb.closest('.att-attendee-item');
+            if (row) {
+              // Update visible name
+              const nameEl = row.querySelector('.att-attendee-name');
+              if (nameEl) nameEl.textContent = `${updated.FirstName || ''} ${updated.LastName || ''}`.trim();
+              // Update badge text and classes
+              const badgeEl = row.querySelector('.att-badge');
+              if (badgeEl) {
+                badgeEl.textContent = updated.AttendeeType || '';
+                // update badge class if helper available
+                try {
+                  const cls = getAttendeeTypeBadgeClass(updated.AttendeeType);
+                  badgeEl.className = `att-badge ${cls}`;
+                } catch (e) {}
+              }
+
+              const cpEl = row.querySelector('.att-class-placement');
+              if (cpEl) cpEl.textContent = updated.ClassPlacement || '';
+              const lvlEl = row.querySelector('.att-level');
+              if (lvlEl) lvlEl.textContent = updated.Level || '';
+              // update attendee time display if present
+              const timeEl = row.querySelector('.att-attendee-time');
+              const s = updated.StartDateTime ? formatTime(updated.StartDateTime) : '';
+              const e = updated.EndDateTime ? formatTime(updated.EndDateTime) : '';
+              if (s || e) {
+                if (timeEl) {
+                  timeEl.textContent = `${s}${s && e ? ' - ' + e : ''}`;
+                } else {
+                  const div = document.createElement('div');
+                  div.className = 'att-attendee-time';
+                  div.textContent = `${s}${s && e ? ' - ' + e : ''}`;
+                  // insert after details (if present) otherwise append in info area
+                  const detailsEl = row.querySelector('.att-attendee-details');
+                  if (detailsEl && detailsEl.parentNode) detailsEl.parentNode.insertBefore(div, detailsEl.nextSibling); else {
+                    const info = row.querySelector('.att-attendee-info'); if (info) info.appendChild(div);
+                  }
+                }
+              } else if (timeEl) {
+                timeEl.remove();
+              }
+              // ensure the row stays selected and checkbox remains checked
+              cb.checked = true;
+              row.classList.add('selected');
+              updateSelectedCount();
+
+              // show or hide the small pip indicator
+              const pip = row.querySelector('.att-attendee-has-data');
+              const has = (updated.Notes || updated.ClassPlacement || updated.AssessmentScore || updated.Level);
+              if (has && !pip) {
+                const actions = row.querySelector('.att-attendee-actions');
+                if (actions) {
+                  const s = document.createElement('span');
+                  s.className = 'att-attendee-has-data';
+                  s.title = 'Has notes or placement';
+                  actions.appendChild(s);
+                }
+              } else if (!has && pip) {
+                pip.remove();
+              }
+            }
+          }
+
+          // Inform user this saved locally and will be included when submitting attendance
+          try { showSuccess(submitSuccess, 'Saved locally — will be included when you submit attendance'); } catch (e) {}
+          setTimeout(() => { hideElement(submitSuccess); }, 2200);
+          closeModal();
+          return;
+        } catch (err) {
+          showError(modalError, 'Failed to save changes locally');
+          return;
+        }
+      }
+
+      // Otherwise persist to server (existing flow)
       hideElement(modalError);
       setLoading(modalSave, $('att-modal-save-spinner'), $('att-modal-save-text'), true);
 
@@ -2916,13 +3161,7 @@
     // (settings icon removed from inline event preview) no-op for opening full event configuration here
     $('att-inline-save-btn').addEventListener('click', () => saveInlineConfig());
     $('att-inline-cancel-btn').addEventListener('click', () => closeInlineEditor());
-    // Inline location address lookup
-    $('att-inline-event-location').addEventListener('input', debounce((e) => {
-      const input = $('att-inline-event-location');
-      input.dataset.lat = '';
-      input.dataset.lon = '';
-      searchInlineEventAddress(e.target.value);
-    }, 350));
+    // Inline editor no longer contains a location input so no lookup handler required
 
     // Hide address suggestions when clicking outside (existing address field)
     document.addEventListener('click', (e) => {
@@ -2935,13 +3174,7 @@
           hideElement(eventLocationSuggestions);
         }
       }
-      // Inline editor location suggestions
-      const inlineInput = $('att-inline-event-location');
-      if (inlineInput && inlineLocationSuggestions) {
-        if (!inlineInput.contains(e.target) && !inlineLocationSuggestions.contains(e.target)) {
-          hideElement(inlineLocationSuggestions);
-        }
-      }
+      // Inline editor no longer uses a location input or suggestions
     });
 
     exportPreviewBtn.addEventListener('click', previewExportData);

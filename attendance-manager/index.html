@@ -146,10 +146,10 @@
             <input type="datetime-local" id="att-inline-event-start-datetime" class="att-hidden" style="width:220px;">
             <input type="datetime-local" id="att-inline-event-end-datetime" class="att-hidden" style="width:220px;">
           </div>
+          <!-- Location input removed from inline event editor per UX: individual event edit does not require location -->
           <div style="flex:1; display:flex; gap:8px; align-items:center; margin-top:8px;">
             <div style="flex:1; position:relative;">
-              <input type="text" id="att-inline-event-location" placeholder="Location (address or site)" style="width:100%;">
-              <div id="att-inline-event-location-suggestions" class="att-address-suggestions att-hidden" style="position:absolute; left:0; right:0; z-index:1200; max-height:180px; overflow:auto;"></div>
+              <!-- intentionally empty; location is managed in Event Configuration -->
             </div>
           </div>
           <div style="display:flex; gap:8px;">
@@ -184,6 +184,12 @@
             <input type="text" class="att-search-input" id="att-search-attendees" placeholder="Search attendees...">
           </div>
           <div class="att-attendee-list">
+            <div id="att-attendees-loading" class="att-attendees-loading att-hidden" aria-live="polite">
+              <div class="att-loading-inner">
+                <span class="att-spinner" aria-hidden="true"></span>
+                <div style="margin-left:8px; font-size:14px; color:var(--muted);">Loading attendees…</div>
+              </div>
+            </div>
             <div class="att-select-all">
               <input type="checkbox" id="att-select-all-checkbox" class="att-attendee-checkbox">
               <label for="att-select-all-checkbox">Select All</label>
@@ -675,6 +681,10 @@
           <div class="att-form-group">
             <label for="att-edit-class">Class Placement</label>
             <input type="text" id="att-edit-class">
+          </div>
+          <div class="att-form-group">
+            <label for="att-edit-assessment">Assessment Score</label>
+            <input type="text" id="att-edit-assessment" placeholder="e.g. 3.5 or 85">
           </div>
         </div>
       </div>
