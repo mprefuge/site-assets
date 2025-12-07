@@ -107,6 +107,22 @@
         <span id="att-auth-spinner" class="att-spinner att-hidden"></span>
       </button>
       <div id="att-auth-error" class="att-alert att-alert-error att-hidden"></div>
+      <!-- Quick registration for unauthenticated users -->
+      <div id="att-quick-reg" style="margin-top:16px;">
+        <p style="color:#666;margin-bottom:12px;">New here? You can register without signing in:</p>
+        <div class="att-reg-type-cards">
+          <div class="att-reg-type-card" data-type="Student" onclick="window.attOpenRegisterFromAuth('Student')">
+            <div class="att-reg-icon">🎓</div>
+            <div class="att-reg-title">New Student</div>
+            <div class="att-reg-desc">Register as a student participant</div>
+          </div>
+          <div class="att-reg-type-card" data-type="Volunteer" onclick="window.attOpenRegisterFromAuth('Volunteer')">
+            <div class="att-reg-icon">🤝</div>
+            <div class="att-reg-title">New Site Volunteer</div>
+            <div class="att-reg-desc">Register as a ministry volunteer</div>
+          </div>
+        </div>
+      </div>
     </div>    
     <div id="att-main-section" class="att-hidden">      
       <div class="att-tabs">
@@ -501,10 +517,24 @@
             <div class="att-form-page" data-page="3">
               <div class="att-form-section">
                 <h3>Additional Information</h3>
-                <div class="att-form-group">
+                  <div class="att-form-group">
                   <label for="att-reg-church">Church Name</label>
                   <input type="text" id="att-reg-church">
                 </div>
+                  <div id="att-reg-min-max" style="display:flex; gap:8px; margin-top:8px;">
+                    <div class="att-form-group" style="flex:1; min-width:160px;">
+                      <label for="att-reg-ministry">Ministry Area</label>
+                      <select id="att-reg-ministry" aria-label="Registration ministry">
+                        <option value="">Select a Ministry Area</option>
+                      </select>
+                    </div>
+                    <div class="att-form-group" style="flex:1; min-width:160px;">
+                      <label for="att-reg-location">Location</label>
+                      <select id="att-reg-location" aria-label="Registration location">
+                        <option value="">Select a location</option>
+                      </select>
+                    </div>
+                  </div>
                 <div class="att-checkbox-group">
                   <input type="checkbox" id="att-reg-email-optin" checked="">
                   <label for="att-reg-email-optin">Subscribe to email updates</label>

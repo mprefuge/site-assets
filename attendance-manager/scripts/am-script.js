@@ -105,6 +105,8 @@
     const regError = $('att-reg-error');
     const regTypeSelection = $('att-reg-type-selection');
     const regFormContainer = $('att-reg-form-container');
+    const regMinistrySelect = $('att-reg-ministry');
+    const regLocationSelect = $('att-reg-location');
     const backToTypeBtn = $('att-back-to-type');
     const regTypeLabel = $('att-reg-type-label');
     const addressSearchInput = $('att-reg-address-search');
@@ -171,6 +173,8 @@
       } catch (e) {
         dismissedHints = new Set();
       }
+      // ensure quick-register visibility reflects current auth state
+      updateQuickRegVisibility();
     }
 
     function saveDismissedHints() {
@@ -307,6 +311,9 @@
                 data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }))
               );
               ministrySelect.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+              // also apply to registration-level ministry select (unauthenticated registration)
+              const regMin = $('att-reg-ministry');
+              if (regMin) regMin.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
 
             if (data && Array.isArray(data.locations)) {
@@ -314,6 +321,9 @@
                 data.locations.map(l => ({ value: l, text: l }))
               );
               locationSelect.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+              // also apply to registration location select
+              const regLoc = $('att-reg-location');
+              if (regLoc) regLoc.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
             try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
             console.info('populateLookupSelects: remote values applied to selects (source=api)');
@@ -372,6 +382,28 @@
       if (regAssessmentSelect) {
         const scores = (window.lookup && Array.isArray(window.lookup.assessmentScore)) ? normalize(window.lookup.assessmentScore) : [{ value: '', text: '' }];
         regAssessmentSelect.innerHTML = `<option value="">Select a score</option>` + scores.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
+
+      // Also populate the registration ministry/location selects (for unauthenticated registrations)
+      const regMin = $('att-reg-ministry');
+      const regLoc = $('att-reg-location');
+      if (regMin) {
+        if (window.lookup && Array.isArray(window.lookup.ministries)) {
+          const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(window.lookup.ministries.map(m => (typeof m === 'string' ? { value: m, text: String(m).replace(/_/g, ' ') } : m)));
+          regMin.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+        } else {
+          // If API fetch later populates, this will be updated — otherwise keep placeholder
+          regMin.innerHTML = `<option value="">Select a Ministry Area</option>`;
+        }
+      }
+
+      if (regLoc) {
+        if (window.lookup && Array.isArray(window.lookup.locations)) {
+          const locs = [{ value: '', text: 'Select a location' }].concat(window.lookup.locations.map(l => ({ value: l, text: l })));
+          regLoc.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+        } else {
+          regLoc.innerHTML = `<option value="">Select a location</option>`;
+        }
       }
     }
 
@@ -1186,6 +1218,8 @@
       updateWalkthroughVisibility();
       // hide hints toggle on sign-out
       updateHintsToggleVisibility();
+      // show quick registration options again for unauthenticated users
+      updateQuickRegVisibility();
     }
 
     function showMainInterface() {
@@ -1228,6 +1262,15 @@
       updateWalkthroughVisibility();
       // show hints toggle now that a user is signed in
       updateHintsToggleVisibility();
+      // if a user is signed in, ensure registration-level ministry/location fields are hidden
+      try {
+        const regMinEl = $('att-reg-ministry');
+        const regLocEl = $('att-reg-location');
+        if (regMinEl) regMinEl.closest('.att-form-group').style.display = 'none';
+        if (regLocEl) regLocEl.closest('.att-form-group').style.display = 'none';
+      } catch (e) { /* ignore */ }
+      // hide quick-registration if present (signed-in users don't need it)
+      updateQuickRegVisibility();
     }
 
     // Menu show/hide helpers (with small hide delay to make hover -> menu transitions smoother)
@@ -1329,6 +1372,13 @@
           localStorage.removeItem('att-user');
         }
       }
+    }
+
+    function updateQuickRegVisibility() {
+      const quick = $('att-quick-reg');
+      if (!quick) return;
+      if (currentUser) quick.style.display = 'none';
+      else quick.style.display = '';
     }
 
     // ============================================
@@ -2143,6 +2193,17 @@
       // Reset to first page
       currentFormPage = 1;
       updateFormPage();
+
+      // If there is NOT a logged-in user, ensure registration ministry/location selects are visible
+      const showRegLookup = !currentUser;
+      try {
+        const regMinEl = $('att-reg-ministry');
+        const regLocEl = $('att-reg-location');
+        if (regMinEl) regMinEl.closest('.att-form-group').style.display = showRegLookup ? '' : 'none';
+        if (regLocEl) regLocEl.closest('.att-form-group').style.display = showRegLookup ? '' : 'none';
+      } catch (e) {
+        // ignore if DOM structure differs
+      }
     };
 
     // Back to type selection
@@ -2432,8 +2493,8 @@
         lastName: $('att-reg-lastname').value.trim(),
         email: $('att-reg-email').value.trim(),
         phoneNumber: $('att-reg-phone').value.trim(),
-        ministry: currentUser.ministry,
-        location: currentUser.location,
+        ministry: (currentUser && currentUser.ministry) ? currentUser.ministry : ($('att-reg-ministry') ? $('att-reg-ministry').value.trim() : ''),
+        location: (currentUser && currentUser.location) ? currentUser.location : ($('att-reg-location') ? $('att-reg-location').value.trim() : ''),
         street1: $('att-reg-street1').value.trim(),
         street2: $('att-reg-street2').value.trim(),
         city: $('att-reg-city').value.trim(),
@@ -2487,6 +2548,31 @@
         if (submitBtn) submitBtn.disabled = false;
         hideElement(regSpinner);
         regBtnText.style.opacity = '1';
+      }
+    };
+
+    // When user clicks the quick-register buttons under the auth section,
+    // allow unauthenticated registration by showing the registration tab.
+    window.attOpenRegisterFromAuth = function (type) {
+      // hide auth, display main section and switch to register tab
+      hideElement(authSection);
+      showElement(mainSection);
+      // ensure register tab is active
+      try { switchTab('register'); } catch (e) {}
+      // select the requested type and show the form
+      try { window.attSelectRegType(type); } catch (e) {}
+      // ensure registration ministry/location fields are visible for unauthenticated users
+      if (!currentUser) {
+        const regMinEl = $('att-reg-ministry');
+        const regLocEl = $('att-reg-location');
+        if (regMinEl && regLocEl) {
+          try {
+            regMinEl.closest('.att-form-group').style.display = '';
+            regLocEl.closest('.att-form-group').style.display = '';
+          } catch (e) {
+            // ignore
+          }
+        }
       }
     };
 
