@@ -282,19 +282,12 @@
       const locationSelect = $('att-location');
       if (!ministrySelect || !locationSelect) return;
 
-      const sa = (window.lookup && Array.isArray(window.lookup.servingAreas)) ? window.lookup.servingAreas : [{ value: '', text: '' }];
-      const locs = (window.lookup && Array.isArray(window.lookup.eslLocations)) ? window.lookup.eslLocations : [{ value: '', text: '' }];
+      ministrySelect.innerHTML = `<option value="">Select a Ministry Area</option>`;
+      locationSelect.innerHTML = `<option value="">Select a location</option>`;
 
-      // Populate quickly from lookup.js if available so UI isn't blank while we fetch
-      ministrySelect.innerHTML = sa.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
-      locationSelect.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
 
-      // Mark the current source so developers can inspect window.attLookupSource
-      try { window.attLookupSource = 'lookup'; } catch (e) { /* ignore */ }
-
-      // Now attempt to fetch authoritative values from the remote endpoint and override when available
         (function fetchAndReplace() {
-          console.info('populateLookupSelects: attempting remote fetch to override lookup.js values');
         const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
 
         // Abort if fetch takes too long
@@ -309,9 +302,7 @@
           })
           .then(data => {
             console.info('populateLookupSelects: fetched remote data', data);
-            // Expect { ministries: [...], locations: [...] }
             if (data && Array.isArray(data.ministries)) {
-              // Ensure default blank placeholder is first
               const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
                 data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }))
               );
@@ -319,7 +310,6 @@
             }
 
             if (data && Array.isArray(data.locations)) {
-              // Ensure default blank placeholder is first
               const locsArr = [{ value: '', text: 'Select a location' }].concat(
                 data.locations.map(l => ({ value: l, text: l }))
               );
@@ -332,12 +322,12 @@
             // finished
           })
           .catch(err => {
-            // Don't block the UI — keep the lookup.js values already present
-            console.warn('populateLookupSelects: could not fetch ministries/locations — using existing lookup data', err);
-            // If this is a CORS/opaque failure show hint for debugging
-            if (err.name === 'AbortError') {
+            // Don't block the UI — leave the placeholder-only selects in place
+            console.warn('populateLookupSelects: could not fetch ministries/locations; leaving placeholder values', err);
+            if (err && err.name === 'AbortError') {
               console.warn('populateLookupSelects: fetch aborted (timeout)');
             }
+            try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
           });
       })();
 
