@@ -515,16 +515,22 @@
                 <div class="att-form-row">
                   <div class="att-form-group">
                     <label for="att-reg-level">Level</label>
-                    <input type="text" id="att-reg-level" placeholder="e.g., Beginner, Intermediate, Advanced">
+                    <select id="att-reg-level">
+                      <option value="">Select a level</option>
+                    </select>
                   </div>
                   <div class="att-form-group">
                     <label for="att-reg-class">Class Placement</label>
-                    <input type="text" id="att-reg-class" placeholder="e.g., Class A, Class B">
+                    <select id="att-reg-class">
+                      <option value="">Select a class</option>
+                    </select>
                   </div>
                 </div>
                 <div class="att-form-group">
                   <label for="att-reg-assessment">Assessment Score</label>
-                  <input type="text" id="att-reg-assessment" placeholder="Assessment score if available">
+                  <select id="att-reg-assessment">
+                    <option value="">Select a score</option>
+                  </select>
                 </div>
               </div>
               <div class="att-form-nav">
@@ -709,12 +715,12 @@
               <option value="">Select class placement</option>
             </select>
           </div>
-          <div class="att-form-group">
-            <label for="att-edit-assessment">Assessment Score</label>
-            <select id="att-edit-assessment">
-              <option value="">Select assessment score</option>
-            </select>
-          </div>
+        </div>
+        <div class="att-form-group">
+          <label for="att-edit-assessment">Assessment Score</label>
+          <select id="att-edit-assessment">
+            <option value="">Select assessment score</option>
+          </select>
         </div>
       </div>
       <div class="att-modal-footer">

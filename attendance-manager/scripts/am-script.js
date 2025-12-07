@@ -350,6 +350,29 @@
         const scores = (window.lookup && Array.isArray(window.lookup.assessmentScore)) ? window.lookup.assessmentScore : [{ value: '', text: '' }];
         assessmentSelect.innerHTML = scores.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
       }
+
+      // Also populate the registration dropdowns (student registration form)
+      const regLevelSelect = $('att-reg-level');
+      const regClassSelect = $('att-reg-class');
+      const regAssessmentSelect = $('att-reg-assessment');
+
+      // helper to normalize entries so we can accept either strings or {value,text} objects
+      const normalize = (arr) => (arr || []).map(item => (typeof item === 'string' ? { value: item, text: item } : item));
+
+      if (regLevelSelect) {
+        const levels = (window.lookup && Array.isArray(window.lookup.studentLevel)) ? normalize(window.lookup.studentLevel) : [{ value: '', text: '' }];
+        regLevelSelect.innerHTML = `<option value="">Select a level</option>` + levels.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
+
+      if (regClassSelect) {
+        const classes = (window.lookup && Array.isArray(window.lookup.classPlacement)) ? normalize(window.lookup.classPlacement) : [{ value: '', text: '' }];
+        regClassSelect.innerHTML = `<option value="">Select a class</option>` + classes.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
+
+      if (regAssessmentSelect) {
+        const scores = (window.lookup && Array.isArray(window.lookup.assessmentScore)) ? normalize(window.lookup.assessmentScore) : [{ value: '', text: '' }];
+        regAssessmentSelect.innerHTML = `<option value="">Select a score</option>` + scores.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
     }
 
     // Populate now (script loads at end of body so DOM elements exist)
