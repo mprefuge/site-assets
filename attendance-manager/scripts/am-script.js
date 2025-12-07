@@ -405,6 +405,9 @@
           regLoc.innerHTML = `<option value="">Select a location</option>`;
         }
       }
+      // Ensure quick-register visibility and tabs reflect any saved auth state
+      updateQuickRegVisibility();
+      updateTabsForAuth();
     }
 
     // Populate now (script loads at end of body so DOM elements exist)
@@ -1220,6 +1223,8 @@
       updateHintsToggleVisibility();
       // show quick registration options again for unauthenticated users
       updateQuickRegVisibility();
+      // ensure tabs are limited for unauthenticated users
+      updateTabsForAuth();
     }
 
     function showMainInterface() {
@@ -1271,6 +1276,8 @@
       } catch (e) { /* ignore */ }
       // hide quick-registration if present (signed-in users don't need it)
       updateQuickRegVisibility();
+      // ensure tab visibility matches the signed-in state
+      updateTabsForAuth();
     }
 
     // Menu show/hide helpers (with small hide delay to make hover -> menu transitions smoother)
@@ -1384,7 +1391,32 @@
     // ============================================
     // TAB NAVIGATION
     // ============================================
+    // Limit which tabs are visible for unauthenticated users
+    function updateTabsForAuth() {
+      try {
+        const allowedUnauth = new Set(['register']);
+        Array.from(tabs).forEach(tab => {
+          const name = tab.dataset.tab;
+          if (!currentUser && !allowedUnauth.has(name)) tab.classList.add('att-hidden');
+          else tab.classList.remove('att-hidden');
+        });
+
+        Array.from(tabContents).forEach(content => {
+          const contentId = content.id.replace('att-tab-', '');
+          if (!currentUser && !allowedUnauth.has(contentId)) content.classList.add('att-hidden');
+          else content.classList.remove('att-hidden');
+        });
+
+        // Ensure a valid active tab is selected
+        const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'register';
+        if (!currentUser && activeTab !== 'register') switchTab('register');
+      } catch (e) {
+        // DOM may not be ready yet — ignore
+      }
+    }
     function switchTab(tabName) {
+      // Prevent unauthenticated users from switching to restricted tabs
+      if (!currentUser && tabName !== 'register') tabName = 'register';
       tabs.forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
       });
@@ -2285,6 +2317,17 @@
           return false;
         }
       }
+
+      if (currentFormPage === 3 && !currentUser) {
+        const regMin = $('att-reg-ministry');
+        const regLoc = $('att-reg-location');
+        const minVal = regMin ? regMin.value.trim() : '';
+        const locVal = regLoc ? regLoc.value.trim() : '';
+        if (!minVal || !locVal) {
+          showError(regError, 'Please select a Ministry Area and Location before proceeding');
+          return false;
+        }
+      }
       hideElement(regError);
       return true;
     }
@@ -2474,6 +2517,17 @@
 
     // Submit registration
     window.attSubmitReg = async function () {
+      // If user is not signed in, ensure ministry & location are provided
+      if (!currentUser) {
+        const regMin = $('att-reg-ministry');
+        const regLoc = $('att-reg-location');
+        const minVal = regMin ? regMin.value.trim() : '';
+        const locVal = regLoc ? regLoc.value.trim() : '';
+        if (!minVal || !locVal) {
+          showError(regError, 'Please select a Ministry Area and Location before completing registration');
+          return;
+        }
+      }
       if (!selectedRegType) {
         showError(regError, 'Please select a registration type');
         return;
@@ -2557,6 +2611,8 @@
       // hide auth, display main section and switch to register tab
       hideElement(authSection);
       showElement(mainSection);
+      // limit tabs to register only for unauthenticated users
+      updateTabsForAuth();
       // ensure register tab is active
       try { switchTab('register'); } catch (e) {}
       // select the requested type and show the form
