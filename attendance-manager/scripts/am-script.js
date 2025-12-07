@@ -285,8 +285,41 @@
       const sa = (window.lookup && Array.isArray(window.lookup.servingAreas)) ? window.lookup.servingAreas : [{ value: '', text: '' }];
       const locs = (window.lookup && Array.isArray(window.lookup.eslLocations)) ? window.lookup.eslLocations : [{ value: '', text: '' }];
 
+      // Populate quickly from lookup.js if available so UI isn't blank while we fetch
       ministrySelect.innerHTML = sa.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
       locationSelect.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+
+      // Now attempt to fetch authoritative values from the remote endpoint and override when available
+      (function fetchAndReplace() {
+        const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+
+        // Abort if fetch takes too long
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        fetch(endpoint, { signal: controller.signal })
+          .then(r => {
+            clearTimeout(timeoutId);
+            if (!r.ok) throw new Error('Network response not ok: ' + r.status);
+            return r.json();
+          })
+          .then(data => {
+            // Expect { ministries: [...], locations: [...] }
+            if (data && Array.isArray(data.ministries)) {
+              const mins = data.ministries.map(m => ({ value: m, text: String(m).replace(/_/g, ' ') }));
+              ministrySelect.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+            }
+
+            if (data && Array.isArray(data.locations)) {
+              const locsArr = data.locations.map(l => ({ value: l, text: l }));
+              locationSelect.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+            }
+          })
+          .catch(err => {
+            // Don't block the UI — keep the lookup.js values already present
+            console.warn('populateLookupSelects: could not fetch ministries/locations — using existing lookup data', err);
+          });
+      })();
 
       // Populate Level / Class Placement / Assessment from lookup.js as well
       const levelSelect = $('att-edit-level');
