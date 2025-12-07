@@ -450,7 +450,7 @@
                 </div>
               </div>
               <div class="att-form-nav">
-                <div></div>
+                <button type="button" class="att-btn att-btn-secondary" onclick="window.attPrevPage()">← Back</button>
                 <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
               </div>
             </div>
@@ -493,7 +493,7 @@
                 </div>
               </div>
               <div class="att-form-nav">
-                <div></div>
+                <button type="button" class="att-btn att-btn-secondary" onclick="window.attPrevPage()">← Back</button>
                 <button type="button" class="att-btn att-btn-primary" onclick="window.attNextPage()">Next →</button>
               </div>
             </div>

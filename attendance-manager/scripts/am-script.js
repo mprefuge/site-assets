@@ -1409,12 +1409,20 @@
           else tab.classList.remove('att-hidden');
         });
 
-        // For tab contents, keep them hidden for unauthenticated by default. When opening
-        // registration from the auth area we explicitly show the register content.
-        Array.from(tabContents).forEach(content => {
-          if (!currentUser) content.classList.add('att-hidden');
-          else content.classList.remove('att-hidden');
-        });
+        // For tab contents, keep them hidden for unauthenticated by default.
+        // When authenticated, do not unhide all tab bodies (that would show all pages)
+        // Instead show only the currently active tab's content.
+        if (!currentUser) {
+          Array.from(tabContents).forEach(content => content.classList.add('att-hidden'));
+        } else {
+          // Find active tab
+          const activeTabBtn = Array.from(tabs).find(t => t.classList.contains('active'));
+          const activeName = activeTabBtn ? activeTabBtn.dataset.tab : (tabs[0] && tabs[0].dataset.tab);
+          Array.from(tabContents).forEach(content => {
+            const contentId = content.id.replace('att-tab-', '');
+            content.classList.toggle('att-hidden', contentId !== activeName);
+          });
+        }
       } catch (e) {
         // DOM may not be ready yet — ignore
       }
@@ -2305,8 +2313,10 @@
         return;
       }
 
-      // If we're at the minimum page for an unauthenticated flow, pressing Back should return to the sign-in screen
-      if (!currentUser && currentFormPage === minPage) {
+      // If we're at the minimum page for this flow, pressing Back should return to the parent selector
+      // For logged-in users this returns to the registration type selection inside the app;
+      // for unauthenticated users it returns to the sign-in screen.
+      if (currentFormPage === minPage) {
         backToTypeSelection();
       }
     };
