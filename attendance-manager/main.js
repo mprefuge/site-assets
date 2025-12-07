@@ -699,15 +699,21 @@
         <div class="att-form-row">
           <div class="att-form-group">
             <label for="att-edit-level">Level</label>
-            <input type="text" id="att-edit-level">
+            <select id="att-edit-level">
+              <option value="">Select level</option>
+            </select>
           </div>
           <div class="att-form-group">
             <label for="att-edit-class">Class Placement</label>
-            <input type="text" id="att-edit-class">
+            <select id="att-edit-class">
+              <option value="">Select class placement</option>
+            </select>
           </div>
           <div class="att-form-group">
             <label for="att-edit-assessment">Assessment Score</label>
-            <input type="text" id="att-edit-assessment" placeholder="e.g. 3.5 or 85">
+            <select id="att-edit-assessment">
+              <option value="">Select assessment score</option>
+            </select>
           </div>
         </div>
       </div>

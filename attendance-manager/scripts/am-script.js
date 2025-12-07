@@ -287,6 +287,26 @@
 
       ministrySelect.innerHTML = sa.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
       locationSelect.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+
+      // Populate Level / Class Placement / Assessment from lookup.js as well
+      const levelSelect = $('att-edit-level');
+      const classSelect = $('att-edit-class');
+      const assessmentSelect = $('att-edit-assessment');
+
+      if (levelSelect) {
+        const levels = (window.lookup && Array.isArray(window.lookup.studentLevel)) ? window.lookup.studentLevel : [{ value: '', text: '' }];
+        levelSelect.innerHTML = levels.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
+
+      if (classSelect) {
+        const classes = (window.lookup && Array.isArray(window.lookup.classPlacement)) ? window.lookup.classPlacement : [{ value: '', text: '' }];
+        classSelect.innerHTML = classes.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
+
+      if (assessmentSelect) {
+        const scores = (window.lookup && Array.isArray(window.lookup.assessmentScore)) ? window.lookup.assessmentScore : [{ value: '', text: '' }];
+        assessmentSelect.innerHTML = scores.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+      }
     }
 
     // Populate now (script loads at end of body so DOM elements exist)
