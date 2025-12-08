@@ -292,13 +292,19 @@
       try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
 
         (function fetchAndReplace() {
-        // Use the apiCallWithRetries helper so select data retries if the API is
-        // slow/unresponsive or returns an empty result. We treat empty results as
-        // transient and will retry up to 3 attempts before giving up.
-        (async function () {
-          try {
-            const { ok, data } = await apiCallWithRetries('/ministries', {}, { maxAttempts: 3, delayMs: 1200, treatEmptyAsRetry: true });
-            if (!ok) throw new Error(data?.message || 'Failed to fetch');
+        const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+
+        // Abort if fetch takes too long
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        fetch(endpoint, { signal: controller.signal })
+          .then(r => {
+            clearTimeout(timeoutId);
+            if (!r.ok) throw new Error('Network response not ok: ' + r.status);
+            return r.json();
+          })
+          .then(data => {
             console.info('populateLookupSelects: fetched remote data', data);
             if (data && Array.isArray(data.ministries)) {
               const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
@@ -321,23 +327,18 @@
             }
             try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
             console.info('populateLookupSelects: remote values applied to selects (source=api)');
-          } catch (err) {
-            // Don't block the UI — leave the placeholder-only selects in place, but offer
-            // a hint option so the user knows to try again/refresh.
-            console.warn('populateLookupSelects: could not fetch ministries/locations after retries; leaving placeholder values', err);
+          })
+          .then(() => {
+            // finished
+          })
+          .catch(err => {
+            // Don't block the UI — leave the placeholder-only selects in place
+            console.warn('populateLookupSelects: could not fetch ministries/locations; leaving placeholder values', err);
+            if (err && err.name === 'AbortError') {
+              console.warn('populateLookupSelects: fetch aborted (timeout)');
+            }
             try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
-            // Show a friendly message option so users know the remote values failed to load
-            try {
-              const failText = 'Failed to load values — try refreshing the page';
-              ministrySelect.innerHTML = `<option value="">${escapeHtml(failText)}</option>`;
-              locationSelect.innerHTML = `<option value="">${escapeHtml(failText)}</option>`;
-              const regMin = $('att-reg-ministry');
-              if (regMin) regMin.innerHTML = `<option value="">${escapeHtml(failText)}</option>`;
-              const regLoc = $('att-reg-location');
-              if (regLoc) regLoc.innerHTML = `<option value="">${escapeHtml(failText)}</option>`;
-            } catch (e) {}
-          }
-        })();
+          });
       })();
 
       // Populate Level / Class Placement / Assessment from lookup.js as well
@@ -1148,62 +1149,6 @@
       }
     }
 
-    // Perform up-to-N attempts of apiCall when the endpoint is unresponsive or returns empty results.
-    // - maxAttempts: how many attempts to make (default 3)
-    // - delayMs: ms to wait between attempts (default 1000)
-    // - treatEmptyAsRetry: when true, treat empty-array responses (and responses with
-    //   records/attendees arrays that are empty) as a transient condition and retry.
-    async function apiCallWithRetries(endpoint, options = {}, { maxAttempts = 3, delayMs = 1000, treatEmptyAsRetry = true } = {}) {
-      const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-
-      let lastResult = null;
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          const result = await apiCall(endpoint, options);
-          lastResult = result;
-
-          // If network failure (no status) -> retry
-          const isNetworkFailure = !result.ok && result.status === null;
-
-          // If response is ok but empty results and we should treat empty as retry
-          let isEmptyResults = false;
-          if (result.ok && treatEmptyAsRetry) {
-            const d = result.data;
-            if (Array.isArray(d) && d.length === 0) isEmptyResults = true;
-            if (d && typeof d === 'object') {
-              const arrKeys = ['records', 'attendees', 'data'];
-              for (const k of arrKeys) {
-                if (Array.isArray(d[k]) && d[k].length === 0) { isEmptyResults = true; break; }
-              }
-            }
-          }
-
-          // If we got a good non-empty result, return it immediately
-          if (!isNetworkFailure && !isEmptyResults) return result;
-
-          // Otherwise we intend to retry; if we've exhausted attempts, break and return lastResult
-        } catch (err) {
-          // In case apiCall threw unexpectedly (shouldn't) capture the error and retry
-          lastResult = { ok: false, status: null, data: { message: err?.message || 'Network error' } };
-        }
-
-        if (attempt < maxAttempts) {
-          // small backoff before next attempt
-          await sleep(delayMs);
-        }
-      }
-
-      // Exhausted all attempts — return a normalized failure indicating no results
-      // If the last result looks like an empty-success, convert into a failure so callers
-      // show the error message rather than silently accept empty datasets
-      if (lastResult && lastResult.ok) {
-        return { ok: false, status: lastResult.status, data: { message: `No results received after ${maxAttempts} attempts — please try refreshing the page.` } };
-      }
-
-      return lastResult || { ok: false, status: null, data: { message: 'No response from server' } };
-    }
-
     // ============================================
     // AUTHORIZATION
     // ============================================
@@ -1648,11 +1593,8 @@
       filterButtons.forEach(b => b.disabled = true);
 
       try {
-        // Try multiple times when the backend is unresponsive or returns empty results
-        const { ok, data } = await apiCallWithRetries(
-          `/attendees?name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}`,
-          {},
-          { maxAttempts: 3, delayMs: 1200, treatEmptyAsRetry: true }
+        const { ok, data } = await apiCall(
+          `/attendees?name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}`
         );
 
         if (ok && Array.isArray(data)) {
@@ -1943,9 +1885,7 @@
       }
 
       try {
-        // When viewing records, retry a few times if the endpoint is unresponsive
-        // or returns empty results (sometimes server-side processing can be delayed)
-        const { ok, data } = await apiCallWithRetries(`/attendance?${queryParams}`, {}, { maxAttempts: 3, delayMs: 1200, treatEmptyAsRetry: true });
+        const { ok, data } = await apiCall(`/attendance?${queryParams}`);
 
         if (ok && Array.isArray(data)) {
           // Cache full result for this date range and apply the current view-type filter
@@ -2779,11 +2719,10 @@
       }
 
       try {
-        // Use the API retry wrapper so we poll the export endpoint if it's slow or returns
-        // empty results. After several attempts the wrapper returns an error which we'll
-        // surface to the user.
-        const { ok, data } = await apiCallWithRetries(`/export?${queryParams}`, {}, { maxAttempts: 3, delayMs: 1200, treatEmptyAsRetry: true });
-        if (ok) {
+        const response = await fetch(`${API_BASE_URL}/export?${queryParams}`);
+        const data = await response.json();
+
+        if (response.ok) {
           // Cache the raw response for this query key (full dataset)
           // Normalize records before caching so subsequent client-side filters see canonical types
           const allRecords = data.records || data.attendees || [];
@@ -2800,7 +2739,7 @@
           renderExportPreview(filteredResponse);
           showElement(exportPreviewSection);
         } else {
-          showError(exportError, data.message || 'Failed to load preview — try refreshing the page.');
+          showError(exportError, data.message || 'Failed to load preview');
         }
       } catch (error) {
         showError(exportError, 'Network error. Please try again.');
