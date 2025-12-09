@@ -281,30 +281,35 @@
     }
 
 
+    // Populate Ministry & Location selects from lookup.js (if available)
+    // RETURNS a Promise that resolves once the initial remote lookup attempt finishes
     function populateLookupSelects() {
       const ministrySelect = $('att-ministry');
       const locationSelect = $('att-location');
-      if (!ministrySelect || !locationSelect) return;
+      if (!ministrySelect || !locationSelect) return Promise.resolve();
 
       ministrySelect.innerHTML = `<option value="">Select a Ministry Area</option>`;
       locationSelect.innerHTML = `<option value="">Select a location</option>`;
 
       try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
 
+      // Return a promise representing the remote lookup attempt so callers can await it
+      const remotePromise = new Promise((resolve) => {
         (function fetchAndReplace() {
-        const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+          const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
 
-        // Abort if fetch takes too long
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+          // Abort if fetch takes too long
+          const controller = new AbortController();
+          const timeoutMs = 12000; // give a bit more time on slow networks
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-        fetch(endpoint, { signal: controller.signal })
-          .then(r => {
-            clearTimeout(timeoutId);
-            if (!r.ok) throw new Error('Network response not ok: ' + r.status);
-            return r.json();
-          })
-          .then(data => {
+          fetch(endpoint, { signal: controller.signal })
+            .then(r => {
+              clearTimeout(timeoutId);
+              if (!r.ok) throw new Error('Network response not ok: ' + r.status);
+              return r.json();
+            })
+            .then(data => {
             console.info('populateLookupSelects: fetched remote data', data);
             if (data && Array.isArray(data.ministries)) {
               const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
@@ -325,21 +330,28 @@
               const regLoc = $('att-reg-location');
               if (regLoc) regLoc.innerHTML = locsArr.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
             }
-            try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
-            console.info('populateLookupSelects: remote values applied to selects (source=api)');
-          })
-          .then(() => {
-            // finished
-          })
-          .catch(err => {
+              try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
+              console.info('populateLookupSelects: remote values applied to selects (source=api)');
+            })
+            .catch(err => {
             // Don't block the UI — leave the placeholder-only selects in place
             console.warn('populateLookupSelects: could not fetch ministries/locations; leaving placeholder values', err);
             if (err && err.name === 'AbortError') {
               console.warn('populateLookupSelects: fetch aborted (timeout)');
             }
-            try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
-          });
-      })();
+              try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
+              })
+              .finally(() => {
+              // Always resolve so callers waiting on initial bootstrap continue
+              try { resolve(); } catch (e) { /* ignore */ }
+              // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
+              try { window.dispatchEvent(new CustomEvent('att-lookup-loaded', { detail: { source: window.attLookupSource || 'placeholder' } })); } catch (e) { /* ignore */ }
+            });
+        })();
+      });
+
+      // Also store this promise globally so other scripts can wait
+      try { window.attLookupReady = remotePromise; } catch (e) { /* ignore */ }
 
       // Populate Level / Class Placement / Assessment from lookup.js as well
       const levelSelect = $('att-edit-level');
@@ -408,10 +420,13 @@
       // Ensure quick-register visibility and tabs reflect any saved auth state
       updateQuickRegVisibility();
       updateTabsForAuth();
+      // return the remote promise so callers can wait for lookup attempts
+      return remotePromise;
     }
 
-    // Populate now (script loads at end of body so DOM elements exist)
-    populateLookupSelects();
+    // Populate now (script loads at end of body so DOM elements exist).
+    // Store the returned promise globally so other scripts can await the lookup completion.
+    try { window.attLookupReady = populateLookupSelects(); } catch (e) { /* ignore */ }
 
     // Walkthrough implementation has been moved to a lazily-loaded module
     // (assets/walkthrough.js). When the user clicks the Tour button we will
@@ -3623,6 +3638,18 @@
     checkSavedUser();
     // Ensure the Tour button matches the current auth state on initial load
     updateWalkthroughVisibility();
+
+    // --- establish a short-lived global readiness promise that signals when
+    // the app's important initial lookups have completed (or timed out).
+    (function createAttendanceReady() {
+      const lookupPromise = (window.attLookupReady && typeof window.attLookupReady.then === 'function') ? window.attLookupReady : Promise.resolve();
+      const timeoutMs = 15000; // safety fallback
+      window.attendanceManagerReady = Promise.race([lookupPromise, new Promise(resolve => setTimeout(resolve, timeoutMs))])
+        .then(() => {
+          try { window.dispatchEvent(new CustomEvent('attendance-manager-ready', { detail: { readyAt: Date.now() } })); } catch (e) { /* ignore */ }
+          return true;
+        });
+    })();
   })();
 
   // Load ExcelJS library for proper .xlsx export with styling

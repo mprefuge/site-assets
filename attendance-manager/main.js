@@ -835,8 +835,28 @@
 
         // Then load the remaining dependencies (scripts) in the correct order
         loadDependenciesSequentially()
-            .then(() => console.log('Attendance Manager injected and dependencies loaded'))
-            .catch(err => console.error('Failed to load Attendance Manager dependencies:', err));
+          .then(() => {
+            // Wait for the app's own readiness signal (exposed by am-script.js).
+            // If the script exposes a readiness promise, await it (with a safety timeout).
+            // Otherwise listen for the custom event and fallback to a timeout.
+            const waitForAppReady = () => {
+              if (window.attendanceManagerReady && typeof window.attendanceManagerReady.then === 'function') {
+                return Promise.race([window.attendanceManagerReady, new Promise(res => setTimeout(res, 15000))]);
+              }
+
+              return new Promise((resolve) => {
+                let done = false;
+                const handler = () => { if (done) return; done = true; window.removeEventListener('attendance-manager-ready', handler); resolve(); };
+                window.addEventListener('attendance-manager-ready', handler);
+                // Safety fallback timeout
+                setTimeout(() => { if (!done) { done = true; window.removeEventListener('attendance-manager-ready', handler); resolve(); } }, 15000);
+              });
+            };
+
+            return waitForAppReady();
+          })
+          .then(() => console.log('Attendance Manager injected, dependencies loaded, initial data ready'))
+          .catch(err => console.error('Failed to load Attendance Manager dependencies:', err));
     }
 
     /**
