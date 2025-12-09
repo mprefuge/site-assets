@@ -1486,6 +1486,30 @@
         }
       }
 
+      // When switching to the Collect tab, ensure lookup/bootstrap is finished, then load attendees.
+      if (tabName === 'collect') {
+        try {
+          const waitForBootstrap = () => {
+            // Prefer the high-level attendanceManagerReady but fall back to attLookupReady or immediate resolve
+            if (window.attendanceManagerReady && typeof window.attendanceManagerReady.then === 'function') return window.attendanceManagerReady;
+            if (window.attLookupReady && typeof window.attLookupReady.then === 'function') return window.attLookupReady;
+            return Promise.resolve();
+          };
+
+          waitForBootstrap().then(() => {
+            // Only attempt to load attendees for signed-in users
+            if (!currentUser) return;
+            // Use the loadAttendees function which now has retry logic (see below)
+            loadAttendees();
+          }).catch((err) => {
+            console.warn('Collect tab: bootstrap wait failed, attempting to load attendees anyways', err);
+            if (currentUser) loadAttendees();
+          });
+        } catch (e) {
+          if (currentUser) loadAttendees();
+        }
+      }
+
       // When switching to the Export tab, automatically preview data for the active quick-range
       // (skip auto-run for 'custom' so user can pick explicit dates first)
       if (tabName === 'export') {
@@ -1597,7 +1621,24 @@
       }
     }
 
-    async function loadAttendees() {
+    // Lightweight protection + retry behavior for loading attendees to handle transient network issues
+    let __isLoadingAttendees = false;
+    let __lastAttendeesLoadAttempt = 0;
+
+    async function loadAttendees(retries = 2, attempt = 0) {
+      // Prevent concurrent runs
+      if (__isLoadingAttendees) return;
+      __isLoadingAttendees = true;
+
+      try {
+        // Ensure we have a signed-in user
+        if (!currentUser) {
+          __isLoadingAttendees = false;
+          console.warn('loadAttendees: no currentUser — skipping load.');
+          return;
+        }
+
+        __lastAttendeesLoadAttempt = Date.now();
       // Collect pulls attendees for all-time (backend returns most recent per person) - no date filters required here.
       hideElement(loadError);
       // show loading indicator while attendees are fetched
@@ -1607,7 +1648,7 @@
       const filterButtons = document.querySelectorAll('#att-tab-collect .att-filter-btn');
       filterButtons.forEach(b => b.disabled = true);
 
-      try {
+        try {
         const { ok, data } = await apiCall(
           `/attendees?name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}`
         );
@@ -1630,13 +1671,27 @@
         } else {
           showError(loadError, data.message || 'Failed to load attendees');
         }
-      } catch (error) {
-        showError(loadError, 'Network error. Please try again.');
-      } finally {
+        } catch (error) {
+          // Retry only on network-level or timeout-like errors
+          if (retries > 0) {
+            const backoff = Math.min(5000, 500 * Math.pow(2, attempt));
+            console.warn(`loadAttendees: attempt ${attempt + 1} failed — retrying in ${backoff}ms`, error);
+            await new Promise(res => setTimeout(res, backoff));
+            // decrement retries and increase attempt
+            __isLoadingAttendees = false; // allow recursion to acquire lock again
+            return loadAttendees(retries - 1, attempt + 1);
+          }
+
+          // Final failure — surface to UI
+          showError(loadError, 'Network error. Please try again.');
+        } finally {
         // hide loading indicator
         if (attendeesLoading) hideElement(attendeesLoading);
-        // re-enable filter buttons
+          // re-enable filter buttons
         filterButtons.forEach(b => b.disabled = false);
+        }
+      } finally {
+        __isLoadingAttendees = false;
       }
     }
 
