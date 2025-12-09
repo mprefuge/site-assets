@@ -348,15 +348,7 @@
             });
         }
 
-        if (document.readyState === 'complete') {
-          fetchAndReplace();
-        } else {
-          try {
-            window.addEventListener('load', fetchAndReplace, { once: true });
-          } catch (e) {
-            window.addEventListener('load', fetchAndReplace);
-          }
-        }
+        fetchAndReplace();
       });
 
       // Also store this promise globally so other scripts can wait
@@ -368,18 +360,30 @@
       const assessmentSelect = $('att-edit-assessment');
 
       if (levelSelect) {
-        const levels = (window.lookup && Array.isArray(window.lookup.studentLevel)) ? window.lookup.studentLevel : [{ value: '', text: '' }];
-        levelSelect.innerHTML = levels.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+        if (window.lookup && Array.isArray(window.lookup.studentLevel)) {
+          const levels = window.lookup.studentLevel;
+          levelSelect.innerHTML = levels.map(o => `<option value="${escapeHtml(o.value || o)}">${escapeHtml(o.text || o)}</option>`).join('\n');
+        } else {
+          levelSelect.innerHTML = `<option value="">Select a level</option>`;
+        }
       }
 
       if (classSelect) {
-        const classes = (window.lookup && Array.isArray(window.lookup.classPlacement)) ? window.lookup.classPlacement : [{ value: '', text: '' }];
-        classSelect.innerHTML = classes.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+        if (window.lookup && Array.isArray(window.lookup.classPlacement)) {
+          const classes = window.lookup.classPlacement;
+          classSelect.innerHTML = classes.map(o => `<option value="${escapeHtml(o.value || o)}">${escapeHtml(o.text || o)}</option>`).join('\n');
+        } else {
+          classSelect.innerHTML = `<option value="">Select a class</option>`;
+        }
       }
 
       if (assessmentSelect) {
-        const scores = (window.lookup && Array.isArray(window.lookup.assessmentScore)) ? window.lookup.assessmentScore : [{ value: '', text: '' }];
-        assessmentSelect.innerHTML = scores.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
+        if (window.lookup && Array.isArray(window.lookup.assessmentScore)) {
+          const scores = window.lookup.assessmentScore;
+          assessmentSelect.innerHTML = scores.map(o => `<option value="${escapeHtml(o.value || o)}">${escapeHtml(o.text || o)}</option>`).join('\n');
+        } else {
+          assessmentSelect.innerHTML = `<option value="">Select a score</option>`;
+        }
       }
 
       // Also populate the registration dropdowns (student registration form)
@@ -409,22 +413,11 @@
       const regMin = $('att-reg-ministry');
       const regLoc = $('att-reg-location');
       if (regMin) {
-        if (window.lookup && Array.isArray(window.lookup.ministries)) {
-          const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(window.lookup.ministries.map(m => (typeof m === 'string' ? { value: m, text: String(m).replace(/_/g, ' ') } : m)));
-          regMin.innerHTML = mins.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
-        } else {
-          // If API fetch later populates, this will be updated — otherwise keep placeholder
-          regMin.innerHTML = `<option value="">Select a Ministry Area</option>`;
-        }
+        regMin.innerHTML = `<option value="">Select a Ministry Area</option>`;
       }
 
       if (regLoc) {
-        if (window.lookup && Array.isArray(window.lookup.locations)) {
-          const locs = [{ value: '', text: 'Select a location' }].concat(window.lookup.locations.map(l => ({ value: l, text: l })));
-          regLoc.innerHTML = locs.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`).join('\n');
-        } else {
-          regLoc.innerHTML = `<option value="">Select a location</option>`;
-        }
+        regLoc.innerHTML = `<option value="">Select a location</option>`;
       }
       // Ensure quick-register visibility and tabs reflect any saved auth state
       updateQuickRegVisibility();
