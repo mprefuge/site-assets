@@ -293,9 +293,8 @@
 
       try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
 
-      // Return a promise representing the remote lookup attempt so callers can await it
       const remotePromise = new Promise((resolve) => {
-        (function fetchAndReplace() {
+        function fetchAndReplace() {
           const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
 
           // Abort if fetch takes too long
@@ -347,7 +346,17 @@
               // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
               try { window.dispatchEvent(new CustomEvent('att-lookup-loaded', { detail: { source: window.attLookupSource || 'placeholder' } })); } catch (e) { /* ignore */ }
             });
-        })();
+        }
+
+        if (document.readyState === 'complete') {
+          fetchAndReplace();
+        } else {
+          try {
+            window.addEventListener('load', fetchAndReplace, { once: true });
+          } catch (e) {
+            window.addEventListener('load', fetchAndReplace);
+          }
+        }
       });
 
       // Also store this promise globally so other scripts can wait
