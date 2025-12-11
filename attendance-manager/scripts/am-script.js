@@ -306,7 +306,6 @@
           const timeoutMs = 12000; // give a bit more time on slow networks
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-          showGlobalLoading();
           fetch(endpoint, { signal: controller.signal })
             .then(r => {
               clearTimeout(timeoutId);
@@ -346,7 +345,6 @@
               try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
               })
               .finally(() => {
-              hideGlobalLoading();
               // Always resolve so callers waiting on initial bootstrap continue
               try { resolve(); } catch (e) { /* ignore */ }
               // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
@@ -3731,6 +3729,11 @@
     // ============================================
     // INITIALIZATION
     // ============================================
+    // Show loading spinner immediately on initialization
+    if (globalLoadingOverlay) {
+      showElement(globalLoadingOverlay);
+    }
+
     initHints();
     checkSavedUser();
     // Ensure the Tour button matches the current auth state on initial load
@@ -3743,6 +3746,10 @@
       const timeoutMs = 15000; // safety fallback
       window.attendanceManagerReady = Promise.race([lookupPromise, new Promise(resolve => setTimeout(resolve, timeoutMs))])
         .then(() => {
+          // Hide the loading spinner once lookups are complete
+          if (globalLoadingOverlay) {
+            hideElement(globalLoadingOverlay);
+          }
           try { window.dispatchEvent(new CustomEvent('attendance-manager-ready', { detail: { readyAt: Date.now() } })); } catch (e) { /* ignore */ }
           return true;
         });

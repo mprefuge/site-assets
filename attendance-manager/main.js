@@ -49,13 +49,13 @@
      */
     function getHTMLTemplate() {
         return `
-<div id="att-global-loading-overlay" class="att-global-loading-overlay att-hidden">
-  <div class="att-global-spinner">
-    <div class="att-spinner-ring"></div>
-    <div class="att-spinner-text">Loading...</div>
-  </div>
-</div>
 <div class="att-tracker hints-enabled">
+  <div id="att-global-loading-overlay" class="att-global-loading-overlay att-hidden">
+    <div class="att-global-spinner">
+      <div class="att-spinner-ring"></div>
+      <div class="att-spinner-text">Loading...</div>
+    </div>
+  </div>
   <div class="att-card">
     <div class="att-hints-toggle att-hidden">
       <span class="att-hints-label">Hints</span>

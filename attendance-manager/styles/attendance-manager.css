@@ -14,6 +14,7 @@
   color: #1a1a1a;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  position: relative; /* Make it a positioning context for the loading overlay */
   /* design tokens / branding */
   --accent: #BD2135; /* primary brand accent */
   --accent-600: #9a1a2b;
@@ -1690,19 +1691,20 @@
    GLOBAL LOADING OVERLAY
    ============================================ */
 .att-global-loading-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   opacity: 1;
   transition: opacity 0.2s ease;
+  border-radius: 16px;
 }
 
 .att-global-loading-overlay.att-hidden {
@@ -1722,7 +1724,7 @@
 .att-spinner-ring {
   width: 60px;
   height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.2);
+  border: 4px solid rgba(189, 33, 53, 0.2);
   border-top-color: #BD2135;
   border-radius: 50%;
   animation: att-spin 0.8s linear infinite;
@@ -1733,7 +1735,7 @@
 }
 
 .att-spinner-text {
-  color: #fff;
+  color: #BD2135;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
