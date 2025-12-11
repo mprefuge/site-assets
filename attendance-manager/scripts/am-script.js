@@ -325,7 +325,9 @@
             });
         }
 
-        attemptFetch().then(data => {
+        const delayMs = 1000; // wait 1s before first API call to allow backend cold-starts to spin up
+        function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+        delay(delayMs).then(() => attemptFetch()).then(data => {
             console.info('populateLookupSelects: fetched remote data', data);
             if (data && Array.isArray(data.ministries)) {
               const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
