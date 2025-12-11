@@ -50,10 +50,10 @@
     function getHTMLTemplate() {
         return `
 <div class="att-tracker hints-enabled">
-  <div id="att-global-loading-overlay" class="att-global-loading-overlay att-hidden">
+  <div id="att-global-loading-overlay" class="att-global-loading-overlay att-hidden" role="status" aria-live="polite" aria-label="Loading">
     <div class="att-global-spinner">
       <div class="att-spinner-ring"></div>
-      <div class="att-spinner-text">Loading...</div>
+      <div class="att-spinner-text">Please wait while we load. This may take a moment.</div>
     </div>
   </div>
   <div class="att-card">
