@@ -298,21 +298,34 @@
       try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
 
       const remotePromise = new Promise((resolve) => {
-        function fetchAndReplace() {
-          const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+        const endpoint = 'https://attendancetrackerfa.azurewebsites.net/api/ministries';
+        const maxRetries = 3;
 
-          // Abort if fetch takes too long
+        function attemptFetch(attempt = 0) {
           const controller = new AbortController();
           const timeoutMs = 12000; // give a bit more time on slow networks
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-          fetch(endpoint, { signal: controller.signal })
+          return fetch(endpoint, { signal: controller.signal })
             .then(r => {
               clearTimeout(timeoutId);
               if (!r.ok) throw new Error('Network response not ok: ' + r.status);
               return r.json();
             })
-            .then(data => {
+            .catch(err => {
+              clearTimeout(timeoutId);
+              // Retry for network errors, timeouts, or server errors
+              if (attempt < maxRetries - 1) {
+                const backoff = Math.min(5000, 500 * Math.pow(2, attempt));
+                console.warn(`populateLookupSelects: attempt ${attempt + 1} failed, retrying in ${backoff}ms`, err);
+                return new Promise((res) => setTimeout(res, backoff)).then(() => attemptFetch(attempt + 1));
+              }
+              // Final failure - rethrow so upper catch handles it
+              throw err;
+            });
+        }
+
+        attemptFetch().then(data => {
             console.info('populateLookupSelects: fetched remote data', data);
             if (data && Array.isArray(data.ministries)) {
               const mins = [{ value: '', text: 'Select a Ministry Area' }].concat(
@@ -336,23 +349,19 @@
               try { window.attLookupSource = 'api'; } catch (e) { /* ignore */ }
               console.info('populateLookupSelects: remote values applied to selects (source=api)');
             })
-            .catch(err => {
-            // Don't block the UI — leave the placeholder-only selects in place
-            console.warn('populateLookupSelects: could not fetch ministries/locations; leaving placeholder values', err);
-            if (err && err.name === 'AbortError') {
-              console.warn('populateLookupSelects: fetch aborted (timeout)');
-            }
-              try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
-              })
-              .finally(() => {
-              // Always resolve so callers waiting on initial bootstrap continue
-              try { resolve(); } catch (e) { /* ignore */ }
-              // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
-              try { window.dispatchEvent(new CustomEvent('att-lookup-loaded', { detail: { source: window.attLookupSource || 'placeholder' } })); } catch (e) { /* ignore */ }
-            });
-        }
-
-        fetchAndReplace();
+          .catch(err => {
+          // Don't block the UI — leave the placeholder-only selects in place
+          console.warn('populateLookupSelects: could not fetch ministries/locations after retries; leaving placeholder values', err);
+          if (err && err.name === 'AbortError') {
+            console.warn('populateLookupSelects: fetch aborted (timeout)');
+          }
+          try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
+        }).finally(() => {
+          // Always resolve so callers waiting on initial bootstrap continue
+          try { resolve(); } catch (e) { /* ignore */ }
+          // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
+          try { window.dispatchEvent(new CustomEvent('att-lookup-loaded', { detail: { source: window.attLookupSource || 'placeholder' } })); } catch (e) { /* ignore */ }
+        });
       });
 
       // Also store this promise globally so other scripts can wait
@@ -3743,16 +3752,21 @@
     // the app's important initial lookups have completed (or timed out).
     (function createAttendanceReady() {
       const lookupPromise = (window.attLookupReady && typeof window.attLookupReady.then === 'function') ? window.attLookupReady : Promise.resolve();
-      const timeoutMs = 15000; // safety fallback
-      window.attendanceManagerReady = Promise.race([lookupPromise, new Promise(resolve => setTimeout(resolve, timeoutMs))])
-        .then(() => {
-          // Hide the loading spinner once lookups are complete
-          if (globalLoadingOverlay) {
-            hideElement(globalLoadingOverlay);
-          }
-          try { window.dispatchEvent(new CustomEvent('attendance-manager-ready', { detail: { readyAt: Date.now() } })); } catch (e) { /* ignore */ }
-          return true;
-        });
+      window.attendanceManagerReady = lookupPromise.then(() => {
+        // Hide the loading spinner once lookups are complete
+        if (globalLoadingOverlay) {
+          hideElement(globalLoadingOverlay);
+        }
+        try { window.dispatchEvent(new CustomEvent('attendance-manager-ready', { detail: { readyAt: Date.now() } })); } catch (e) { /* ignore */ }
+        return true;
+      }).catch(() => {
+        // If lookupPromise rejected unexpectedly, still hide the overlay and proceed
+        if (globalLoadingOverlay) {
+          hideElement(globalLoadingOverlay);
+        }
+        try { window.dispatchEvent(new CustomEvent('attendance-manager-ready', { detail: { readyAt: Date.now() } })); } catch (e) { /* ignore */ }
+        return true;
+      });
     })();
   })();
 
