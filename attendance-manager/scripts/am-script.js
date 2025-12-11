@@ -148,6 +148,10 @@
     const hintsSwitch = $('att-hints-switch');
     const hintsToggle = document.querySelector('.att-hints-toggle');
     const walkthroughStartBtn = $('att-walkthrough-start');
+
+    // Global loading overlay
+    const globalLoadingOverlay = $('att-global-loading-overlay');
+    let activeApiCalls = 0;
     const walkthroughOverlay = $('att-walkthrough-overlay');
     const walkthroughClose = $('att-walkthrough-close');
     const walkthroughProgress = $('att-walkthrough-progress');
@@ -302,6 +306,7 @@
           const timeoutMs = 12000; // give a bit more time on slow networks
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+          showGlobalLoading();
           fetch(endpoint, { signal: controller.signal })
             .then(r => {
               clearTimeout(timeoutId);
@@ -341,6 +346,7 @@
               try { window.attLookupSource = 'placeholder'; } catch (e) { /* ignore */ }
               })
               .finally(() => {
+              hideGlobalLoading();
               // Always resolve so callers waiting on initial bootstrap continue
               try { resolve(); } catch (e) { /* ignore */ }
               // Broadcast that the lookup attempt finished (source available on window.attLookupSource)
@@ -463,6 +469,26 @@
       } else {
         hideElement(spinner);
         textEl.style.opacity = '1';
+      }
+    }
+
+    // ============================================
+    // GLOBAL LOADING SPINNER
+    // ============================================
+    function showGlobalLoading() {
+      activeApiCalls++;
+      if (globalLoadingOverlay && activeApiCalls > 0) {
+        hideElement(globalLoadingOverlay);
+        // Force reflow to ensure transition works
+        void globalLoadingOverlay.offsetWidth;
+        showElement(globalLoadingOverlay);
+      }
+    }
+
+    function hideGlobalLoading() {
+      activeApiCalls = Math.max(0, activeApiCalls - 1);
+      if (globalLoadingOverlay && activeApiCalls === 0) {
+        hideElement(globalLoadingOverlay);
       }
     }
 
@@ -1082,6 +1108,7 @@
         showElement(eventLocationSuggestions);
       } catch (e) {}
 
+      showGlobalLoading();
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`);
         const results = await res.json();
@@ -1117,6 +1144,8 @@
         // If the lookup fails, clear the suggestions and hide the UI
         eventLocationSuggestions.innerHTML = '';
         hideElement(eventLocationSuggestions);
+      } finally {
+        hideGlobalLoading();
       }
     }
 
@@ -1128,6 +1157,7 @@
     // ============================================
     async function apiCall(endpoint, options = {}) {
       const url = `${API_BASE_URL}${endpoint}`;
+      showGlobalLoading();
       try {
         const response = await fetch(url, {
           ...options,
@@ -1163,6 +1193,8 @@
       } catch (err) {
         // Network-level failure (CORS blocked, DNS failure, offline, TLS issues, etc.)
         return { ok: false, status: null, data: { message: err?.message || 'Network error' } };
+      } finally {
+        hideGlobalLoading();
       }
     }
 
@@ -2470,6 +2502,7 @@
           `;
           showElement(addressSuggestions);
         } catch (e) {}
+        showGlobalLoading();
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=5&q=${encodeURIComponent(query)}`,
@@ -2487,6 +2520,8 @@
           console.error('Address search error:', error);
           addressSuggestions.innerHTML = '';
           hideElement(addressSuggestions);
+        } finally {
+          hideGlobalLoading();
         }
       }, 300);
     }
@@ -2790,6 +2825,7 @@
         return;
       }
 
+      showGlobalLoading();
       try {
         const response = await fetch(`${API_BASE_URL}/export?${queryParams}`);
         const data = await response.json();
@@ -2816,6 +2852,7 @@
       } catch (error) {
         showError(exportError, 'Network error. Please try again.');
       } finally {
+        hideGlobalLoading();
         exportPreviewBtn.disabled = false;
         hideElement(spinner);
         btnText.style.opacity = '1';
@@ -2947,6 +2984,7 @@
       const workbook = new ExcelJS.Workbook();
       // Try to fetch the organization logo and add to the workbook so the exported xlsx is branded
       let imageId = null;
+      showGlobalLoading();
       try {
         const resp = await fetch(ORG_LOGO_URL);
         if (resp.ok) {
@@ -2964,6 +3002,8 @@
       } catch (e) {
         // ignore image errors -- excel still exports
         imageId = null;
+      } finally {
+        hideGlobalLoading();
       }
       // Helper to extract record data
       function getRecordData(record) {
