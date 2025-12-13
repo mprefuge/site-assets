@@ -788,9 +788,13 @@
       const endDate = now.toISOString().split('T')[0];
 
       try {
-        const { ok, data } = await apiCall(
-          `/attendance?name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}&startDate=${startDate}&endDate=${endDate}`
-        );
+        const { ok, data } = await apiCallWithData('/attendance', {
+          name: currentUser.name,
+          ministry: currentUser.ministry,
+          location: currentUser.location,
+          startDate: startDate,
+          endDate: endDate
+        });
 
         if (!ok || !Array.isArray(data) || data.length === 0) {
           // fallback: current day 6pm-8pm
@@ -1164,6 +1168,71 @@
     // ============================================
     // API FUNCTIONS
     // ============================================
+    /**
+     * Encode an object to base64 JSON string
+     */
+    function encodeDataToBase64(data) {
+      const jsonString = JSON.stringify(data);
+      return btoa(unescape(encodeURIComponent(jsonString)));
+    }
+
+    /**
+     * Build URL with base64 encoded data parameter
+     */
+    function buildApiUrl(endpoint, params) {
+      const base = `${API_BASE_URL}${endpoint}`;
+      if (!params || Object.keys(params).length === 0) {
+        return base;
+      }
+      const encodedData = encodeDataToBase64(params);
+      return `${base}?data=${encodeURIComponent(encodedData)}`;
+    }
+
+    /**
+     * API call with base64 encoded data parameter (for GET requests)
+     */
+    async function apiCallWithData(endpoint, params = {}) {
+      const url = buildApiUrl(endpoint, params);
+      showGlobalLoading();
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        // Try to parse JSON when possible; if not JSON fall back to text
+        let data = null;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          try {
+            data = await response.json();
+          } catch (err) {
+            data = { message: 'Invalid JSON response' };
+          }
+        } else {
+          try {
+            const text = await response.text();
+            // Normalize non-JSON responses into { message }
+            data = text ? { message: text } : null;
+          } catch (err) {
+            data = { message: 'Failed to read response' };
+          }
+        }
+
+        // If the server returned a plain string body, ensure callers can read a `message` property
+        if (data && typeof data !== 'object') data = { message: String(data) };
+
+        return { ok: response.ok, status: response.status, data };
+      } catch (err) {
+        // Network-level failure (CORS blocked, DNS failure, offline, TLS issues, etc.)
+        return { ok: false, status: null, data: { message: err?.message || 'Network error' } };
+      } finally {
+        hideGlobalLoading();
+      }
+    }
+
     async function apiCall(endpoint, options = {}) {
       const url = `${API_BASE_URL}${endpoint}`;
       showGlobalLoading();
@@ -1224,9 +1293,11 @@
       setLoading(authBtn, authSpinner, authBtnText, true);
 
       try {
-        const { ok, data } = await apiCall(
-          `/authorization?name=${encodeURIComponent(name)}&ministry=${encodeURIComponent(ministry)}&location=${encodeURIComponent(location)}`
-        );
+        const { ok, data } = await apiCallWithData('/authorization', {
+          name: name,
+          ministry: ministry,
+          location: location
+        });
 
         if (ok && data.authorized) {
           currentUser = data;
@@ -1692,9 +1763,11 @@
       filterButtons.forEach(b => b.disabled = true);
 
         try {
-        const { ok, data } = await apiCall(
-          `/attendees?name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}`
-        );
+        const { ok, data } = await apiCallWithData('/attendees', {
+          name: currentUser.name,
+          ministry: currentUser.ministry,
+          location: currentUser.location
+        });
 
         if (ok && Array.isArray(data)) {
           attendeesData = data;
@@ -1973,9 +2046,13 @@
       hideElement(viewError);
       setLoading(viewRecordsBtn, viewSpinner, viewBtnText, true);
 
-      let queryParams = `name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}`;
-      if (startDate) queryParams += `&startDate=${startDate}`;
-      if (endDate) queryParams += `&endDate=${endDate}`;
+      const params = {
+        name: currentUser.name,
+        ministry: currentUser.ministry,
+        location: currentUser.location
+      };
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
 
       // We'll fetch all attendee types for this date range (no server-side attendeeTypes filter)
       // and then apply type filters client-side so toggling type filters doesn't trigger
@@ -1998,7 +2075,7 @@
       }
 
       try {
-        const { ok, data } = await apiCall(`/attendance?${queryParams}`);
+        const { ok, data } = await apiCallWithData('/attendance', params);
 
         if (ok && Array.isArray(data)) {
           // Cache full result for this date range and apply the current view-type filter
@@ -2810,9 +2887,16 @@
       showElement(spinner);
       btnText.style.opacity = '0.5';
 
-      let queryParams = `name=${encodeURIComponent(currentUser.name)}&ministry=${encodeURIComponent(currentUser.ministry)}&location=${encodeURIComponent(currentUser.location)}&type=${type}&format=json`;
-      if (startDate) queryParams += `&startDate=${startDate}`;
-      if (endDate) queryParams += `&endDate=${endDate}`;
+      const params = {
+        name: currentUser.name,
+        ministry: currentUser.ministry,
+        location: currentUser.location,
+        type: type,
+        format: 'json'
+      };
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
       // We'll fetch the full dataset for the given export type + date-range and then
       // apply attendee-type filtering client-side. This avoids multiple API calls
       // while toggling type filters for the same date range.
@@ -2836,7 +2920,8 @@
 
       showGlobalLoading();
       try {
-        const response = await fetch(`${API_BASE_URL}/export?${queryParams}`);
+        const url = buildApiUrl('/export', params);
+        const response = await fetch(url);
         const data = await response.json();
 
         if (response.ok) {
