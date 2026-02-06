@@ -1910,6 +1910,11 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
         
+        if (session.url) {
+          window.location.href = session.url;
+          return;
+        }
+        
         var key = payload.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
         return loadStripeScript().then(function() {
           var stripe = window.Stripe ? window.Stripe(key) : null;
