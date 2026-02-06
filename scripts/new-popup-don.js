@@ -292,22 +292,6 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
     return rows;
   }
 
-  // Lazy-load Stripe.js when needed to reduce early third-party storage access.
-  var stripeLoadPromise = null;
-  function loadStripeScript() {
-    if (window.Stripe) return Promise.resolve(window.Stripe);
-    if (stripeLoadPromise) return stripeLoadPromise;
-    stripeLoadPromise = new Promise(function(resolve, reject) {
-      var s = document.createElement('script');
-      s.src = 'https://js.stripe.com/v3/';
-      s.async = true;
-      s.onload = function() { resolve(window.Stripe); };
-      s.onerror = function(e) { stripeLoadPromise = null; reject(e); };
-      document.head.appendChild(s);
-    });
-    return stripeLoadPromise;
-  }
-
   function donationDetailsHTML(prefix) {
     // Generate amount rows HTML
     const amounts = [500,100,50,25,10];
@@ -588,11 +572,11 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
               <label class="dp-label">Payment Method</label>
               <div class="dp-payment-grid" id="${prefix}-pm-row">
                 <button type="button" class="dp-chip dp-payment-chip" data-method="card">
-                  <img data-stripe-src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Card" width="32" height="32" />
+                  <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
                   <span>Credit/Debit Card</span>
                 </button>
                 <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
-                  <img data-stripe-src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="ACH/Bank Transfer" width="32" height="32" />
+                  <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="32" height="32" />
                   <span>Bank Transfer</span>
                   <small>0.8% (max $5)</small>
                 </button>
@@ -1312,21 +1296,9 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
     var coverFee = document.getElementById(prefix + "-cover-fee");
     var paymentMethodSection = document.getElementById(prefix + "-payment-method-section");
     
-    function lazyLoadStripeIcons(container) {
-      if (!container) return;
-      var imgs = container.querySelectorAll('img[data-stripe-src]');
-      imgs.forEach(function(img) {
-        var ds = img.getAttribute('data-stripe-src');
-        if (ds && (!img.src || img.src.indexOf('data:image') === 0)) {
-          img.src = ds;
-        }
-      });
-    }
-    
     coverFee.addEventListener("change", function() {
       if (coverFee.checked) {
         paymentMethodSection.style.display = "block";
-        lazyLoadStripeIcons(paymentMethodSection);
       } else {
         paymentMethodSection.style.display = "none";
       }
@@ -1910,17 +1882,10 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
         
-        if (session.url) {
-          window.location.href = session.url;
-          return;
-        }
-        
         var key = payload.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
-        return loadStripeScript().then(function() {
-          var stripe = window.Stripe ? window.Stripe(key) : null;
-          if (!stripe) { console.error("Stripe.js not loaded after load attempt"); throw new Error("Stripe failed to load"); }
-          return stripe.redirectToCheckout({ sessionId: session.id });
-        });
+        var stripe = window.Stripe ? window.Stripe(key) : null;
+        if (!stripe) { console.error("Stripe.js not loaded"); return; }
+        return stripe.redirectToCheckout({ sessionId: session.id });
       })
       .catch(function (err) {
         console.error("Checkout error:", err);
