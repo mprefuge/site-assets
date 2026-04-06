@@ -1,4 +1,4 @@
-const processDonationAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';//'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=o9u5MqSJayNl2ryEnLumZ1qUbpD2EX9SKBt4K8TvLIw'; //'https://prod-08.westus.logic.azure.com:443/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lnc3194xuZhPQnVi6pDF_LuvDSG8BElOsVFllpS6UpE';
+const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=o9u5MqSJayNl2ryEnLumZ1qUbpD2EX9SKBt4K8TvLIw'; //'https://prod-08.westus.logic.azure.com:443/workflows/aa6dd00627e9488eb2d9e5af99110e26/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lnc3194xuZhPQnVi6pDF_LuvDSG8BElOsVFllpS6UpE';
 
 (function () {
   "use strict";
@@ -1811,7 +1811,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       var payload = {
         donationType: donationType,
-        livemode: category.toLowerCase() === "testing" ? false : true,
+        livemode: category.toLowerCase() === "test" ? false : true,
         email: email,
         phone: phone,
         address: {
@@ -1881,22 +1881,8 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         if (!session || !session.id) {
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
-
-        if (typeof session.url === "string" && session.url.trim().length > 0) {
-          window.location.href = session.url;
-          return;
-        }
-
-        var useLiveKey = typeof session.livemode === "boolean" ? session.livemode : payload.livemode;
-        if (typeof session.id === "string") {
-          if (session.id.startsWith("cs_test_")) {
-            useLiveKey = false;
-          } else if (session.id.startsWith("cs_live_")) {
-            useLiveKey = true;
-          }
-        }
-
-        var key = useLiveKey ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
+        
+        var key = payload.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
         var stripe = window.Stripe ? window.Stripe(key) : null;
         if (!stripe) { console.error("Stripe.js not loaded"); return; }
         return stripe.redirectToCheckout({ sessionId: session.id });
