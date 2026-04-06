@@ -1881,7 +1881,12 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         if (!session || !session.id) {
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
-        
+
+        if (typeof session.url === "string" && session.url.trim().length > 0) {
+          window.location.href = session.url;
+          return;
+        }
+
         var useLiveKey = typeof session.livemode === "boolean" ? session.livemode : payload.livemode;
         if (typeof session.id === "string") {
           if (session.id.startsWith("cs_test_")) {
@@ -1890,7 +1895,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
             useLiveKey = true;
           }
         }
-        
+
         var key = useLiveKey ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
         var stripe = window.Stripe ? window.Stripe(key) : null;
         if (!stripe) { console.error("Stripe.js not loaded"); return; }
