@@ -777,11 +777,10 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
     var categoryConfig = {
       onetime: [
         "General Giving",
-        "Cooking and Culture",
-        "Corporate Sponsor",
-        "Ministry Expansion Campaign",
-        "TNND Payment", 
-        "Volunteer Application",
+        "Immigrant Legal Services Center",
+        "TNND Camp Payment",
+        "Cooking and Culture Payment", 
+        "Volunteer Application Payment",
         //"Tribute",
         "Other (specify)"
       ],
