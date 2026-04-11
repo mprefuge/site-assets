@@ -343,17 +343,15 @@ const processDonationAPI = 'https://db6a711f4383e668bf1e88325abdab.17.environmen
             </div>
             <div id="${prefix}-amount-error" class="dp-error-message">Please select or enter a donation amount</div>
           </div>
-
           <!-- Category with Other Field -->
           <div style="margin-bottom:16px;">
             <label class="dp-label" for="${prefix}-category">Category</label>
             <select id="${prefix}-category" class="dp-select">
               <option>General Giving</option>
-              <option>Cooking and Culture</option>
-              <option>Corporate Sponsor</option>
-              <option>Ministry Expansion</option>
-              <option>TNND Payment</option>
-              <option>Volunteer Application</option>
+              <option>Immigrant Legal Services Center</option>
+              <option>TNND Camp Payment</option>
+              <option>Cooking and Culture Payment</option>
+              <option>Volunteer Application Payment</option>
               <option>Other (specify)</option>
             </select>
             <div id="${prefix}-category-other-wrap" style="display:none;margin-top:8px;">
