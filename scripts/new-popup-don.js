@@ -1471,7 +1471,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                 lookupInput.value = item.display_name;
                 var a = item.address || {};
                 addr1.value = (a.house_number ? a.house_number + " " : "") + (a.road || a.pedestrian || a.footway || a.cycleway || a.path || "");
-                city.value = a.city || a.town || a.village || a.hamlet || "";
+                city.value = a.city || a.town || a.village || a.hamlet || a.municipality || a.city_district || "";
                 zip.value = a.postcode || "";
                 // best-effort state match
                 var stateName = a.state || "";
@@ -1835,10 +1835,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       } else {
         var orgName = document.getElementById(prefix + "-organization-name").value.trim();
         payload.organizationName = orgName;
-        // For organization donations, the backend might still expect name fields
-        // Try using organization name as the first name and empty last name
         payload.firstname = orgName;
-        payload.lastname = "";
       }
       
       // Add tribute information if applicable
