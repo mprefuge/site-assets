@@ -1876,7 +1876,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
         
-        var key = payload.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
+        var key = session.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
         var stripe = window.Stripe ? window.Stripe(key) : null;
         if (!stripe) { console.error("Stripe.js not loaded"); return; }
         return stripe.redirectToCheckout({ sessionId: session.id });
