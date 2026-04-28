@@ -1471,7 +1471,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                 lookupInput.value = item.display_name;
                 var a = item.address || {};
                 addr1.value = (a.house_number ? a.house_number + " " : "") + (a.road || a.pedestrian || a.footway || a.cycleway || a.path || "");
-                city.value = a.city || a.town || a.village || a.hamlet || a.municipality || a.city_district || "";
+                city.value = a.city || a.town || a.suburb || a.village || a.hamlet || a.municipality || a.city_district || a.county || "";
                 zip.value = a.postcode || "";
                 // best-effort state match
                 var stateName = a.state || "";
@@ -1876,7 +1876,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
         }
         
-        var key = session.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_y47nraQZ5IFgnTMlwbDvfj8D";
+        var key = session.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_51PzyoABS5xFjv3JBy3mmsCoOLtKn6FBWwX86eUifluDOUkqUZzz5FVRwrqpM046SLkXDIc32rmDaQtcldtBYU2Yt00jeGdMCmn";
         var stripe = window.Stripe ? window.Stripe(key) : null;
         if (!stripe) { console.error("Stripe.js not loaded"); return; }
         return stripe.redirectToCheckout({ sessionId: session.id });
