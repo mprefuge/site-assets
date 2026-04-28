@@ -1834,7 +1834,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         payload.lastname = last;
       } else {
         var orgName = document.getElementById(prefix + "-organization-name").value.trim();
-        payload.organizationName = orgName;
+        payload.organization = orgName;
         payload.firstname = orgName;
       }
       
