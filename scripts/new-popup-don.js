@@ -573,7 +573,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                   <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
                   <span>Credit/Debit Card</span>
                 </button>
-                <button type="button" class="dp-chip dp-payment-chip" data-method="ach">
+                <button type="button" class="dp-chip dp-payment-chip" data-method="us_bank_account">
                   <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="ACH/Bank Transfer" width="32" height="32" />
                   <span>Bank Transfer</span>
                   <small>0.8% (max $5)</small>
@@ -1544,7 +1544,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       
       // Always calculate fee for display purposes
       var fee = 0;
-      if (paymentMethod === "ach") {
+      if (paymentMethod === "us_bank_account") {
         fee = Math.min(amt * 0.008, 5.0);
       } else if (paymentMethod === "card") {
         // Different rates based on card type
