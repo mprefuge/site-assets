@@ -350,6 +350,8 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
               <option>General Giving</option>
               <option>Immigrant Legal Services Center</option>
               <option>TNND Camp Payment</option>
+              <option>Ministry Support Dinner</option>
+              <option>Corporate Sponsorship</option>
               <option>Cooking and Culture Payment</option>
               <option>Volunteer Application Payment</option>
               <option>Other (specify)</option>
@@ -779,14 +781,18 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         "General Giving",
         "Immigrant Legal Services Center",
         "TNND Camp Payment",
-        "Cooking and Culture Payment", 
+        "Cooking and Culture Payment",
         "Volunteer Application Payment",
+        "Ministry Support Dinner",
+        "Corporate Sponsorship",
         //"Tribute",
         "Other (specify)"
       ],
       recurring: [
         "General Giving",
         "Corporate Sponsor",
+        "Ministry Support Dinner",
+        "Corporate Sponsorship",
         //"Tribute",
         "Other (specify)"
       ]
