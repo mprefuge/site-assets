@@ -1,0 +1,584 @@
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.0/jspdf.umd.min.js"></script>
+    <script src="appvariables.js"></script>
+    <script>
+        const salutation = ["", "Mr.", "Mrs.", "Ms.", "Miss", "Dr.", "Prof.", "Rev.", "Rev. Dr.", "Dr.", "Prof.", "Pastor"];
+        const states = ["", "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"];
+        const countries = ["United States", "Afghanistan", "Akrotiri", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla", "Antarctica", "Antigua and Barbuda", "Argentina", "Armenia", "Aruba", "Ashmore and Cartier Islands", "Australia", "Austria", "Azerbaijan", "Bahamas, The", "Bahrain", "Bangladesh", "Barbados", "Bassas da India", "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Bouvet Island", "Brazil", "British Indian Ocean Territory", "British Virgin Islands", "Brunei", "Bulgaria", "Burkina Faso", "Burma", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Cayman Islands", "Central African Republic", "Chad", "Chile", "China", "Christmas Island", "Clipperton Island", "Cocos (Keeling) Islands", "Colombia", "Comoros", "Congo, Democratic Republic of the", "Congo, Republic of the", "Cook Islands", "Coral Sea Islands", "Costa Rica", "Cote d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Dhekelia", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Ethiopia", "Europa Island", "Falkland Islands (Islas Malvinas)", "Faroe Islands", "Fiji", "Finland", "France", "French Guiana", "French Polynesia", "French Southern and Antarctic Lands", "Gabon", "Gambia, The", "Gaza Strip", "Georgia", "Germany", "Ghana", "Gibraltar", "Glorioso Islands", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam", "Guatemala", "Guernsey", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Heard Island and McDonald Islands", "Holy See (Vatican City)", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Isle of Man", "Israel", "Italy", "Jamaica", "Jan Mayen", "Japan", "Jersey", "Jordan", "Juan de Nova Island", "Kazakhstan", "Kenya", "Kiribati", "North Korea", "South Korea", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Macedonia", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia, Federated States of", "Moldova", "Monaco", "Mongolia", "Montserrat", "Morocco", "Mozambique", "Namibia", "Nauru", "Navassa Island", "Nepal", "Netherlands", "Netherlands Antilles", "New Caledonia", "New Zealand", "Nicaragua", "Niger", "Nigeria", "Niue", "Norfolk Island", "Northern Ireland", "Northern Mariana Islands", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paracel Islands", "Paraguay", "Peru", "Philippines", "Pitcairn Islands", "Poland", "Portugal", "Puerto Rico", "Qatar", "Reunion", "Romania", "Russia", "Rwanda", "Saint Helena", "Saint Kitts and Nevis", "Saint Lucia", "Saint Pierre and Miquelon", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia and Montenegro", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Georgia and the South Sandwich Islands", "Spain", "Spratly Islands", "Sri Lanka", "Sudan", "Suriname", "Svalbard", "Swaziland", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tokelau", "Tonga", "Trinidad and Tobago", "Tromelin Island", "Tunisia", "Turkey", "Turkmenistan", "Turks and Caicos Islands", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Virgin Islands", "Wake Island", "Wallis and Futuna", "West Bank", "Western Sahara", "Yemen", "Zambia", "Zimbabwe", "Myanmar (Burma)", "Palestine", "Democratic Republic of the Congo", "Unknown"];
+        const languages = ["English", "American Sign Language", "Amharic (Ethiopia)", "Amoy", "Arabic", "Armenian", "Azerbaijani", "Belarusian", "Bengali", "Bikol", "Bosnian", "Braille", "Brazilian Portuguese", "Bulgarian", "Burmese", "Canadian French", "Cantonese", "Catalan", "Cebuano", "Cham", "Chamorro (Guam)", "Chinese", "Chinese–Simplified", "Chinese–Traditional", "Chiu Chow", "Chow Jo", "Croatian", "Czech", "Danish", "Dari", "Dinka (Sudan)", "Dutch", "Esperanto", "Estonian", "Faroese", "Farsi", "Fijian", "Finnish", "Flemish", "French", "French Creole", "Fukienese", "Georgian", "German", "Greek", "Gujarati (India)", "Hainanese", "Haitian Creole", "Hakka (China)", "Hebrew", "Hindi", "Hmong", "Hungarian", "Ibo (Nigeria)", "Icelandic", "Ilocano", "Ilongo", "Indonesian", "Italian", "Japanese", "Kazakh", "Khmer (Cambodia)", "Kinyarwanda", "Kirundi", "Kmhmu (Laos)", "Korean", "Kurdish", "Laotian", "Latin", "Latvian", "Lithuanian", "Macedonian", "Malay", "Malayalam", "Mandarin", "Mandinka", "Marathi (India)", "Marshallese", "Mien", "Mongolian", "Navajo", "Nepali", "Norwegian", "Nuer (Nilo-Saharan)", "Oromo (Ethiopia)", "Palauan", "Pampangan", "Pangasinan", "Pashtu", "Polish", "Portuguese", "Punjabi", "Quechua", "Romanian", "Russian", "Samoan", "Serbian", "Shanghainese", "Sherpa", "Shona (Zimbabwe)", "Slovak", "Slovenian", "Somali", "Spanish", "Swahili", "Swedish", "Tagalog", "Taishanese", "Taiwanese", "Tamil", "Thai", "Tibetan", "Tigrigna (Ethiopia)", "Tongan", "Trukese (Micronesia)", "Turkish", "Turkmen", "UK English / British English", "Ukrainian", "Urdu (Pakistan)", "Uzbek", "Vietnamese", "Visayan", "Wolof", "Xhosa", "Yoruba", "Zulu", "Tigrinya", "Karen", "Malaysian", "Berber", "Pashto", "Amharic", "Sudanese", "Urdu", "Unknown", "Persian", "Filipino", "Bahasa", "Luganda", "Ndebele", "Twi", "Hausa", "Manipuri", "Pidgin", "Shona", "Visayas", "Limbum", "Nyanja", "Jju", "Other"];
+        const timeAvailable = ["Sunday Morning", "Sunday Afternoon", "Sunday Evening", "Monday Morning", "Monday Afternoon", "Monday Evening", "Tuesday Morning", "Tuesday Afternoon", "Tuesday Evening", "Wednesday Morning", "Wednesday Afternoon", "Wednesday Evening", "Thursday Morning", "Thursday Afternoon", "Thursday Evening", "Friday Morning", "Friday Afternoon", "Friday Evening", "Saturday Morning", "Saturday Afternoon", "Saturday Evening"];
+        const referralSource = ["Advertisement", "Church", "Friend", "Google", "Refuge Preview", "Seminary", "Unleashed App", "Social Media", "Other"];
+        const ministryInterest = ["Adopt-A-Family", "English Mentoring", "ESL Network", "Nations Next Door", "Right Start", "Other"]; //["Adopt-A-Family", "Conversation Club", "English Mentoring", "ESL Network", "Nations Next Door", "Other", "Right Start", "Translator", "Welcome Center Use"];
+        const skills = ["Administrative", "Counseling", "Childcare", "Communication", "Community Outreach", "Compassion", "Cultural Awareness", "Cultural Sensitivity", "Educational Support", "Engagement", "Empathy", "ESL", "Event Planning", "Interpersonal", "Organizational", "Reading Support", "Resource Connection", "Support", "Teaching", "Tutoring", "Other"];
+        const ableToPay = ["", "Yes", "No"];
+        const gender = ["", "Male", "Female"];
+        const maritalStatus = ["", "Single", "Married"];
+        const relationship = ["", "Parent", "Husband", "Wife", "Sibling", "Friend", "Other"]
+ 
+        document.addEventListener('DOMContentLoaded', () => {
+            populateSelect('salutation', salutation);
+            populateSelect('pastoralReferenceSalutation', salutation);
+            populateSelect('skills', skills);
+            populateSelect('state', states);
+            populateSelect('country', countries);
+            populateSelect('countryOfOrigin', countries);
+            populateSelect('heartLanguage', languages);
+            populateSelect('languagesSpoken', languages);
+            populateSelect('availability', timeAvailable);
+            populateSelect('howHeard', referralSource);
+            populateSelect('servingPreference', ministryInterest);
+            populateSelect('servingInterest', ministryInterest);
+            populateSelect('gender', gender);
+            populateSelect('maritalStatus', maritalStatus);
+            populateSelect('ableToPay', ableToPay);
+            populateSelect('ableToPayMinistrySafeBG', ableToPay);
+            populateSelect('ecRelationship', relationship);
+            const selectElements = document.querySelectorAll('.select-multiple');
+            if (window.innerWidth > 768) {
+                selectElements.forEach(selectElement => {
+                    handleSelection(selectElement);
+                });
+            }
+            const ministrySafeSelect = document.getElementById('ministrySafeCertificate');
+            const needMinistrySafeAndBGCheck = document.getElementById('needMinistrySafeAndBGCheck');
+            ministrySafeSelect.addEventListener('change', () => {
+                const uploadGroup = document.getElementById('ministrySafeUploadGroup');
+                if (ministrySafeSelect.value === 'Yes') {
+                    uploadGroup.style.display = 'block';
+                    needMinistrySafeAndBGCheck.style.display = 'none';
+                } else {
+                    uploadGroup.style.display = 'none';
+                    needMinistrySafeAndBGCheck.style.display = 'block';
+                }
+                checkVisibility();
+            });
+
+            const form = document.getElementById('volunteerForm');
+            form.addEventListener('submit', handleSubmit);
+        });
+
+        function handleSelection(selectElement) {
+            selectElement.addEventListener('click', (event) => {
+                const option = event.target;
+                if (option.tagName === 'OPTION') {
+                    option.selected = !option.selected;
+                }
+            });
+            selectElement.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+            });
+        }
+
+        function populateSelect(elementId, options) {
+            const select = document.getElementById(elementId);
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.innerHTML = option;
+                select.appendChild(opt);
+            });
+        }
+
+        function isVisible(element) {
+            return element.offsetParent !== null;
+        }
+
+        function checkVisibility() {
+            var selectElement = document.getElementById('ministrySafeCertificateUpload');
+            const ministrySafeSelect = document.getElementById('ministrySafeCertificate');
+            if (isVisible(selectElement) && ministrySafeSelect.value === 'Yes') {
+                selectElement.setAttribute('required', 'required');
+            } else {
+                selectElement.removeAttribute('required');
+            }
+        }
+
+        window.onload = checkVisibility;
+
+        document.getElementById('volunteerForm').onsubmit = function () {
+            checkVisibility();
+            return true;
+        };
+
+        function submitForm(formData) {
+            //fetch('https://prod-18.westus.logic.azure.com:443/workflows/6607266b2e024806a5c92591df6aaeaf/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=qkQc1X6094F9bgG59RwInrQE9VtMK8JFMEllqi1OFN4', {
+            fetch('https://db6a711f4383e668bf1e88325abdab.17.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6607266b2e024806a5c92591df6aaeaf/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ooPSiZ5PqNZwKu8YVFutVnDDmHRbfnOo2ayJPxb33cE', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = 'http://www.refugeintl.org/appsubmitted/';
+                } else {
+                    alert('There was an error submitting the form. Please try again.');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                alert('There was an error submitting the form. Please try again.');
+            });
+        }
+        
+        function handleSubmit(event) {
+            console.log('Form submission initiated');
+            event.preventDefault();
+
+            const getSelectedValues = (selectElementId) => {
+                const selectElement = document.getElementById(selectElementId);
+                const selectedValues = [];
+                for (let option of selectElement.options) {
+                    if (option.selected) {
+                        selectedValues.push(option.value);
+                    }
+                }
+                return selectedValues;
+            };
+
+            const formData = {
+                "Salutation": document.getElementById('salutation').value,
+                "FirstName": document.getElementById('firstName').value,
+                "LastName": document.getElementById('lastName').value,
+                "Email": document.getElementById('email').value,
+                "Phone": document.getElementById('phone').value,
+                "Street": document.getElementById('street').value,
+                "City": document.getElementById('city').value,
+                "State": document.getElementById('state').value,
+                "Zip": document.getElementById('zip').value,
+                "Country": document.getElementById('country').value,
+                "Church": document.getElementById('church').value,
+                "Skills": getSelectedValues('skills'),
+                "CurrentlyServing": document.getElementById('currentlyServing').value,
+                "CountryOfOrigin": document.getElementById('countryOfOrigin').value,
+                "Gender": document.getElementById('gender').value,
+                "MaritalStatus": document.getElementById('maritalStatus').value,
+                "Birthdate": document.getElementById('birthdate').value,
+                "HeartLanguage": document.getElementById('heartLanguage').value,
+                "LanguagesSpoken": getSelectedValues('languagesSpoken'),
+                "PastoralReferenceSalutation": document.getElementById('pastoralReferenceSalutation').value,
+                "PastoralReferenceFirstName": document.getElementById('pastoralReferenceFirstName').value,
+                "PastoralReferenceLastName": document.getElementById('pastoralReferenceLastName').value,
+                "PastoralReferenceEmail": document.getElementById('pastoralReferenceEmail').value,
+                "Gospel": document.getElementById('gospel').value,
+                "Testimony": document.getElementById('testimony').value,
+                "AnythingElse": document.getElementById('anythingElse').value,
+                "ECName": document.getElementById('ecName').value,
+                "ECPhone": document.getElementById('ecPhone').value,
+                "ECRelationship": document.getElementById('ecRelationship').value,
+                "ServingInterest": getSelectedValues('servingInterest'),
+                "ServingPreference": document.getElementById('servingPreference').value,
+                "Availability": getSelectedValues('availability'),
+                "HowHeard": getSelectedValues('howHeard'),
+                "AbleToPay": document.getElementById('ableToPay').value ? document.getElementById('ableToPay').value : document.getElementById('ableToPayMinistrySafeBG').value,
+                "MinistrySafeCertificate": document.getElementById('ministrySafeCertificate').value,
+                "AffirmsStatementOfFaith": document.getElementById('Affirms_Statement_of_Faith').checked,
+            };
+
+            const ministrySafeCertificateUpload = document.getElementById('ministrySafeCertificateUpload');
+            if (formData.MinistrySafeCertificate === 'Yes') {
+                if (ministrySafeCertificateUpload.files.length === 0) {
+                    alert('Please upload your MinistrySafe certificate.');
+                    return;
+                }
+                const file = ministrySafeCertificateUpload.files[0];
+                if (!file.type.includes('pdf')) {
+                    alert('Please upload a PDF file.');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    const ansiByteArray = Array.from(uint8Array, byte => byte & 0xFF);
+                    const base64String = btoa(String.fromCharCode.apply(null, ansiByteArray));
+                    formData.MinistrySafeCertificatePDF = base64String;
+                    console.log('Submitting form with file upload');
+                    submitForm(formData);
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                formData.MinistrySafeCertificateUpload = null;
+                formData.MinistrySafeCertificatePDF = null;
+                console.log('Submitting form without file upload');
+                submitForm(formData);
+            }
+        }
+    </script>
+    <style>
+        .form-wrapper {
+            max-width: 90%;
+            margin: 50px auto;
+            padding: 30px;
+            border: 0px solid #ccc;
+            border-radius: 10px;
+            background-color: #fff;
+        }
+
+        .form-inner-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .form-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .salutation {
+            flex: 1;
+            max-width: 100px;
+        }
+
+        .narrative {
+            flex: 1;
+            min-height: 250px;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .field-element {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .required {
+            color: #BD2135;
+        }
+
+        .form-actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #BD2135;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button:hover:enabled {
+            background-color: #a71d30;
+        }
+
+        h1 {
+            text-align: center;
+            color: #BD2135;
+        }
+
+        label {
+            color: #000;
+            font-weight: bold;
+        }
+
+        .form-text {
+            font-size: 0.75em;
+            color: #6c757d;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        a {
+            color: #BD2135;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: black;
+        }
+
+        #Affirms_Statement_of_Faith:disabled + label {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="form-wrapper" id="form-app">
+        <h1>Volunteer Application</h1>
+        <div class="form-inner-wrapper">
+            <form id="volunteerForm">
+                <div class="form-group">
+                    <div class="salutation">
+                        <label for="salutation">Salutation</label>
+                        <select id="salutation" name="Salutation" class="field-element"></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="firstName">First Name <span class="required">*</span></label>
+                        <input id="firstName" name="FirstName" type="text" class="field-element" maxlength="40"
+                            aria-required="true" required
+                            oninvalid="this.setCustomValidity('Please enter your first name')"
+                            oninput="setCustomValidity('')">
+                    </div>
+                    <div class="form-item">
+                        <label for="lastName">Last Name <span class="required">*</span></label>
+                        <input id="lastName" name="LastName" type="text" class="field-element" maxlength="40"
+                            aria-required="true" required
+                            oninvalid="this.setCustomValidity('Please enter your last name')"
+                            oninput="setCustomValidity('')">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="email">Email <span class="required">*</span></label>
+                        <input id="email" name="Email" type="email" class="field-element" autocomplete="email"
+                            aria-required="true" required
+                            oninvalid="this.setCustomValidity('Please enter the best email to reach you at')"
+                            oninput="setCustomValidity('')">
+                    </div>
+                    <div class="form-item">
+                        <label for="phone">Phone Number <span class="required">*</span></label>
+                        <input id="phone" name="Phone" type="tel" class="field-element" autocomplete="tel"
+                            aria-required="true" required
+                            oninvalid="this.setCustomValidity('Please enter the best phone number to reach you at')"
+                            oninput="setCustomValidity('')">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="street">Street</label>
+                        <input id="street" name="Street" type="text" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="city">City</label>
+                        <input id="city" name="City" type="text" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="state">State</label>
+                        <select id="state" name="State" class="field-element"></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="zip">Zip Code</label>
+                        <input id="zip" name="Zip" type="text" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="country">Country</label>
+                        <select id="country" name="Country" class="field-element"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="gender">Gender</label>
+                        <select id="gender" name="Gender" class="field-element"></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="maritalStatus">Marital Status</label>
+                        <select id="maritalStatus" name="MaritalStatus" class="field-element"></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="birthdate">Birthdate</label>
+                        <input id="birthdate" name="Birthdate" type="date" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="countryOfOrigin">Country of Origin <span class="required">*</span></label>
+                        <select id="countryOfOrigin" name="CountryOfOrigin" class="field-element" required></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="heartLanguage">Heart Language <span class="required">*</span></label>
+                        <select id="heartLanguage" name="HeartLanguage" class="field-element" required></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="church">Church</label>
+                        <input id="church" name="Church" type="text" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="currentlyServing">How Are You Currently Serving?</label>
+                        <input id="currentlyServing" name="CurrentlyServing" type="text" class="field-element">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="salutation">
+                        <label for="pastoralReferenceSalutation">Salutation</label>
+                        <select id="pastoralReferenceSalutation" name="pastoralReferenceSalutation"
+                            class="field-element"></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="pastoralReferenceFirstName">Pastoral Reference First Name</label>
+                        <input id="pastoralReferenceFirstName" name="PastoralReferenceFirstName" type="text"
+                            class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="pastoralReferenceLastName">Pastoral Reference Last Name</label>
+                        <input id="pastoralReferenceLastName" name="PastoralReferenceLastName" type="text"
+                            class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="pastoralReferenceEmail">Pastoral Reference Email</label>
+                        <input id="pastoralReferenceEmail" name="PastoralReferenceEmail" type="email"
+                            class="field-element">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="gospel">Briefly explain the gospel:</label>
+                        <textarea id="gospel" name="Gospel" class="narrative" maxlength="1500"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label for="testimony">Briefly share your testimony:</label>
+                        <textarea id="testimony" name="Testimony" class="narrative" maxlength="1500"></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="languagesSpoken">Languages Spoken <span class="required">*</span></label>
+                        <select id="languagesSpoken" multiple name="LanguagesSpoken"
+                            class="field-element select-multiple" size="5" required></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="skills">Skills</label>
+                        <select id="skills" multiple name="skills" class="field-element select-multiple"
+                            size="5"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="ecName">Emergency Contact Name</label>
+                        <input id="ecName" name="ECName" type="text" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="ecPhone">Emergency Contact Phone</label>
+                        <input id="ecPhone" name="ECPhone" type="tel" class="field-element">
+                    </div>
+                    <div class="form-item">
+                        <label for="ecRelationship">Relationship</label>
+                        <select id="ecRelationship" name="ECRelationship" class="field-element"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="servingInterest">Area(s) of Interest <span class="required">*</span></label>
+                        <select id="servingInterest" multiple name="ServingInterest"
+                            class="field-element select-multiple" size="5" required></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="servingPreference">Preferred Area? <span class="required">*</span></label>
+                        <select id="servingPreference" name="ServingPreference" class="field-element" required></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="availability">General Availability <span class="required">*</span></label>
+                        <select id="availability" multiple name="Availability" class="field-element select-multiple"
+                            size="5" required></select>
+                    </div>
+                    <div class="form-item">
+                        <label for="howHeard">How did you hear about us? <span class="required">*</span></label>
+                        <select id="howHeard" multiple name="HowHeard" class="field-element select-multiple" size="5"
+                            required></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="ministrySafeCertificate">Have you completed a MinistrySafe training within the past
+                            5 years? <span class="required">*</span></label>
+                        <select id="ministrySafeCertificate" name="MinistrySafeCertificate" class="field-element" required>
+                            <option value="">Please select</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="ministrySafeUploadGroup" style="display: none;">
+                    <div class="form-item">
+                        <label for="ministrySafeCertificate">Please provide a PDF of your MinistrySafe certificate <span
+                                class="required">*</span></label>
+                        <input type="file" id="ministrySafeCertificateUpload" name="MinistrySafeCertificateUpload"
+                            class="field-element" accept=".pdf">
+                    </div>
+                    <div class="form-item">
+                        <label for="ableToPay">Are you able to pay the $15 application processing fee?</label>
+                        <select id="ableToPay" name="AbleToPay" class="field-element"></select>
+                        <label class="caption">
+                            <small class="form-text">This fee covers the cost of your background check since you're
+                                providing the MinistrySafe Certificate. An invoice will be sent to you through our payment processor, Stripe, upon submission.<br>If paying would be burdensome for you, or you're volunteering in your local church's ESL ministry, please select "No" and email us at <a href="mailto:info@refugeintl.org">info@refugeintl.org</a> so we can help you move forward.</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="needMinistrySafeAndBGCheck" style="display: none;">
+                    <div class="form-item">
+                        <label for="ableToPayMinistrySafeBG">Are you able to pay the $20 application processing
+                            fee?</label>
+                        <select id="ableToPayMinistrySafeBG" name="AbleToPayMinistrySafeBG"
+                            class="field-element"></select>
+                        <label class="caption">
+                            <small class="form-text">This fee covers the cost of your background check ($15) and
+                                MinistrySafe training ($5). An invoice will be sent to you through our payment processor, Stripe, upon submission.<br>If paying would be burdensome for you, or you're volunteering in your local church's ESL ministry, please select "No" and email us at <a href="mailto:info@refugeintl.org">info@refugeintl.org</a> so we can help you move forward.</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <label for="anythingElse">Is there anything else you would like us to know?</label>
+                        <textarea id="anythingElse" name="AnythingElse" class="narrative" maxlength="1500"></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-item">
+                        <input type="checkbox" id="Affirms_Statement_of_Faith" name="AffirmsStatementOfFaith" required>
+                        <label for="Affirms_Statement_of_Faith">
+                            &nbsp;I have read, and affirm, <a href="https://static1.squarespace.com/static/5af0bc3a96d45593d7d7e55b/t/675251913102604777fd712c/1733448082026/Refuge+International+Statement+Of+Faith-Rev.+9_25_23.pdf" target="_blank">Refuge International's statement of faith</a>.
+                        </label>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" id="submit-button" disabled>Submit</button>
+                </div>
+                <div class="form-group">
+                    <div class="form-item"><small class="form-text">By submitting this application, I agree to receive
+                            occasional email updates and announcements related to Refuge International.</small></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+    
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('volunteerForm');
+            const affirmCheckbox = document.getElementById('Affirms_Statement_of_Faith');
+            const submitButton = document.getElementById('submit-button');
+            const requiredFields = form.querySelectorAll('[required]');
+
+            function updateSubmitState() {
+                const allFilled = Array.from(requiredFields).every(input => input.value.trim() !== '' || (input.type === 'checkbox' && input.checked));
+                if (affirmCheckbox.checked && allFilled) {
+                    submitButton.disabled = false;
+                } else {
+                    submitButton.disabled = true;
+                }
+            }
+
+            form.addEventListener('input', updateSubmitState);
+            affirmCheckbox.addEventListener('change', updateSubmitState);
+        });
+
+    </script>
+</body>
