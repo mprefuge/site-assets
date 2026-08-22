@@ -331,7 +331,7 @@ const processDonationAPI = config.api?.processDonationEndpoint || 'https://API-E
                   <rect class="wallet-svg-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
                 </svg>
                 <span>Wallet</span>
-                <div class="dp-wallet-explainer">PayPal, Apple Pay, Google Pay</div>
+                <div class="dp-wallet-explainer">Apple Pay, Google Pay</div>
                 <small>2.2% + $0.30</small>
               </button>
             </div>
