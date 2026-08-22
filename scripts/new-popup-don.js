@@ -1896,13 +1896,25 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       // Stable across retries of the same gift: a donor who resubmits after a
       // failure keeps the same reference, while a changed gift gets a new one.
+      //
+      // Every field that can move the charged total belongs here. feeAmount and
+      // cardType are not on the payload yet - they arrive with the base/fee split,
+      // which narrows amount to the base gift and moves the covered fee into its own
+      // field. Until then both read undefined and join to an empty string, which is
+      // harmless: this string is only ever compared against another signature built
+      // by this same code, and is never parsed or sent anywhere. Listing them now
+      // means that once amount stops absorbing the fee, a donor who switches card
+      // type between a failed attempt and a retry still gets a new reference id
+      // instead of reusing the old one for a different charged total.
       var referenceSignature = [
         payload.amount,
+        payload.feeAmount,
         payload.frequency,
         payload.category,
         payload.email,
         payload.coverFee,
         payload.paymentMethod,
+        payload.cardType,
         payload.donationType
       ].join("|");
       
