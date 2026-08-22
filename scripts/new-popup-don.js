@@ -934,8 +934,6 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           var donationType = document.getElementById(prefix + "-donation-type").value;
           var email = document.getElementById(prefix + "-email").value.trim();
           var phone = document.getElementById(prefix + "-phone").value.trim();
-          var manualWrap = document.getElementById(prefix + "-manual-address");
-          var lookupInput = document.getElementById(prefix + "-address-lookup");
           var addr1 = document.getElementById(prefix + "-addr1");
           var city = document.getElementById(prefix + "-city");
           var stateSel = document.getElementById(prefix + "-state");
@@ -986,59 +984,37 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           
           identityOk = identityOk && emailOk && phoneOk;
           
-          // Address validation with error messages
-          var hasManualAddressData = addr1.value.trim() || city.value.trim() || stateSel.value.trim() || zip.value.trim() || countrySel.value.trim();
-          var isManualAddress = manualWrap.style.display !== "none" || hasManualAddressData;
-          var addressOk = false;
+          // Address validation with error messages.
+          // The submitted payload only ever reads the structured fields below, so those
+          // are what has to be filled in. Text sitting in the lookup box is never sent
+          // anywhere and must not satisfy this check on its own.
+          var addr1Ok = addr1.value.trim().length > 0;
+          var cityOk = city.value.trim().length > 0;
+          var stateOk = stateSel.value.length > 0;
+          var zipOk = zip.value.trim().length > 0;
+          var countryOk = countrySel.value.length > 0;
+          var addressOk = addr1Ok && cityOk && stateOk && zipOk && countryOk;
           
-          if (isManualAddress) {
-            // Manual address validation
-            var addr1Ok = addr1.value.trim().length > 0;
-            var cityOk = city.value.trim().length > 0;
-            var stateOk = stateSel.value.length > 0;
-            var zipOk = zip.value.trim().length > 0;
-            var countryOk = countrySel.value.length > 0;
-            
-            // Show/hide error messages for manual address
-            var addr1Error = document.getElementById(prefix + "-addr1-error");
-            var cityError = document.getElementById(prefix + "-city-error");
-            var stateError = document.getElementById(prefix + "-state-error");
-            var zipError = document.getElementById(prefix + "-zip-error");
-            var countryError = document.getElementById(prefix + "-country-error");
-            
-            if (addr1Error) addr1Error.style.display = addr1Ok ? "none" : "block";
-            if (cityError) cityError.style.display = cityOk ? "none" : "block";
-            if (stateError) stateError.style.display = stateOk ? "none" : "block";
-            if (zipError) zipError.style.display = zipOk ? "none" : "block";
-            if (countryError) countryError.style.display = countryOk ? "none" : "block";
-            
-            addressOk = addr1Ok && cityOk && stateOk && zipOk && countryOk;
-            
-            // Hide lookup error if manual address is being used
-            var lookupError = document.getElementById(prefix + "-address-lookup-error");
-            if (lookupError) lookupError.style.display = "none";
-          } else {
-            // Address lookup validation
-            var lookupOk = lookupInput.value.trim().length >= 5;
-            var lookupError = document.getElementById(prefix + "-address-lookup-error");
-            
-            if (lookupError) lookupError.style.display = lookupOk ? "none" : "block";
-            
-            addressOk = lookupOk;
-            
-            // Hide manual address errors if lookup is being used
-            var manualErrors = [
-              document.getElementById(prefix + "-addr1-error"),
-              document.getElementById(prefix + "-city-error"),
-              document.getElementById(prefix + "-state-error"),
-              document.getElementById(prefix + "-zip-error"),
-              document.getElementById(prefix + "-country-error")
-            ];
-            
-            manualErrors.forEach(function(errorEl) {
-              if (errorEl) errorEl.style.display = "none";
-            });
-          }
+          // Show/hide error messages for the structured address fields
+          var addr1Error = document.getElementById(prefix + "-addr1-error");
+          var cityError = document.getElementById(prefix + "-city-error");
+          var stateError = document.getElementById(prefix + "-state-error");
+          var zipError = document.getElementById(prefix + "-zip-error");
+          var countryError = document.getElementById(prefix + "-country-error");
+          
+          if (addr1Error) addr1Error.style.display = addr1Ok ? "none" : "block";
+          if (cityError) cityError.style.display = cityOk ? "none" : "block";
+          if (stateError) stateError.style.display = stateOk ? "none" : "block";
+          if (zipError) zipError.style.display = zipOk ? "none" : "block";
+          if (countryError) countryError.style.display = countryOk ? "none" : "block";
+          
+          // The lookup box is a convenience, not a required field of its own.
+          var lookupError = document.getElementById(prefix + "-address-lookup-error");
+          if (lookupError) lookupError.style.display = "none";
+          
+          // If the address is not complete, make sure the donor can actually see and
+          // finish the fields rather than being stopped by a hidden requirement.
+          if (!addressOk) revealManualAddress();
           
           return identityOk && addressOk;
         case 3:
@@ -1448,6 +1424,13 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     var enterManual = document.getElementById(prefix + "-enter-manually");
     var manualWrap = document.getElementById(prefix + "-manual-address");
 
+    // Reveal the structured address fields. The lookup row is deliberately left in
+    // place so the donor can still pick a suggestion, and can still see what they
+    // typed while they fill the fields in.
+    function revealManualAddress() {
+      if (manualWrap) manualWrap.style.display = "";
+    }
+
     var addr1 = document.getElementById(prefix + "-addr1");
     var addr2 = document.getElementById(prefix + "-addr2");
     var city = document.getElementById(prefix + "-city");
@@ -1492,7 +1475,12 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
             });
             suggestions.style.display = "block";
           })
-          .catch(function () { suggestions.style.display = "none"; });
+          .catch(function () {
+            // The lookup can fail or be rate limited. Silently hiding the dropdown
+            // leaves the donor with nothing to click, so open the manual fields.
+            suggestions.style.display = "none";
+            revealManualAddress();
+          });
       }, 300);
     });
 
@@ -1574,25 +1562,16 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var donationType = document.getElementById(prefix + "-donation-type").value;
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
-      var manualWrap = document.getElementById(prefix + "-manual-address");
-      var lookupInput = document.getElementById(prefix + "-address-lookup");
       var addr1 = document.getElementById(prefix + "-addr1");
       var city = document.getElementById(prefix + "-city");
       var stateSel = document.getElementById(prefix + "-state");
       var zip = document.getElementById(prefix + "-zip");
       var countrySel = document.getElementById(prefix + "-country");
       
-      // Check if any manual address fields have values
-      var hasManualAddressData = addr1.value.trim() || city.value.trim() || stateSel.value.trim() || zip.value.trim() || countrySel.value.trim();
-      
-      var addressOk = false;
-      if (manualWrap.style.display !== "none" || hasManualAddressData) {
-        // Manual address mode - check if all required fields are filled
-        addressOk = addr1.value.trim() && city.value.trim() && stateSel.value.trim() && zip.value.trim() && countrySel.value.trim();
-      } else {
-        // Address lookup mode - check if lookup has at least 5 characters
-        addressOk = lookupInput.value.trim().length >= 5;
-      }
+      // The payload sends these structured fields and nothing else, so a gift is only
+      // submittable once they are actually filled in. Text left in the lookup box is
+      // not an address we can send.
+      var addressOk = !!(addr1.value.trim() && city.value.trim() && stateSel.value.trim() && zip.value.trim() && countrySel.value.trim());
       
       var amountOk = customActive ? (parseFloat(customInput.value || "0") > 0) : (selectedAmount > 0);
       var category = document.getElementById(prefix + "-category").value;
