@@ -1513,6 +1513,33 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     var recurNote = document.getElementById(prefix + "-recur-note");
     var submitBtn = document.getElementById(prefix + "-submit");
 
+    // True from the moment a submission is sent until it fails. updateTotals() runs
+    // on input/change across most of the form and unconditionally re-derives
+    // submitBtn.disabled from validateRequired(), so without this flag a single
+    // keystroke during an in-flight request re-enables the button and a second click
+    // mints a second Checkout Session.
+    var submitting = false;
+
+    // The donation function cold-starts, so a slow first call is normal - but the
+    // donor should not be left on a dead button indefinitely either.
+    var SUBMIT_TIMEOUT_MS = 45000;
+
+    // Client reference for this submission attempt, so a retry of the same gift is
+    // identifiable as a retry rather than a second donation.
+    var clientReferenceId = null;
+    var clientReferenceSignature = null;
+
+    function makeReferenceId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      // Older browsers: not cryptographically strong, but unique enough to tie a
+      // retry to its original attempt.
+      return "ref-" + Date.now().toString(16) +
+        "-" + Math.random().toString(16).slice(2, 10) +
+        "-" + Math.random().toString(16).slice(2, 10);
+    }
+
     function format(n) { return "$" + (Number(n || 0).toFixed(2)); }
 
     function updateTributeDisplay() {
@@ -1571,6 +1598,9 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     }
 
     function validateRequired() {
+      // A submission is in flight: nothing the donor types may re-enable the button.
+      if (submitting) return false;
+      
       var donationType = document.getElementById(prefix + "-donation-type").value;
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
@@ -1643,10 +1673,14 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       
       // No need for custom interval logic since we're using fixed options now
       
-      if (currentAmount > 0) {
-        if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
-      } else {
-        if (submitBtn) submitBtn.textContent = "Select an amount";
+      // Leave the button label alone while a submission is in flight, so a keystroke
+      // cannot wipe out the "Transferring to Stripe..." message.
+      if (!submitting) {
+        if (currentAmount > 0) {
+          if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
+        } else {
+          if (submitBtn) submitBtn.textContent = "Select an amount";
+        }
       }
       
       if (submitBtn) submitBtn.disabled = !validateRequired();
@@ -1796,6 +1830,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
     // Submit
     submitBtn.addEventListener("click", function () {
+      if (submitting) return;
       if (!validateRequired()) return;
 
       var donationType = document.getElementById(prefix + "-donation-type").value;
@@ -1859,19 +1894,50 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         };
       }
 
+      // Stable across retries of the same gift: a donor who resubmits after a
+      // failure keeps the same reference, while a changed gift gets a new one.
+      var referenceSignature = [
+        payload.amount,
+        payload.frequency,
+        payload.category,
+        payload.email,
+        payload.coverFee,
+        payload.paymentMethod,
+        payload.donationType
+      ].join("|");
+      
+      if (!clientReferenceId || referenceSignature !== clientReferenceSignature) {
+        clientReferenceId = makeReferenceId();
+        clientReferenceSignature = referenceSignature;
+      }
+      
+      payload.clientReferenceId = clientReferenceId;
+
       // Store original button text and show transfer message
+      submitting = true;
       var originalButtonText = submitBtn.textContent;
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
 
       console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
       
-      fetch(processDonationAPI, {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var timedOut = false;
+      var timeoutId = setTimeout(function () {
+        timedOut = true;
+        if (controller) controller.abort();
+      }, SUBMIT_TIMEOUT_MS);
+      
+      var fetchOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      })
+      };
+      if (controller) fetchOptions.signal = controller.signal;
+      
+      fetch(processDonationAPI, fetchOptions)
       .then(function (r) { 
+        clearTimeout(timeoutId);
         console.log("API Response status:", r.status);
         return r.json(); 
       })
@@ -1888,8 +1954,17 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         return stripe.redirectToCheckout({ sessionId: session.id });
       })
       .catch(function (err) {
-        console.error("Checkout error:", err);
-        // Restore original button state only on error
+        clearTimeout(timeoutId);
+        
+        if (timedOut) {
+          console.error("Checkout error: no response within " + SUBMIT_TIMEOUT_MS + "ms, request aborted");
+        } else {
+          console.error("Checkout error:", err);
+        }
+        
+        // Restore original button state only on error. On success the redirect takes
+        // over, so the guard stays set and the button stays disabled.
+        submitting = false;
         submitBtn.textContent = originalButtonText;
         submitBtn.disabled = false;
       });
