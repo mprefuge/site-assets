@@ -1544,28 +1544,42 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
     }
 
+    // The processing rates this form quotes, by payment method.
+    function feeScheduleFor() {
+      if (paymentMethod === "us_bank_account") {
+        return { rate: 0.008, fixed: 0, cap: 5.0 };     // ACH: 0.8%, capped at $5.00
+      }
+      if (paymentMethod === "card" && cardType === "amex") {
+        return { rate: 0.035, fixed: 0.30, cap: null }; // American Express
+      }
+      // Visa/Mastercard/other cards, and wallets (PayPal, Apple Pay, Google Pay)
+      return { rate: 0.022, fixed: 0.30, cap: null };
+    }
+
     function computeTotals() {
       var amt = customActive ? parseFloat(customInput.value || "0") : Number(selectedAmount || 0);
       var cover = coverFee.checked;
+      var schedule = feeScheduleFor();
+      var fee;
+      var total;
       
-      // Always calculate fee for display purposes
-      var fee = 0;
-      if (paymentMethod === "us_bank_account") {
-        fee = Math.min(amt * 0.008, 5.0);
-      } else if (paymentMethod === "card") {
-        // Different rates based on card type
-        if (cardType === "amex") {
-          fee = amt * 0.035 + 0.30; // American Express: 3.5% + $0.30
-        } else {
-          fee = amt * 0.022 + 0.30; // Visa, Mastercard, Other: 2.2% + $0.30
+      if (cover) {
+        // Stripe takes its cut out of whatever is actually charged, not out of the
+        // gift. Charging amt + fee(amt) therefore under-collects, because the fee is
+        // then assessed on the larger total. Solve total - fee(total) = amt instead:
+        //   total = (amt + fixed) / (1 - rate)
+        total = (amt + schedule.fixed) / (1 - schedule.rate);
+        if (schedule.cap !== null && (total - amt) > schedule.cap) {
+          total = amt + schedule.cap;
         }
+        fee = total - amt;
       } else {
-        // wallet: 2.2% + $0.30 (PayPal, Apple Pay, Google Pay)
-        fee = amt * 0.022 + 0.30;
+        // Refuge absorbs the fee, and Stripe takes it out of the gift itself, so
+        // here the fee really is assessed on the gift amount.
+        fee = amt * schedule.rate + schedule.fixed;
+        if (schedule.cap !== null) fee = Math.min(fee, schedule.cap);
+        total = amt;
       }
-      
-      // Only add fee to total if covering fees
-      var total = cover ? amt + fee : amt;
       
       return { amt: amt, fee: fee, total: total };
     }
@@ -1810,7 +1824,6 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
 
       var totals = computeTotals();
-      var baseAmount = customActive ? parseFloat(customInput.value || "0") : selectedAmount;
 
       var payload = {
         donationType: donationType,
@@ -1826,8 +1839,15 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           country: countrySel.value
         },
         amount: Math.round(totals.total * 100),
+        // The gift itself, before any fee the donor elected to cover. `amount` is the
+        // fee-inclusive total, and the deductible split cannot be re-derived from it
+        // server-side without knowing which fee schedule applied - hence cardType.
+        baseAmount: Math.round(totals.amt * 100),
         coverFee: coverFee.checked,
         paymentMethod: paymentMethod,
+        // Donor self-declaration, and only ever an input to the fee schedule quoted
+        // in this form. Nothing binds it to the card actually used at Checkout.
+        cardType: cardType,
         frequency: freq,
         category: category
       };
