@@ -811,19 +811,47 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       ]
     };
     
+    // The operator's test-mode key, forwarded to the donation service so it will
+    // honour this form's choice of Stripe mode:
+    //   .../donate#donate?testMode=1&testKey=<key>
+    //
+    // The service compares it against its own TEST_MODE_OVERRIDE_KEY setting. It
+    // is not a credential for anything else: its entire power is selecting test
+    // mode, and the service strips it before the payload reaches Stripe or
+    // Salesforce. It is still a secret, so it is never logged here (see the
+    // payload console.log before submit, which prints a redacted copy).
+    function testModeKey() {
+      var key = params && params.testKey;
+      if (typeof key !== "string") return "";
+      return key.trim();
+    }
+    
     // Whether this session should run against Stripe's test keys.
     //
     // This is deliberately its own purpose-built flag and reads nothing else:
-    //   .../donate#donate?testMode=1
+    //   .../donate#donate?testMode=1&testKey=<key>
     //
     // It must never be derived from the designation/category, which is donor-facing
     // free text that setCategoryFromParams() also prefills straight from the
     // campaignName URL parameter. Anything unrecognised (or absent) means live.
+    //
+    // The key is part of the condition, not a separate check, and that is the
+    // whole point of this function. `testMode` alone is something anybody can put
+    // in a link and send to a donor. If that were enough to route the gift, a
+    // stranger's link would land a real donor's gift in test Stripe - they would
+    // believe they had given, and no money would move. Requiring the key means an
+    // unkeyed ?testMode=1 link is simply an ordinary live donation, exactly as it
+    // is today, with no test badge and nothing unusual shown.
+    //
+    // This is the same condition the service applies, so the two cannot drift
+    // into the state the indicator exists to catch: intent that the server does
+    // not share.
     function isTestModeRequested() {
       var flag = params && params.testMode;
       if (typeof flag !== "string") return false;
       flag = flag.trim().toLowerCase();
-      return flag === "1" || flag === "true" || flag === "yes";
+      if (flag !== "1" && flag !== "true" && flag !== "yes") return false;
+      return testModeKey() !== "";
     }
     
     function setCategoryFromParams(params) {
@@ -1961,6 +1989,13 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       var payload = {
         donationType: donationType,
+        // What this form believes the Stripe mode should be, and the key that
+        // authorises the service to act on it. Without a matching key the service
+        // ignores `livemode` entirely and routes by its own configuration, which
+        // is what keeps a crafted ?testMode=1 link from diverting a real gift.
+        // testKey is omitted rather than sent empty on the ordinary live path -
+        // there is nothing to authorise, and a live gift should carry no trace of
+        // the test-mode machinery.
         livemode: !isTestModeRequested(),
         email: email,
         phone: phone,
@@ -2047,6 +2082,15 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       
       payload.clientReferenceId = clientReferenceId;
 
+      // Only on the test path. isTestModeRequested() is already false without a
+      // key, so this is never an empty string and never appears on a live gift.
+      // It is added after referenceSignature is built on purpose: the key does
+      // not change the charged total, so switching it must not mint a new
+      // reference id for what is otherwise the same attempt.
+      if (isTestModeRequested()) {
+        payload.testKey = testModeKey();
+      }
+
       // Store original button text and show transfer message
       submitting = true;
       var originalButtonText = submitBtn.textContent;
@@ -2054,7 +2098,11 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       submitBtn.textContent = "Transferring to Stripe...";
       hideSubmitError();
 
-      console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
+      // Redacted copy: this line goes to a console the donor can open, and on a
+      // shared screen or a screenshot the key would travel with it.
+      var loggablePayload = Object.assign({}, payload);
+      if (loggablePayload.testKey) loggablePayload.testKey = "[redacted]";
+      console.log("Sending donation payload:", JSON.stringify(loggablePayload, null, 2));
       
       var controller = typeof AbortController === "function" ? new AbortController() : null;
       var timedOut = false;
