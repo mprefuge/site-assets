@@ -1296,6 +1296,19 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         paymentMethodSection.style.display = "block";
       } else {
         paymentMethodSection.style.display = "none";
+        
+        // The payment method chips - and the card type chips nested inside them -
+        // live entirely within this section, so once it is hidden the donor can
+        // no longer see or change what is selected. Put both back to their defaults
+        // so the form never submits a payment method that is invisible in the UI.
+        paymentMethod = "card";
+        cardType = "visa";
+        selectChipGroup(pmRow, "data-method", paymentMethod);
+        if (cardTypeRow) {
+          selectChipGroup(cardTypeRow, "data-card-type", cardType);
+          var hiddenCardTypeSection = document.getElementById(prefix + "-card-type-section");
+          if (hiddenCardTypeSection) hiddenCardTypeSection.style.display = "block";
+        }
       }
       updateTotals();
     });
