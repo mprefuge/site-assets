@@ -1531,9 +1531,16 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                 addr1.value = (a.house_number ? a.house_number + " " : "") + (a.road || a.pedestrian || a.footway || a.cycleway || a.path || "");
                 city.value = a.city || a.town || a.suburb || a.village || a.hamlet || a.municipality || a.city_district || a.county || "";
                 zip.value = a.postcode || "";
-                // best-effort state match
-                var stateName = a.state || "";
-                var stateOpt = states.find(function (s) { return stateName && s.toLowerCase().indexOf(stateName.toLowerCase()) >= 0; }) || "";
+                // Match the state exactly, against the option's two letter code
+                // or its full name. A substring scan filed every Kansas donor as
+                // an Arkansas donor: "AR - Arkansas" lowercases to a string that
+                // contains "kansas", and AR is reached first. The lookup hands in
+                // the full name; the code branch keeps a two letter value working.
+                var stateName = (a.state || "").trim().toLowerCase();
+                var stateOpt = !stateName ? "" : (states.find(function (s) {
+                  var parts = s.split(" - ");
+                  return parts.length === 2 && (stateName === parts[0].toLowerCase() || stateName === parts[1].toLowerCase());
+                }) || "");
                 stateSel.value = stateOpt;
                 countrySel.value = countries.find(function (c) { return c === (a.country || "United States"); }) || "United States";
                 suggestions.style.display = "none";
