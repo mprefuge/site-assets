@@ -196,6 +196,14 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     
     /* Error message styling */
     .dp-error-message { color:var(--brand); font-size:12px; font-weight:600; margin-top:4px; display:none; }
+    /* Test-mode indicator. Deliberately loud, and deliberately not brand red -
+       brand red already means "something went wrong" everywhere else on this form.
+       Never rendered at all during ordinary live giving. */
+    .dp-testmode { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; padding:10px 14px; font-size:13px; font-weight:600; line-height:1.4; text-align:center; background:#FFD34D; color:#1a1a1a; border-bottom:4px solid #1a1a1a; }
+    .dp-testmode[hidden] { display:none; }
+    .dp-testmode .dp-testmode-tag { display:inline-block; padding:3px 10px; border-radius:999px; background:#1a1a1a; color:#FFD34D; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+    .dp-testmode.dp-testmode-mismatch { background:#1a1a1a; color:#FFD34D; border-bottom-color:var(--brand); }
+    .dp-testmode.dp-testmode-mismatch .dp-testmode-tag { background:var(--brand); color:#fff; }
     
     /* Step 3 specific positioning */
     .dp-step3-container { position:relative; }
@@ -681,6 +689,10 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
             <button type="button" class="dp-btn-back" id="${prefix}-header-back" aria-label="Go back" style="display:none;">←</button>
             <img src="https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png" alt="Refuge International"/>
             ${embedded ? "" : `<button class="dp-close" id="${prefix}-close" aria-label="Close">&times;</button>`}
+          </div>
+          <div class="dp-testmode" id="${prefix}-testmode" role="status" aria-live="polite" hidden>
+            <span class="dp-testmode-tag" id="${prefix}-testmode-tag"></span>
+            <span class="dp-testmode-text" id="${prefix}-testmode-text"></span>
           </div>
           <div class="dp-body" id="${prefix}-body">
             <div class="dp-steps" id="${prefix}-step-indicators">
@@ -1543,6 +1555,64 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       submitError.style.display = "none";
     }
 
+    // --- Test-mode indicator -------------------------------------------------
+    //
+    // isTestModeRequested() is only this form's *intent*. The backend does not read
+    // the livemode field we post: it resolves live vs test itself, from STRIPE_MODE
+    // (with a ?mode=/?livemode=/x-stripe-mode/x-livemode override taking precedence)
+    // and, failing all of those, from whether the category is the literal string
+    // "testing". So an indicator driven by isTestModeRequested() alone can cheerfully
+    // say TEST MODE while the server is about to take a real card payment.
+    //
+    // The indicator therefore runs in two stages. Before submit it can only report
+    // what was *requested*, and says exactly that. Once the backend answers, the mode
+    // is re-read from the Checkout Session it actually created - a value that comes
+    // off the Stripe object itself and so cannot disagree with what Stripe did - and
+    // the indicator is confirmed, corrected, or turned into a hard stop.
+    var testModeBanner = document.getElementById(prefix + "-testmode");
+    var testModeTag = document.getElementById(prefix + "-testmode-tag");
+    var testModeText = document.getElementById(prefix + "-testmode-text");
+
+    function setTestModeBanner(tag, text, isMismatch) {
+      if (!testModeBanner) return;
+      if (isMismatch) {
+        testModeBanner.classList.add("dp-testmode-mismatch");
+        testModeBanner.setAttribute("role", "alert");
+        testModeBanner.setAttribute("aria-live", "assertive");
+      } else {
+        testModeBanner.classList.remove("dp-testmode-mismatch");
+        testModeBanner.setAttribute("role", "status");
+        testModeBanner.setAttribute("aria-live", "polite");
+      }
+      if (testModeTag) testModeTag.textContent = tag;
+      if (testModeText) testModeText.textContent = text;
+      testModeBanner.hidden = false;
+    }
+
+    function hideTestModeBanner() {
+      if (!testModeBanner) return;
+      testModeBanner.hidden = true;
+      testModeBanner.classList.remove("dp-testmode-mismatch");
+    }
+
+    // What Stripe itself says about the session the backend just created: true for
+    // live, false for test, null when the response carries neither signal (an older
+    // backend, or a shape we do not recognise). session.livemode is copied straight
+    // off the Stripe Checkout Session; the cs_test_/cs_live_ id prefix is a second,
+    // independent read of the same fact and covers a response that omits livemode.
+    // Never guess here - a wrong "confirmed" is worse than an honest "unconfirmed".
+    function readSessionLivemode(session) {
+      if (!session) return null;
+      if (typeof session.livemode === "boolean") return session.livemode;
+
+      var haystack = "";
+      if (typeof session.id === "string") haystack += session.id;
+      if (typeof session.url === "string") haystack += " " + session.url;
+      if (haystack.indexOf("cs_test_") !== -1) return false;
+      if (haystack.indexOf("cs_live_") !== -1) return true;
+      return null;
+    }
+
     // True from the moment a submission is sent until it fails. updateTotals() runs
     // on input/change across most of the form and unconditionally re-derives
     // submitBtn.disabled from validateRequired(), so without this flag a single
@@ -2037,6 +2107,62 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           throw new Error("The donation service did not return a checkout session.");
         }
         
+        // Stage two of the test-mode indicator: reconcile what this form asked for
+        // against what the backend actually did, before the donor leaves for Stripe.
+        var requestedTest = isTestModeRequested();
+        var serverLive = readSessionLivemode(session);
+        
+        if (serverLive === null) {
+          // The response proves nothing about which Stripe account was used. Say so
+          // rather than confirming something we cannot see. Live giving stays silent:
+          // there is no claim to correct and nothing to warn a donor about.
+          if (requestedTest) {
+            setTestModeBanner(
+              "Test mode unconfirmed",
+              "The donation service did not report which Stripe mode it used, so this could not be verified. Check the Stripe dashboard before treating this as a test.",
+              false
+            );
+          }
+        } else if (serverLive !== requestedTest) {
+          // Intent and reality agree. Only test mode is announced - a live donor must
+          // never see a mode badge, so there is nothing to show on the live path.
+          if (requestedTest) {
+            setTestModeBanner(
+              "Test mode confirmed",
+              "The donation service created a Stripe TEST checkout session. No real money will move and no real card is needed.",
+              false
+            );
+          } else {
+            hideTestModeBanner();
+          }
+        } else {
+          // Intent and reality disagree, which is the whole reason this check exists:
+          // either a test run is about to charge a real card, or a real gift is about
+          // to land in the test account and collect nothing. Neither is recoverable
+          // after the redirect, so stop here instead of handing the donor to Stripe.
+          var mismatchMessage = requestedTest
+            ? "This form asked for TEST mode, but the donation service created a LIVE Stripe checkout session. Continuing would charge a real card."
+            : "This form is running in LIVE mode, but the donation service created a TEST Stripe checkout session. A gift completed here would not collect any money.";
+          
+          setTestModeBanner("Stripe mode mismatch", mismatchMessage + " Stopped before payment.", true);
+          console.error(
+            "Stripe mode mismatch: form requested " + (requestedTest ? "test" : "live") +
+            " mode, backend returned a " + (serverLive ? "live" : "test") + " checkout session."
+          );
+          showSubmitError(
+            mismatchMessage +
+            " We stopped before sending you to the payment page, and your card has not been charged." +
+            " Please contact us instead of retrying - the payment service needs to be reconfigured first."
+          );
+          
+          // submitting stays true and the button stays disabled on purpose. Retrying
+          // would hit the same mismatch and mint another abandoned Checkout Session,
+          // and updateTotals() re-derives submitBtn.disabled on every keystroke, so
+          // the guard flag is the only thing keeping this stopped.
+          submitBtn.textContent = "Stopped - payment mode mismatch";
+          return;
+        }
+        
         // Prefer the hosted Checkout URL the backend returns. redirectToCheckout is
         // Stripe's deprecated path and is only the fallback.
         if (session.url) {
@@ -2088,6 +2214,19 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
     // Initial totals
     updateTotals();
+    
+    // Provisional half of the test-mode indicator. All this can honestly claim
+    // before a request has been made is what the form is going to ask for; the
+    // response handler above upgrades it to confirmed, or stops the submission.
+    if (isTestModeRequested()) {
+      setTestModeBanner(
+        "Test mode requested",
+        "This form will ask the donation service for Stripe test mode. That is confirmed against the real checkout session when you submit - do not treat this as proof yet.",
+        false
+      );
+    } else {
+      hideTestModeBanner();
+    }
     
     // Set category from URL parameters if available
     if (params) {
