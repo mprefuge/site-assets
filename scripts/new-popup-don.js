@@ -636,6 +636,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           </div>
           
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
+          <div id="${prefix}-submit-error" class="dp-error-message" role="alert" aria-live="assertive" style="text-align:center;margin-top:8px;"></div>
           <div style="text-align:center;font-size:14px;color:#666;margin:12px 0 6px 0;">After clicking donate, you will be taken to Stripe to enter your payment information.</div>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
           <div class="dp-trust-logos">
@@ -1512,6 +1513,19 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     var totalEl = null; // No separate total element, total is shown in button text
     var recurNote = document.getElementById(prefix + "-recur-note");
     var submitBtn = document.getElementById(prefix + "-submit");
+    var submitError = document.getElementById(prefix + "-submit-error");
+
+    function showSubmitError(message) {
+      if (!submitError) return;
+      submitError.textContent = message;
+      submitError.style.display = "block";
+    }
+
+    function hideSubmitError() {
+      if (!submitError) return;
+      submitError.textContent = "";
+      submitError.style.display = "none";
+    }
 
     function format(n) { return "$" + (Number(n || 0).toFixed(2)); }
 
@@ -1863,6 +1877,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var originalButtonText = submitBtn.textContent;
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
+      hideSubmitError();
 
       console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
       
@@ -1873,22 +1888,68 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       })
       .then(function (r) { 
         console.log("API Response status:", r.status);
-        return r.json(); 
+        // Read the body as text first. An error page from the host (an Azure 502 or
+        // 504) is HTML, and r.json() would die on it with an opaque parse error.
+        return r.text().then(function (text) {
+          var data = null;
+          if (text) {
+            try { data = JSON.parse(text); } catch (e) { data = null; }
+          }
+          
+          if (!r.ok) {
+            console.error("Donation service error body:", text);
+            // A 4xx usually says something the donor can act on; a 5xx is ours and
+            // its message is internal detail, so that one stays in the console.
+            var detail = (r.status < 500 && data && (data.message || data.error)) || "";
+            throw new Error(
+              "We could not start your donation (error " + r.status + ")." +
+              (detail ? " " + detail : "")
+            );
+          }
+          
+          if (!data) {
+            throw new Error("We got an unexpected response from the donation service (status " + r.status + ").");
+          }
+          
+          return data;
+        });
       })
       .then(function (session) {
         console.log("API Response data:", session);
         
-        if (!session || !session.id) {
-          throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
+        if (!session || (!session.url && !session.id)) {
+          throw new Error("The donation service did not return a checkout session.");
+        }
+        
+        // Prefer the hosted Checkout URL the backend returns. redirectToCheckout is
+        // Stripe's deprecated path and is only the fallback.
+        if (session.url) {
+          window.location.assign(session.url);
+          return;
         }
         
         var key = session.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_51PzyoABS5xFjv3JBy3mmsCoOLtKn6FBWwX86eUifluDOUkqUZzz5FVRwrqpM046SLkXDIc32rmDaQtcldtBYU2Yt00jeGdMCmn";
-        var stripe = window.Stripe ? window.Stripe(key) : null;
-        if (!stripe) { console.error("Stripe.js not loaded"); return; }
-        return stripe.redirectToCheckout({ sessionId: session.id });
+        // Returning here would fulfil the promise, skip the catch below, and leave
+        // the button disabled forever on a Checkout Session the backend already made.
+        if (!window.Stripe) {
+          throw new Error("The payment library did not load, so we could not open the payment page.");
+        }
+        
+        return window.Stripe(key).redirectToCheckout({ sessionId: session.id })
+          .then(function (result) {
+            // redirectToCheckout resolves with an { error } object instead of
+            // rejecting when the redirect cannot happen, so it has to be inspected.
+            if (result && result.error) {
+              throw new Error(result.error.message || "Stripe could not open the payment page.");
+            }
+          });
       })
       .catch(function (err) {
         console.error("Checkout error:", err);
+        showSubmitError(
+          (err && err.message ? err.message : "Something went wrong while starting your donation.") +
+          " Your card has not been charged. Please try again."
+        );
         // Restore original button state only on error
         submitBtn.textContent = originalButtonText;
         submitBtn.disabled = false;
