@@ -798,6 +798,21 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       ]
     };
     
+    // Whether this session should run against Stripe's test keys.
+    //
+    // This is deliberately its own purpose-built flag and reads nothing else:
+    //   .../donate#donate?testMode=1
+    //
+    // It must never be derived from the designation/category, which is donor-facing
+    // free text that setCategoryFromParams() also prefills straight from the
+    // campaignName URL parameter. Anything unrecognised (or absent) means live.
+    function isTestModeRequested() {
+      var flag = params && params.testMode;
+      if (typeof flag !== "string") return false;
+      flag = flag.trim().toLowerCase();
+      return flag === "1" || flag === "true" || flag === "yes";
+    }
+    
     function setCategoryFromParams(params) {
       if (!params || !params.campaignName) return;
       
@@ -1793,7 +1808,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       var payload = {
         donationType: donationType,
-        livemode: category.toLowerCase() === "test" ? false : true,
+        livemode: !isTestModeRequested(),
         email: email,
         phone: phone,
         address: {
