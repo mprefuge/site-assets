@@ -1530,6 +1530,33 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       submitError.style.display = "none";
     }
 
+    // True from the moment a submission is sent until it fails. updateTotals() runs
+    // on input/change across most of the form and unconditionally re-derives
+    // submitBtn.disabled from validateRequired(), so without this flag a single
+    // keystroke during an in-flight request re-enables the button and a second click
+    // mints a second Checkout Session.
+    var submitting = false;
+
+    // The donation function cold-starts, so a slow first call is normal - but the
+    // donor should not be left on a dead button indefinitely either.
+    var SUBMIT_TIMEOUT_MS = 45000;
+
+    // Client reference for this submission attempt, so a retry of the same gift is
+    // identifiable as a retry rather than a second donation.
+    var clientReferenceId = null;
+    var clientReferenceSignature = null;
+
+    function makeReferenceId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      // Older browsers: not cryptographically strong, but unique enough to tie a
+      // retry to its original attempt.
+      return "ref-" + Date.now().toString(16) +
+        "-" + Math.random().toString(16).slice(2, 10) +
+        "-" + Math.random().toString(16).slice(2, 10);
+    }
+
     function format(n) { return "$" + (Number(n || 0).toFixed(2)); }
 
     function updateTributeDisplay() {
@@ -1588,6 +1615,9 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     }
 
     function validateRequired() {
+      // A submission is in flight: nothing the donor types may re-enable the button.
+      if (submitting) return false;
+      
       var donationType = document.getElementById(prefix + "-donation-type").value;
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
@@ -1651,10 +1681,14 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       
       // No need for custom interval logic since we're using fixed options now
       
-      if (currentAmount > 0) {
-        if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
-      } else {
-        if (submitBtn) submitBtn.textContent = "Select an amount";
+      // Leave the button label alone while a submission is in flight, so a keystroke
+      // cannot wipe out the "Transferring to Stripe..." message.
+      if (!submitting) {
+        if (currentAmount > 0) {
+          if (submitBtn) submitBtn.textContent = "Donate " + format(t.total) + freqText;
+        } else {
+          if (submitBtn) submitBtn.textContent = "Select an amount";
+        }
       }
       
       if (submitBtn) submitBtn.disabled = !validateRequired();
@@ -1804,6 +1838,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
     // Submit
     submitBtn.addEventListener("click", function () {
+      if (submitting) return;
       if (!validateRequired()) return;
 
       var donationType = document.getElementById(prefix + "-donation-type").value;
@@ -1867,7 +1902,39 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         };
       }
 
+      // Stable across retries of the same gift: a donor who resubmits after a
+      // failure keeps the same reference, while a changed gift gets a new one.
+      //
+      // Every field that can move the charged total belongs here. feeAmount and
+      // cardType are not on the payload yet - they arrive with the base/fee split,
+      // which narrows amount to the base gift and moves the covered fee into its own
+      // field. Until then both read undefined and join to an empty string, which is
+      // harmless: this string is only ever compared against another signature built
+      // by this same code, and is never parsed or sent anywhere. Listing them now
+      // means that once amount stops absorbing the fee, a donor who switches card
+      // type between a failed attempt and a retry still gets a new reference id
+      // instead of reusing the old one for a different charged total.
+      var referenceSignature = [
+        payload.amount,
+        payload.feeAmount,
+        payload.frequency,
+        payload.category,
+        payload.email,
+        payload.coverFee,
+        payload.paymentMethod,
+        payload.cardType,
+        payload.donationType
+      ].join("|");
+      
+      if (!clientReferenceId || referenceSignature !== clientReferenceSignature) {
+        clientReferenceId = makeReferenceId();
+        clientReferenceSignature = referenceSignature;
+      }
+      
+      payload.clientReferenceId = clientReferenceId;
+
       // Store original button text and show transfer message
+      submitting = true;
       var originalButtonText = submitBtn.textContent;
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
@@ -1875,12 +1942,23 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
       
-      fetch(processDonationAPI, {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var timedOut = false;
+      var timeoutId = setTimeout(function () {
+        timedOut = true;
+        if (controller) controller.abort();
+      }, SUBMIT_TIMEOUT_MS);
+      
+      var fetchOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      })
+      };
+      if (controller) fetchOptions.signal = controller.signal;
+      
+      fetch(processDonationAPI, fetchOptions)
       .then(function (r) { 
+        clearTimeout(timeoutId);
         console.log("API Response status:", r.status);
         // Read the body as text first. An error page from the host (an Azure 502 or
         // 504) is HTML, and r.json() would die on it with an opaque parse error.
@@ -1939,12 +2017,26 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           });
       })
       .catch(function (err) {
-        console.error("Checkout error:", err);
+        clearTimeout(timeoutId);
+        
+        if (timedOut) {
+          console.error("Checkout error: no response within " + SUBMIT_TIMEOUT_MS + "ms, request aborted");
+        } else {
+          console.error("Checkout error:", err);
+        }
+        
+        // On a timeout the rejection is an AbortError, whose message means nothing to
+        // a donor, so that path gets its own wording instead of err.message.
         showSubmitError(
-          (err && err.message ? err.message : "Something went wrong while starting your donation.") +
+          (timedOut
+            ? "The donation service did not respond in time."
+            : (err && err.message ? err.message : "Something went wrong while starting your donation.")) +
           " Your card has not been charged. Please try again."
         );
-        // Restore original button state only on error
+        
+        // Restore original button state only on error. On success the redirect takes
+        // over, so the guard stays set and the button stays disabled.
+        submitting = false;
         submitBtn.textContent = originalButtonText;
         submitBtn.disabled = false;
       });
