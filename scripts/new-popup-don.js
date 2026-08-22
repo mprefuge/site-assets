@@ -1544,44 +1544,51 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
     }
 
-    // The processing rates this form quotes, by payment method.
-    function feeScheduleFor() {
+    // The processing fee this form quotes, in whole cents, by payment method.
+    // These are the rates the chips advertise: bank transfer 0.8% capped at $5.00,
+    // American Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards
+    // and wallets) 2.2% + $0.30.
+    function feeCentsFor(baseCents) {
+      if (baseCents <= 0) return 0;
       if (paymentMethod === "us_bank_account") {
-        return { rate: 0.008, fixed: 0, cap: 5.0 };     // ACH: 0.8%, capped at $5.00
+        return Math.min(Math.round(baseCents * 0.008), 500);
       }
       if (paymentMethod === "card" && cardType === "amex") {
-        return { rate: 0.035, fixed: 0.30, cap: null }; // American Express
+        return Math.round(baseCents * 0.035) + 30;
       }
-      // Visa/Mastercard/other cards, and wallets (PayPal, Apple Pay, Google Pay)
-      return { rate: 0.022, fixed: 0.30, cap: null };
+      return Math.round(baseCents * 0.022) + 30;
     }
 
+    // Single source of truth for every money figure in the form. Everything is
+    // derived from two integers - baseCents and feeCents - so the number on the
+    // Donate button and the numbers in the payload cannot drift apart: the button
+    // shows totalCents, and the payload sends baseCents and coveredFeeCents, whose
+    // sum is totalCents by construction. Nothing is rounded a second time at
+    // submit time.
     function computeTotals() {
       var amt = customActive ? parseFloat(customInput.value || "0") : Number(selectedAmount || 0);
+      if (!isFinite(amt) || amt <= 0) amt = 0;
+      var baseCents = Math.round(amt * 100);
       var cover = coverFee.checked;
-      var schedule = feeScheduleFor();
-      var fee;
-      var total;
-      
-      if (cover) {
-        // Stripe takes its cut out of whatever is actually charged, not out of the
-        // gift. Charging amt + fee(amt) therefore under-collects, because the fee is
-        // then assessed on the larger total. Solve total - fee(total) = amt instead:
-        //   total = (amt + fixed) / (1 - rate)
-        total = (amt + schedule.fixed) / (1 - schedule.rate);
-        if (schedule.cap !== null && (total - amt) > schedule.cap) {
-          total = amt + schedule.cap;
-        }
-        fee = total - amt;
-      } else {
-        // Refuge absorbs the fee, and Stripe takes it out of the gift itself, so
-        // here the fee really is assessed on the gift amount.
-        fee = amt * schedule.rate + schedule.fixed;
-        if (schedule.cap !== null) fee = Math.min(fee, schedule.cap);
-        total = amt;
-      }
-      
-      return { amt: amt, fee: fee, total: total };
+
+      // The fee is computed either way: when it is not covered the summary still
+      // shows it, labelled "(covered by Refuge International)".
+      var feeCents = feeCentsFor(baseCents);
+      // Only a fee the donor elected to cover is charged, and it is exactly the
+      // feeAmount posted to the API - the server uses it verbatim and adds nothing
+      // of its own on top.
+      var coveredFeeCents = cover ? feeCents : 0;
+      var totalCents = baseCents + coveredFeeCents;
+
+      return {
+        baseCents: baseCents,
+        feeCents: feeCents,
+        coveredFeeCents: coveredFeeCents,
+        totalCents: totalCents,
+        amt: baseCents / 100,
+        fee: feeCents / 100,
+        total: totalCents / 100
+      };
     }
 
     function validateRequired() {
@@ -1639,7 +1646,8 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
     function updateTotals() {
       var t = computeTotals();
-      var currentAmount = customActive ? (parseFloat(customInput.value || "0")) : selectedAmount;
+      // Same source as the payload: never re-read the amount inputs separately.
+      var currentAmount = t.amt;
       
       var freq = freqSel.value;
       var freqMap = { onetime: "", week: " every week", biweek: " every two weeks", month: " every month", year: " every year" };
@@ -1651,7 +1659,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
       
       // Update step 3 summary elements if they exist
-      if (giftEl) giftEl.textContent = format(currentAmount);
+      if (giftEl) giftEl.textContent = format(t.amt);
       if (feeEl) feeEl.textContent = format(t.fee); // Always show the actual fee amount
       if (feeLabel) feeLabel.textContent = document.getElementById(prefix + "-cover-fee").checked ? "" : "(covered by Refuge International)";
       
@@ -1838,15 +1846,18 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           postal_code: zip.value,
           country: countrySel.value
         },
-        amount: Math.round(totals.total * 100),
-        // The gift itself, before any fee the donor elected to cover. `amount` is the
-        // fee-inclusive total, and the deductible split cannot be re-derived from it
-        // server-side without knowing which fee schedule applied - hence cardType.
-        baseAmount: Math.round(totals.amt * 100),
+        // The base gift, in whole cents, with no fee folded in.
+        amount: totals.baseCents,
         coverFee: coverFee.checked,
+        // The fee this form quoted, in whole cents - always a non-negative integer,
+        // and 0 whenever the donor did not elect to cover it. The API uses this
+        // value verbatim instead of recalculating, so the charge is exactly
+        // amount + feeAmount: the number printed on the Donate button.
+        feeAmount: totals.coveredFeeCents,
         paymentMethod: paymentMethod,
-        // Donor self-declaration, and only ever an input to the fee schedule quoted
-        // in this form. Nothing binds it to the card actually used at Checkout.
+        // Donor self-declaration, sent as a hint only. Now that feeAmount is
+        // authoritative it no longer changes what is charged, and nothing binds it
+        // to the card actually presented at Checkout.
         cardType: cardType,
         frequency: freq,
         category: category
