@@ -636,6 +636,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           </div>
           
           <button type="button" id="${prefix}-submit" class="dp-cta" disabled>Select an amount</button>
+          <div id="${prefix}-submit-error" class="dp-error-message" role="alert" aria-live="assertive" style="text-align:center;margin-top:8px;"></div>
           <div style="text-align:center;font-size:14px;color:#666;margin:12px 0 6px 0;">After clicking donate, you will be taken to Stripe to enter your payment information.</div>
           <div class="dp-trust">Secure Payment powered by Stripe</div>
           <div class="dp-trust-logos">
@@ -798,6 +799,21 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       ]
     };
     
+    // Whether this session should run against Stripe's test keys.
+    //
+    // This is deliberately its own purpose-built flag and reads nothing else:
+    //   .../donate#donate?testMode=1
+    //
+    // It must never be derived from the designation/category, which is donor-facing
+    // free text that setCategoryFromParams() also prefills straight from the
+    // campaignName URL parameter. Anything unrecognised (or absent) means live.
+    function isTestModeRequested() {
+      var flag = params && params.testMode;
+      if (typeof flag !== "string") return false;
+      flag = flag.trim().toLowerCase();
+      return flag === "1" || flag === "true" || flag === "yes";
+    }
+    
     function setCategoryFromParams(params) {
       if (!params || !params.campaignName) return;
       
@@ -934,8 +950,6 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           var donationType = document.getElementById(prefix + "-donation-type").value;
           var email = document.getElementById(prefix + "-email").value.trim();
           var phone = document.getElementById(prefix + "-phone").value.trim();
-          var manualWrap = document.getElementById(prefix + "-manual-address");
-          var lookupInput = document.getElementById(prefix + "-address-lookup");
           var addr1 = document.getElementById(prefix + "-addr1");
           var city = document.getElementById(prefix + "-city");
           var stateSel = document.getElementById(prefix + "-state");
@@ -986,59 +1000,37 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
           
           identityOk = identityOk && emailOk && phoneOk;
           
-          // Address validation with error messages
-          var hasManualAddressData = addr1.value.trim() || city.value.trim() || stateSel.value.trim() || zip.value.trim() || countrySel.value.trim();
-          var isManualAddress = manualWrap.style.display !== "none" || hasManualAddressData;
-          var addressOk = false;
+          // Address validation with error messages.
+          // The submitted payload only ever reads the structured fields below, so those
+          // are what has to be filled in. Text sitting in the lookup box is never sent
+          // anywhere and must not satisfy this check on its own.
+          var addr1Ok = addr1.value.trim().length > 0;
+          var cityOk = city.value.trim().length > 0;
+          var stateOk = stateSel.value.length > 0;
+          var zipOk = zip.value.trim().length > 0;
+          var countryOk = countrySel.value.length > 0;
+          var addressOk = addr1Ok && cityOk && stateOk && zipOk && countryOk;
           
-          if (isManualAddress) {
-            // Manual address validation
-            var addr1Ok = addr1.value.trim().length > 0;
-            var cityOk = city.value.trim().length > 0;
-            var stateOk = stateSel.value.length > 0;
-            var zipOk = zip.value.trim().length > 0;
-            var countryOk = countrySel.value.length > 0;
-            
-            // Show/hide error messages for manual address
-            var addr1Error = document.getElementById(prefix + "-addr1-error");
-            var cityError = document.getElementById(prefix + "-city-error");
-            var stateError = document.getElementById(prefix + "-state-error");
-            var zipError = document.getElementById(prefix + "-zip-error");
-            var countryError = document.getElementById(prefix + "-country-error");
-            
-            if (addr1Error) addr1Error.style.display = addr1Ok ? "none" : "block";
-            if (cityError) cityError.style.display = cityOk ? "none" : "block";
-            if (stateError) stateError.style.display = stateOk ? "none" : "block";
-            if (zipError) zipError.style.display = zipOk ? "none" : "block";
-            if (countryError) countryError.style.display = countryOk ? "none" : "block";
-            
-            addressOk = addr1Ok && cityOk && stateOk && zipOk && countryOk;
-            
-            // Hide lookup error if manual address is being used
-            var lookupError = document.getElementById(prefix + "-address-lookup-error");
-            if (lookupError) lookupError.style.display = "none";
-          } else {
-            // Address lookup validation
-            var lookupOk = lookupInput.value.trim().length >= 5;
-            var lookupError = document.getElementById(prefix + "-address-lookup-error");
-            
-            if (lookupError) lookupError.style.display = lookupOk ? "none" : "block";
-            
-            addressOk = lookupOk;
-            
-            // Hide manual address errors if lookup is being used
-            var manualErrors = [
-              document.getElementById(prefix + "-addr1-error"),
-              document.getElementById(prefix + "-city-error"),
-              document.getElementById(prefix + "-state-error"),
-              document.getElementById(prefix + "-zip-error"),
-              document.getElementById(prefix + "-country-error")
-            ];
-            
-            manualErrors.forEach(function(errorEl) {
-              if (errorEl) errorEl.style.display = "none";
-            });
-          }
+          // Show/hide error messages for the structured address fields
+          var addr1Error = document.getElementById(prefix + "-addr1-error");
+          var cityError = document.getElementById(prefix + "-city-error");
+          var stateError = document.getElementById(prefix + "-state-error");
+          var zipError = document.getElementById(prefix + "-zip-error");
+          var countryError = document.getElementById(prefix + "-country-error");
+          
+          if (addr1Error) addr1Error.style.display = addr1Ok ? "none" : "block";
+          if (cityError) cityError.style.display = cityOk ? "none" : "block";
+          if (stateError) stateError.style.display = stateOk ? "none" : "block";
+          if (zipError) zipError.style.display = zipOk ? "none" : "block";
+          if (countryError) countryError.style.display = countryOk ? "none" : "block";
+          
+          // The lookup box is a convenience, not a required field of its own.
+          var lookupError = document.getElementById(prefix + "-address-lookup-error");
+          if (lookupError) lookupError.style.display = "none";
+          
+          // If the address is not complete, make sure the donor can actually see and
+          // finish the fields rather than being stopped by a hidden requirement.
+          if (!addressOk) revealManualAddress();
           
           return identityOk && addressOk;
         case 3:
@@ -1448,6 +1440,13 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     var enterManual = document.getElementById(prefix + "-enter-manually");
     var manualWrap = document.getElementById(prefix + "-manual-address");
 
+    // Reveal the structured address fields. The lookup row is deliberately left in
+    // place so the donor can still pick a suggestion, and can still see what they
+    // typed while they fill the fields in.
+    function revealManualAddress() {
+      if (manualWrap) manualWrap.style.display = "";
+    }
+
     var addr1 = document.getElementById(prefix + "-addr1");
     var addr2 = document.getElementById(prefix + "-addr2");
     var city = document.getElementById(prefix + "-city");
@@ -1492,7 +1491,12 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
             });
             suggestions.style.display = "block";
           })
-          .catch(function () { suggestions.style.display = "none"; });
+          .catch(function () {
+            // The lookup can fail or be rate limited. Silently hiding the dropdown
+            // leaves the donor with nothing to click, so open the manual fields.
+            suggestions.style.display = "none";
+            revealManualAddress();
+          });
       }, 300);
     });
 
@@ -1512,6 +1516,19 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     var totalEl = null; // No separate total element, total is shown in button text
     var recurNote = document.getElementById(prefix + "-recur-note");
     var submitBtn = document.getElementById(prefix + "-submit");
+    var submitError = document.getElementById(prefix + "-submit-error");
+
+    function showSubmitError(message) {
+      if (!submitError) return;
+      submitError.textContent = message;
+      submitError.style.display = "block";
+    }
+
+    function hideSubmitError() {
+      if (!submitError) return;
+      submitError.textContent = "";
+      submitError.style.display = "none";
+    }
 
     // True from the moment a submission is sent until it fails. updateTotals() runs
     // on input/change across most of the form and unconditionally re-derives
@@ -1604,25 +1621,16 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var donationType = document.getElementById(prefix + "-donation-type").value;
       var email = document.getElementById(prefix + "-email").value.trim();
       var phone = document.getElementById(prefix + "-phone").value.trim();
-      var manualWrap = document.getElementById(prefix + "-manual-address");
-      var lookupInput = document.getElementById(prefix + "-address-lookup");
       var addr1 = document.getElementById(prefix + "-addr1");
       var city = document.getElementById(prefix + "-city");
       var stateSel = document.getElementById(prefix + "-state");
       var zip = document.getElementById(prefix + "-zip");
       var countrySel = document.getElementById(prefix + "-country");
       
-      // Check if any manual address fields have values
-      var hasManualAddressData = addr1.value.trim() || city.value.trim() || stateSel.value.trim() || zip.value.trim() || countrySel.value.trim();
-      
-      var addressOk = false;
-      if (manualWrap.style.display !== "none" || hasManualAddressData) {
-        // Manual address mode - check if all required fields are filled
-        addressOk = addr1.value.trim() && city.value.trim() && stateSel.value.trim() && zip.value.trim() && countrySel.value.trim();
-      } else {
-        // Address lookup mode - check if lookup has at least 5 characters
-        addressOk = lookupInput.value.trim().length >= 5;
-      }
+      // The payload sends these structured fields and nothing else, so a gift is only
+      // submittable once they are actually filled in. Text left in the lookup box is
+      // not an address we can send.
+      var addressOk = !!(addr1.value.trim() && city.value.trim() && stateSel.value.trim() && zip.value.trim() && countrySel.value.trim());
       
       var amountOk = customActive ? (parseFloat(customInput.value || "0") > 0) : (selectedAmount > 0);
       var category = document.getElementById(prefix + "-category").value;
@@ -1849,7 +1857,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 
       var payload = {
         donationType: donationType,
-        livemode: category.toLowerCase() === "test" ? false : true,
+        livemode: !isTestModeRequested(),
         email: email,
         phone: phone,
         address: {
@@ -1930,6 +1938,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var originalButtonText = submitBtn.textContent;
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
+      hideSubmitError();
 
       console.log("Sending donation payload:", JSON.stringify(payload, null, 2));
       
@@ -1951,19 +1960,61 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       .then(function (r) { 
         clearTimeout(timeoutId);
         console.log("API Response status:", r.status);
-        return r.json(); 
+        // Read the body as text first. An error page from the host (an Azure 502 or
+        // 504) is HTML, and r.json() would die on it with an opaque parse error.
+        return r.text().then(function (text) {
+          var data = null;
+          if (text) {
+            try { data = JSON.parse(text); } catch (e) { data = null; }
+          }
+          
+          if (!r.ok) {
+            console.error("Donation service error body:", text);
+            // A 4xx usually says something the donor can act on; a 5xx is ours and
+            // its message is internal detail, so that one stays in the console.
+            var detail = (r.status < 500 && data && (data.message || data.error)) || "";
+            throw new Error(
+              "We could not start your donation (error " + r.status + ")." +
+              (detail ? " " + detail : "")
+            );
+          }
+          
+          if (!data) {
+            throw new Error("We got an unexpected response from the donation service (status " + r.status + ").");
+          }
+          
+          return data;
+        });
       })
       .then(function (session) {
         console.log("API Response data:", session);
         
-        if (!session || !session.id) {
-          throw new Error("Invalid session response: missing session ID. Response: " + JSON.stringify(session));
+        if (!session || (!session.url && !session.id)) {
+          throw new Error("The donation service did not return a checkout session.");
+        }
+        
+        // Prefer the hosted Checkout URL the backend returns. redirectToCheckout is
+        // Stripe's deprecated path and is only the fallback.
+        if (session.url) {
+          window.location.assign(session.url);
+          return;
         }
         
         var key = session.livemode ? "pk_live_fJSacHhPB2h0mJfsFowRm8lQ" : "pk_test_51PzyoABS5xFjv3JBy3mmsCoOLtKn6FBWwX86eUifluDOUkqUZzz5FVRwrqpM046SLkXDIc32rmDaQtcldtBYU2Yt00jeGdMCmn";
-        var stripe = window.Stripe ? window.Stripe(key) : null;
-        if (!stripe) { console.error("Stripe.js not loaded"); return; }
-        return stripe.redirectToCheckout({ sessionId: session.id });
+        // Returning here would fulfil the promise, skip the catch below, and leave
+        // the button disabled forever on a Checkout Session the backend already made.
+        if (!window.Stripe) {
+          throw new Error("The payment library did not load, so we could not open the payment page.");
+        }
+        
+        return window.Stripe(key).redirectToCheckout({ sessionId: session.id })
+          .then(function (result) {
+            // redirectToCheckout resolves with an { error } object instead of
+            // rejecting when the redirect cannot happen, so it has to be inspected.
+            if (result && result.error) {
+              throw new Error(result.error.message || "Stripe could not open the payment page.");
+            }
+          });
       })
       .catch(function (err) {
         clearTimeout(timeoutId);
@@ -1973,6 +2024,15 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         } else {
           console.error("Checkout error:", err);
         }
+        
+        // On a timeout the rejection is an AbortError, whose message means nothing to
+        // a donor, so that path gets its own wording instead of err.message.
+        showSubmitError(
+          (timedOut
+            ? "The donation service did not respond in time."
+            : (err && err.message ? err.message : "Something went wrong while starting your donation.")) +
+          " Your card has not been charged. Please try again."
+        );
         
         // Restore original button state only on error. On success the redirect takes
         // over, so the guard stays set and the button stays disabled.
