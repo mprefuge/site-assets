@@ -2022,7 +2022,8 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         // value verbatim instead of recalculating, so the charge is exactly
         // amount + feeAmount: the number printed on the Donate button.
         feeAmount: totals.coveredFeeCents,
-        paymentMethod: paymentMethod,
+        // paymentMethod is deliberately NOT set here. It is added below, and only
+        // when the donor actually declared a rail. See the note under this literal.
         // Donor self-declaration, sent as a hint only. Now that feeAmount is
         // authoritative it no longer changes what is charged, and nothing binds it
         // to the card actually presented at Checkout.
@@ -2030,6 +2031,31 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         frequency: freq,
         category: category
       };
+
+      // Declare a payment rail only when the donor actually chose one.
+      //
+      // The rail chips are shown only when cover-fees is ticked, which is the
+      // intended design - the form stays short for a donor who is not covering
+      // fees. But the value posted here does more than pick a fee rate: the API
+      // turns it into payment_method_types on the Stripe Checkout Session. So a
+      // donor who left the box unticked - and was therefore never shown the chips
+      // - was still posting the reset default of "card", which pinned their
+      // Checkout to card only and made paying by bank impossible for exactly the
+      // donors whose gifts cost the org the most to collect.
+      //
+      // Omitting the key is the fix: the API reads an absent paymentMethod as "no
+      // rail declared" and leaves payment_method_types off the session, so Stripe
+      // offers everything enabled in the dashboard. It must be OMITTED, not sent
+      // as null or "" - request validation accepts an absent field, and rejects an
+      // empty string with HTTP 400.
+      //
+      // REQUIRES payment-processor #198 TO BE DEPLOYED FIRST. Against the current
+      // production API an absent paymentMethod still falls back to ['card'], so
+      // shipping this first changes nothing - it does not break anything either,
+      // it just has no effect until that deploy lands.
+      if (coverFee.checked) {
+        payload.paymentMethod = paymentMethod;
+      }
       
       // Add individual or organization specific fields
       if (donationType === "individual") {
