@@ -575,9 +575,17 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
               </label>
             </div>
             
-            <!-- Payment Method with Icons - Only shown when covering fees -->
-            <div id="${prefix}-payment-method-section" style="display:none;">
+            <!-- Payment Method with Icons - always visible.
+                 This chip is not decoration and it is not only a fee estimator: the
+                 selected value is posted as paymentMethod and the API turns it into
+                 payment_method_types on the Stripe Checkout Session, so it decides
+                 which rails the donor is offered as well as which rate the fee estimate
+                 above is quoted at. A control with those two effects must never be
+                 hidden behind the cover-fees checkbox.
+                 NOTE: this block is inside a JS template literal - no backticks. -->
+            <div id="${prefix}-payment-method-section">
               <label class="dp-label">Payment Method</label>
+              <div style="font-size:12px;color:#666;margin:-4px 0 8px 0;">How you plan to pay. This sets the options offered at checkout and the processing-fee rate shown in the summary.</div>
               <div class="dp-payment-grid" id="${prefix}-pm-row">
                 <button type="button" class="dp-chip dp-payment-chip" data-method="card">
                   <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="Card" width="32" height="32" />
@@ -1329,29 +1337,18 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     });
 
     var coverFee = document.getElementById(prefix + "-cover-fee");
-    var paymentMethodSection = document.getElementById(prefix + "-payment-method-section");
-    
-    coverFee.addEventListener("change", function() {
-      if (coverFee.checked) {
-        paymentMethodSection.style.display = "block";
-      } else {
-        paymentMethodSection.style.display = "none";
-        
-        // The payment method chips - and the card type chips nested inside them -
-        // live entirely within this section, so once it is hidden the donor can
-        // no longer see or change what is selected. Put both back to their defaults
-        // so the form never submits a payment method that is invisible in the UI.
-        paymentMethod = "card";
-        cardType = "visa";
-        selectChipGroup(pmRow, "data-method", paymentMethod);
-        if (cardTypeRow) {
-          selectChipGroup(cardTypeRow, "data-card-type", cardType);
-          var hiddenCardTypeSection = document.getElementById(prefix + "-card-type-section");
-          if (hiddenCardTypeSection) hiddenCardTypeSection.style.display = "block";
-        }
-      }
-      updateTotals();
-    });
+
+    // No bespoke "change" handler here any more. The payment-method section - the
+    // rail chips and the card-brand chips nested inside them - is always visible,
+    // so ticking the box no longer reveals it and unticking no longer hides it.
+    // The reset that used to live here (paymentMethod -> "card", cardType ->
+    // "visa") existed only because the control was about to disappear; with the
+    // control on screen, resetting it would silently discard a choice the donor
+    // can still see. Both selections now survive toggling the box.
+    //
+    // updateTotals is already bound to coverFee for both "input" and "change"
+    // further down (search: coverFee.addEventListener(ev, updateTotals)), so the
+    // fee line and the Donate button still refresh when the box is toggled.
 
     var pmRow = document.getElementById(prefix + "-pm-row");
     pmRow.addEventListener("click", function (e) {
@@ -1360,20 +1357,16 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       paymentMethod = t.getAttribute("data-method");
       selectChipGroup(pmRow, "data-method", paymentMethod);
       
-      // Show/hide card type selection based on payment method
+      // Show or hide the card-brand chips according to the rail. The brand only
+      // means anything on the card rail, but it is still the donor's declaration,
+      // so it is kept rather than nulled out here: switching to bank and back to
+      // card must not silently turn a declared Amex into Visa, which is the same
+      // defect - a hidden reset of a visible choice - one level down from the
+      // cover-fee reset removed above. feeCentsFor already guards on
+      // paymentMethod === "card", so a retained brand cannot leak into the ACH or
+      // wallet estimate, and the payload still sends null for a non-card rail.
       var cardTypeSection = document.getElementById(prefix + "-card-type-section");
-      if (paymentMethod === "card") {
-        cardTypeSection.style.display = "block";
-        // Reset to default card type if not already selected
-        if (!cardType) {
-          cardType = "visa";
-          var cardTypeRow = document.getElementById(prefix + "-card-type-row");
-          selectChipGroup(cardTypeRow, "data-card-type", cardType);
-        }
-      } else {
-        cardTypeSection.style.display = "none";
-        cardType = null;
-      }
+      cardTypeSection.style.display = paymentMethod === "card" ? "block" : "none";
       
       updateTotals();
       
@@ -2026,7 +2019,11 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
         // Donor self-declaration, sent as a hint only. Now that feeAmount is
         // authoritative it no longer changes what is charged, and nothing binds it
         // to the card actually presented at Checkout.
-        cardType: cardType,
+        //
+        // Derived rather than sent raw: the local `cardType` is now retained across
+        // rail switches so the donor's brand choice is not silently reset, but the
+        // wire format is unchanged - null on any non-card rail, exactly as before.
+        cardType: paymentMethod === "card" ? cardType : null,
         frequency: freq,
         category: category
       };
