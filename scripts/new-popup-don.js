@@ -597,7 +597,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                   </svg>
                   <span>Digital Wallet</span>
                   <div class="dp-wallet-explainer">Apple Pay, Google Pay</div>
-                  <small>2.2% + $0.30</small>
+                  <small>2.9% + $0.30</small>
                 </button>
               </div>
               
@@ -611,7 +611,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
                     </svg>
                     <span>Visa</span>
-                    <small>2.2% + $0.30</small>
+                    <small>2.9% + $0.30</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -620,7 +620,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
                     </svg>
                     <span>Mastercard</span>
-                    <small>2.2% + $0.30</small>
+                    <small>2.9% + $0.30</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -636,7 +636,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
                     </svg>
                     <span>Other</span>
-                    <small>2.2% + $0.30</small>
+                    <small>2.9% + $0.30</small>
                   </button>
                 </div>
               </div>
@@ -1710,7 +1710,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     // basis points, a fixed charge in cents, and an optional cap. These are the
     // rates the chips advertise: bank transfer 0.8% capped at $5.00, American
     // Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards and
-    // wallets) 2.2% + $0.30.
+    // wallets) 2.9% + $0.30.
     //
     // One table, because both numbers feed the gross-up below as well as the quote.
     // Editing a rate here moves the quoted fee and the charged total together,
@@ -1722,7 +1722,10 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       if (method === "card" && card === "amex") {
         return { bps: 350, fixedCents: 30, capCents: null };
       }
-      return { bps: 220, fixedCents: 30, capCents: null };
+      // Standard (non-discounted) Stripe card pricing. Not the 2.2% nonprofit
+      // rate: this account settles at 2.9% + $0.30 - a $10.52 charge was billed
+      // $0.61, which is round(0.029 * 10.52) + 0.30 exactly.
+      return { bps: 290, fixedCents: 30, capCents: null };
     }
 
     // What the processor deducts from a charge of totalCents. This is the loss
