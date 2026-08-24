@@ -17,7 +17,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
 //     <script src=".../new-popup-don.js" data-stripe-rate="2.2"></script>
 // An override that is absent, empty, null, non-numeric, or outside the sane
 // range (greater than 0, at most 10) is ignored and the default below is used.
-const STRIPE_RATE_PERCENT_DEFAULT = 2.9;
+const STRIPE_RATE_PERCENT_DEFAULT = 2.2;
 
 // American Express settles higher than the other card brands and is quoted on
 // its own chip, so it gets its own knob. Edit here to move the Amex rate.
