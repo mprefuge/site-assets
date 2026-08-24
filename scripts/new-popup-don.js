@@ -1,5 +1,73 @@
 const processDonationAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';
 
+// ---------------------------------------------------------------------------
+// PROCESSING FEE CONFIGURATION - set the rate once, here.
+//
+// The card/wallet rate this Stripe account settles at, written the way Stripe
+// writes it: a plain percent, so 2.9 means 2.9% and 2.2 means 2.2%. Standard
+// Stripe card pricing is 2.9%; accounts approved for nonprofit pricing settle
+// at 2.2%. Change this one line and everything downstream follows - the fee
+// quoted in the summary, the grossed-up total actually charged, and the rate
+// printed on the payment chips - so the form can never advertise one rate and
+// charge another.
+//
+// A host page can override it without editing this file, either by setting
+//     window.STRIPE_RATE = 2.2;   // before this script loads
+// or by putting the rate on this script's own tag:
+//     <script src=".../new-popup-don.js" data-stripe-rate="2.2"></script>
+// An override that is absent, empty, null, non-numeric, or outside the sane
+// range (greater than 0, at most 10) is ignored and the default below is used.
+const STRIPE_RATE_PERCENT_DEFAULT = 2.2;
+
+// American Express settles higher than the other card brands and is quoted on
+// its own chip, so it gets its own knob. Edit here to move the Amex rate.
+const STRIPE_AMEX_RATE_PERCENT = 3.5;
+
+// Stripe's per-transaction fixed fee on cards and wallets, in cents. Always
+// added on top of the percentage, at every amount. (Bank transfers are a
+// different structure - a capped percentage with no fixed fee - and are held
+// separately in feeRateFor below.)
+const STRIPE_FIXED_FEE_CENTS = 30;
+
+// Resolve the configured rate once, at load, and convert it to basis points in
+// this one place. Everything downstream works in integer bps and integer cents,
+// so there is no second /100 anywhere else in the file to drift out of step.
+function stripeConfiguredRatePercent() {
+  var raw = null;
+  try {
+    if (typeof window !== "undefined" && window.STRIPE_RATE !== undefined && window.STRIPE_RATE !== null) {
+      raw = window.STRIPE_RATE;
+    }
+    if (raw === null && typeof document !== "undefined") {
+      var tag = document.currentScript || document.querySelector("script[data-stripe-rate]");
+      if (tag && tag.getAttribute) raw = tag.getAttribute("data-stripe-rate");
+    }
+  } catch (e) {
+    raw = null;
+  }
+  // Not populated: empty string, whitespace, or nothing at all.
+  if (raw === null || raw === undefined || String(raw).trim() === "") return STRIPE_RATE_PERCENT_DEFAULT;
+  var pct = parseFloat(raw);
+  // Non-numeric, or outside the range any real card rate lives in.
+  if (!isFinite(pct) || pct <= 0 || pct > 10) return STRIPE_RATE_PERCENT_DEFAULT;
+  return pct;
+}
+
+const STRIPE_RATE_BPS = Math.round(stripeConfiguredRatePercent() * 100);
+const STRIPE_AMEX_RATE_BPS = Math.round(STRIPE_AMEX_RATE_PERCENT * 100);
+
+// The text the payment chips print, built from the same basis points the charge
+// is computed from - not a hand-written string that can fall out of date.
+// Trailing zeros are dropped, so 290 reads "2.9%", 220 reads "2.2%" and 300
+// reads "3%".
+function stripeFeeChipLabel(bps, fixedCents) {
+  return String(bps / 100) + "% + $" + (fixedCents / 100).toFixed(2);
+}
+
+const STRIPE_CARD_FEE_LABEL = stripeFeeChipLabel(STRIPE_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
+const STRIPE_AMEX_FEE_LABEL = stripeFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
+// ---------------------------------------------------------------------------
+
 (function () {
   "use strict";
 
@@ -597,7 +665,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                   </svg>
                   <span>Digital Wallet</span>
                   <div class="dp-wallet-explainer">Apple Pay, Google Pay</div>
-                  <small>2.2% + $0.30</small>
+                  <small>${STRIPE_CARD_FEE_LABEL}</small>
                 </button>
               </div>
               
@@ -611,7 +679,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
                     </svg>
                     <span>Visa</span>
-                    <small>2.2% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -620,7 +688,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
                     </svg>
                     <span>Mastercard</span>
-                    <small>2.2% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -628,7 +696,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">AMEX</text>
                     </svg>
                     <span>American Express</span>
-                    <small>3.5% + $0.30</small>
+                    <small>${STRIPE_AMEX_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="other">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -636,7 +704,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
                     </svg>
                     <span>Other</span>
-                    <small>2.2% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                 </div>
               </div>
@@ -1706,19 +1774,70 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
     }
 
-    // The processing fee this form quotes, in whole cents, by payment method.
-    // These are the rates the chips advertise: bank transfer 0.8% capped at $5.00,
-    // American Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards
-    // and wallets) 2.2% + $0.30.
-    function feeCentsFor(baseCents) {
+    // The processing fee this form quotes, by payment method: a percentage in
+    // basis points, a fixed charge in cents, and an optional cap.
+    //
+    // The card and wallet rates come from the configuration block at the top of
+    // this file, which is also what the chips print, so the rate advertised and
+    // the rate charged are the same number by construction. Bank transfer is
+    // deliberately not derived from it - see below.
+    //
+    // One table, because both numbers feed the gross-up below as well as the
+    // quote, with no second copy to keep in step.
+    function feeRateFor(method, card) {
+      if (method === "us_bank_account") {
+        // Stripe's ACH pricing is its own structure and does not follow the card
+        // rate: 0.8% capped at $5.00, and NO per-transaction fixed fee. Adding
+        // the $0.30 here would over-charge every bank-transfer donor.
+        return { bps: 80, fixedCents: 0, capCents: 500 };
+      }
+      if (method === "card" && card === "amex") {
+        return { bps: STRIPE_AMEX_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
+      }
+      // Every other card brand and every wallet: the configured rate plus the
+      // fixed per-transaction fee. Defaults to standard Stripe card pricing of
+      // 2.9% + $0.30 - this account settles there today, as a $10.52 charge
+      // billed $0.61 confirms: round(0.029 * 10.52) + 0.30 exactly.
+      return { bps: STRIPE_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
+    }
+
+    // What the processor deducts from a charge of totalCents. This is the loss
+    // side of the arithmetic - what the org gives up - not what the donor adds.
+    function feeCentsOn(totalCents) {
+      if (totalCents <= 0) return 0;
+      var rate = feeRateFor(paymentMethod, cardType);
+      var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
+      if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
+      return fee;
+    }
+
+    // The total to charge so that, once the processor has taken its cut, exactly
+    // baseCents is what reaches the org.
+    //
+    // This is a gross-up, not a surcharge, and the difference is the whole bug it
+    // fixes. Charging baseCents plus the fee ON baseCents always lands short,
+    // because the processor then takes its percentage on the larger total too: the
+    // fee has to pay for itself. Solving
+    //     total - (pct * total + fixed) = base
+    // for total gives
+    //     total = (base + fixed) / (1 - pct)
+    // which is the division below, carried out in basis points so both operands
+    // stay exact integers, and rounded UP to the whole cent so the rounding can
+    // never leave the org short.
+    function grossedUpTotalCents(baseCents) {
       if (baseCents <= 0) return 0;
-      if (paymentMethod === "us_bank_account") {
-        return Math.min(Math.round(baseCents * 0.008), 500);
+      var rate = feeRateFor(paymentMethod, cardType);
+      var numerator = (baseCents + rate.fixedCents) * 10000;
+      var denominator = 10000 - rate.bps;
+      // Integer ceiling division. Both operands are exact integers well inside the
+      // safe range, so this is the whole-cent round-up with no float drift.
+      var totalCents = Math.floor((numerator + denominator - 1) / denominator);
+      // Past the cap the fee stops growing with the total, so grossing up is just
+      // the flat cap on top; the formula above would over-charge beyond that point.
+      if (rate.capCents !== null && totalCents - baseCents > rate.capCents) {
+        return baseCents + rate.capCents;
       }
-      if (paymentMethod === "card" && cardType === "amex") {
-        return Math.round(baseCents * 0.035) + 30;
-      }
-      return Math.round(baseCents * 0.022) + 30;
+      return totalCents;
     }
 
     // Single source of truth for every money figure in the form. Everything is
@@ -1733,14 +1852,22 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var baseCents = Math.round(amt * 100);
       var cover = coverFee.checked;
 
-      // The fee is computed either way: when it is not covered the summary still
-      // shows it, labelled "(covered by Refuge International)".
-      var feeCents = feeCentsFor(baseCents);
+      // Two different questions, so two different figures.
+      //
+      // Covering: the donor pays the fee, so the charge is grossed up and the fee
+      // quoted is the difference between what they are charged and what they gave.
+      // Taking it by subtraction rather than computing it separately is what keeps
+      // the quoted fee and the charged total in agreement by construction.
+      //
+      // Not covering: the org absorbs the fee out of a charge of exactly baseCents,
+      // so the summary still shows the fee on baseCents, labelled "(covered by
+      // Refuge International)". That path is unchanged.
+      var totalCents = cover ? grossedUpTotalCents(baseCents) : baseCents;
+      var feeCents = cover ? totalCents - baseCents : feeCentsOn(baseCents);
       // Only a fee the donor elected to cover is charged, and it is exactly the
       // feeAmount posted to the API - the server uses it verbatim and adds nothing
       // of its own on top.
       var coveredFeeCents = cover ? feeCents : 0;
-      var totalCents = baseCents + coveredFeeCents;
 
       return {
         baseCents: baseCents,
