@@ -1706,19 +1706,62 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       }
     }
 
-    // The processing fee this form quotes, in whole cents, by payment method.
-    // These are the rates the chips advertise: bank transfer 0.8% capped at $5.00,
-    // American Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards
-    // and wallets) 2.2% + $0.30.
-    function feeCentsFor(baseCents) {
+    // The processing fee this form quotes, by payment method: a percentage in
+    // basis points, a fixed charge in cents, and an optional cap. These are the
+    // rates the chips advertise: bank transfer 0.8% capped at $5.00, American
+    // Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards and
+    // wallets) 2.2% + $0.30.
+    //
+    // One table, because both numbers feed the gross-up below as well as the quote.
+    // Editing a rate here moves the quoted fee and the charged total together,
+    // with no second copy to keep in step.
+    function feeRateFor(method, card) {
+      if (method === "us_bank_account") {
+        return { bps: 80, fixedCents: 0, capCents: 500 };
+      }
+      if (method === "card" && card === "amex") {
+        return { bps: 350, fixedCents: 30, capCents: null };
+      }
+      return { bps: 220, fixedCents: 30, capCents: null };
+    }
+
+    // What the processor deducts from a charge of totalCents. This is the loss
+    // side of the arithmetic - what the org gives up - not what the donor adds.
+    function feeCentsOn(totalCents) {
+      if (totalCents <= 0) return 0;
+      var rate = feeRateFor(paymentMethod, cardType);
+      var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
+      if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
+      return fee;
+    }
+
+    // The total to charge so that, once the processor has taken its cut, exactly
+    // baseCents is what reaches the org.
+    //
+    // This is a gross-up, not a surcharge, and the difference is the whole bug it
+    // fixes. Charging baseCents plus the fee ON baseCents always lands short,
+    // because the processor then takes its percentage on the larger total too: the
+    // fee has to pay for itself. Solving
+    //     total - (pct * total + fixed) = base
+    // for total gives
+    //     total = (base + fixed) / (1 - pct)
+    // which is the division below, carried out in basis points so both operands
+    // stay exact integers, and rounded UP to the whole cent so the rounding can
+    // never leave the org short.
+    function grossedUpTotalCents(baseCents) {
       if (baseCents <= 0) return 0;
-      if (paymentMethod === "us_bank_account") {
-        return Math.min(Math.round(baseCents * 0.008), 500);
+      var rate = feeRateFor(paymentMethod, cardType);
+      var numerator = (baseCents + rate.fixedCents) * 10000;
+      var denominator = 10000 - rate.bps;
+      // Integer ceiling division. Both operands are exact integers well inside the
+      // safe range, so this is the whole-cent round-up with no float drift.
+      var totalCents = Math.floor((numerator + denominator - 1) / denominator);
+      // Past the cap the fee stops growing with the total, so grossing up is just
+      // the flat cap on top; the formula above would over-charge beyond that point.
+      if (rate.capCents !== null && totalCents - baseCents > rate.capCents) {
+        return baseCents + rate.capCents;
       }
-      if (paymentMethod === "card" && cardType === "amex") {
-        return Math.round(baseCents * 0.035) + 30;
-      }
-      return Math.round(baseCents * 0.022) + 30;
+      return totalCents;
     }
 
     // Single source of truth for every money figure in the form. Everything is
@@ -1733,14 +1776,22 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
       var baseCents = Math.round(amt * 100);
       var cover = coverFee.checked;
 
-      // The fee is computed either way: when it is not covered the summary still
-      // shows it, labelled "(covered by Refuge International)".
-      var feeCents = feeCentsFor(baseCents);
+      // Two different questions, so two different figures.
+      //
+      // Covering: the donor pays the fee, so the charge is grossed up and the fee
+      // quoted is the difference between what they are charged and what they gave.
+      // Taking it by subtraction rather than computing it separately is what keeps
+      // the quoted fee and the charged total in agreement by construction.
+      //
+      // Not covering: the org absorbs the fee out of a charge of exactly baseCents,
+      // so the summary still shows the fee on baseCents, labelled "(covered by
+      // Refuge International)". That path is unchanged.
+      var totalCents = cover ? grossedUpTotalCents(baseCents) : baseCents;
+      var feeCents = cover ? totalCents - baseCents : feeCentsOn(baseCents);
       // Only a fee the donor elected to cover is charged, and it is exactly the
       // feeAmount posted to the API - the server uses it verbatim and adds nothing
       // of its own on top.
       var coveredFeeCents = cover ? feeCents : 0;
-      var totalCents = baseCents + coveredFeeCents;
 
       return {
         baseCents: baseCents,
