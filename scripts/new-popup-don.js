@@ -1,5 +1,73 @@
 const processDonationAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';
 
+// ---------------------------------------------------------------------------
+// PROCESSING FEE CONFIGURATION - set the rate once, here.
+//
+// The card/wallet rate this Stripe account settles at, written the way Stripe
+// writes it: a plain percent, so 2.9 means 2.9% and 2.2 means 2.2%. Standard
+// Stripe card pricing is 2.9%; accounts approved for nonprofit pricing settle
+// at 2.2%. Change this one line and everything downstream follows - the fee
+// quoted in the summary, the grossed-up total actually charged, and the rate
+// printed on the payment chips - so the form can never advertise one rate and
+// charge another.
+//
+// A host page can override it without editing this file, either by setting
+//     window.STRIPE_RATE = 2.2;   // before this script loads
+// or by putting the rate on this script's own tag:
+//     <script src=".../new-popup-don.js" data-stripe-rate="2.2"></script>
+// An override that is absent, empty, null, non-numeric, or outside the sane
+// range (greater than 0, at most 10) is ignored and the default below is used.
+const STRIPE_RATE_PERCENT_DEFAULT = 2.9;
+
+// American Express settles higher than the other card brands and is quoted on
+// its own chip, so it gets its own knob. Edit here to move the Amex rate.
+const STRIPE_AMEX_RATE_PERCENT = 3.5;
+
+// Stripe's per-transaction fixed fee on cards and wallets, in cents. Always
+// added on top of the percentage, at every amount. (Bank transfers are a
+// different structure - a capped percentage with no fixed fee - and are held
+// separately in feeRateFor below.)
+const STRIPE_FIXED_FEE_CENTS = 30;
+
+// Resolve the configured rate once, at load, and convert it to basis points in
+// this one place. Everything downstream works in integer bps and integer cents,
+// so there is no second /100 anywhere else in the file to drift out of step.
+function stripeConfiguredRatePercent() {
+  var raw = null;
+  try {
+    if (typeof window !== "undefined" && window.STRIPE_RATE !== undefined && window.STRIPE_RATE !== null) {
+      raw = window.STRIPE_RATE;
+    }
+    if (raw === null && typeof document !== "undefined") {
+      var tag = document.currentScript || document.querySelector("script[data-stripe-rate]");
+      if (tag && tag.getAttribute) raw = tag.getAttribute("data-stripe-rate");
+    }
+  } catch (e) {
+    raw = null;
+  }
+  // Not populated: empty string, whitespace, or nothing at all.
+  if (raw === null || raw === undefined || String(raw).trim() === "") return STRIPE_RATE_PERCENT_DEFAULT;
+  var pct = parseFloat(raw);
+  // Non-numeric, or outside the range any real card rate lives in.
+  if (!isFinite(pct) || pct <= 0 || pct > 10) return STRIPE_RATE_PERCENT_DEFAULT;
+  return pct;
+}
+
+const STRIPE_RATE_BPS = Math.round(stripeConfiguredRatePercent() * 100);
+const STRIPE_AMEX_RATE_BPS = Math.round(STRIPE_AMEX_RATE_PERCENT * 100);
+
+// The text the payment chips print, built from the same basis points the charge
+// is computed from - not a hand-written string that can fall out of date.
+// Trailing zeros are dropped, so 290 reads "2.9%", 220 reads "2.2%" and 300
+// reads "3%".
+function stripeFeeChipLabel(bps, fixedCents) {
+  return String(bps / 100) + "% + $" + (fixedCents / 100).toFixed(2);
+}
+
+const STRIPE_CARD_FEE_LABEL = stripeFeeChipLabel(STRIPE_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
+const STRIPE_AMEX_FEE_LABEL = stripeFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
+// ---------------------------------------------------------------------------
+
 (function () {
   "use strict";
 
@@ -597,7 +665,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                   </svg>
                   <span>Digital Wallet</span>
                   <div class="dp-wallet-explainer">Apple Pay, Google Pay</div>
-                  <small>2.9% + $0.30</small>
+                  <small>${STRIPE_CARD_FEE_LABEL}</small>
                 </button>
               </div>
               
@@ -611,7 +679,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="6" font-weight="bold">VISA</text>
                     </svg>
                     <span>Visa</span>
-                    <small>2.9% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="mastercard">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -620,7 +688,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <circle cx="15" cy="8" r="4" fill="#F79E1B" opacity="0.8"/>
                     </svg>
                     <span>Mastercard</span>
-                    <small>2.9% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="amex">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -628,7 +696,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">AMEX</text>
                     </svg>
                     <span>American Express</span>
-                    <small>3.5% + $0.30</small>
+                    <small>${STRIPE_AMEX_FEE_LABEL}</small>
                   </button>
                   <button type="button" class="dp-chip dp-card-type-chip" data-card-type="other">
                     <svg width="24" height="24" viewBox="0 0 24 16" fill="none">
@@ -636,7 +704,7 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
                       <text x="12" y="10" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="5" font-weight="bold">OTHER</text>
                     </svg>
                     <span>Other</span>
-                    <small>2.9% + $0.30</small>
+                    <small>${STRIPE_CARD_FEE_LABEL}</small>
                   </button>
                 </div>
               </div>
@@ -1707,25 +1775,30 @@ const processDonationAPI = 'https://payment-processing-function.azurewebsites.ne
     }
 
     // The processing fee this form quotes, by payment method: a percentage in
-    // basis points, a fixed charge in cents, and an optional cap. These are the
-    // rates the chips advertise: bank transfer 0.8% capped at $5.00, American
-    // Express 3.5% + $0.30, everything else (Visa/Mastercard/other cards and
-    // wallets) 2.9% + $0.30.
+    // basis points, a fixed charge in cents, and an optional cap.
     //
-    // One table, because both numbers feed the gross-up below as well as the quote.
-    // Editing a rate here moves the quoted fee and the charged total together,
-    // with no second copy to keep in step.
+    // The card and wallet rates come from the configuration block at the top of
+    // this file, which is also what the chips print, so the rate advertised and
+    // the rate charged are the same number by construction. Bank transfer is
+    // deliberately not derived from it - see below.
+    //
+    // One table, because both numbers feed the gross-up below as well as the
+    // quote, with no second copy to keep in step.
     function feeRateFor(method, card) {
       if (method === "us_bank_account") {
+        // Stripe's ACH pricing is its own structure and does not follow the card
+        // rate: 0.8% capped at $5.00, and NO per-transaction fixed fee. Adding
+        // the $0.30 here would over-charge every bank-transfer donor.
         return { bps: 80, fixedCents: 0, capCents: 500 };
       }
       if (method === "card" && card === "amex") {
-        return { bps: 350, fixedCents: 30, capCents: null };
+        return { bps: STRIPE_AMEX_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
       }
-      // Standard (non-discounted) Stripe card pricing. Not the 2.2% nonprofit
-      // rate: this account settles at 2.9% + $0.30 - a $10.52 charge was billed
-      // $0.61, which is round(0.029 * 10.52) + 0.30 exactly.
-      return { bps: 290, fixedCents: 30, capCents: null };
+      // Every other card brand and every wallet: the configured rate plus the
+      // fixed per-transaction fee. Defaults to standard Stripe card pricing of
+      // 2.9% + $0.30 - this account settles there today, as a $10.52 charge
+      // billed $0.61 confirms: round(0.029 * 10.52) + 0.30 exactly.
+      return { bps: STRIPE_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
     }
 
     // What the processor deducts from a charge of totalCents. This is the loss
