@@ -53,6 +53,8 @@
   a.scenario:hover { border-color:#BD2135; }
   #log { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; white-space:pre-wrap; background:#1e1e24; color:#e6e6ea; border-radius:8px; padding:12px; max-height:280px; overflow:auto; }
   #log:empty::before { content:"Nothing posted yet. Fill the form in and press Pay."; color:#8b8b96; }
+  #form-payload { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; white-space:pre-wrap; background:#1e1e24; color:#e6e6ea; border-radius:8px; padding:12px; max-height:280px; overflow:auto; }
+  .panel[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -67,7 +69,7 @@
       <span class="sub" style="margin:0;">Off = the request is intercepted and answered with a synthetic Stripe test session.</span>
     </div>
     <div class="warn" id="real-api-warning" hidden>
-      <strong>Live endpoint.</strong> Pressing Pay will ask the real payment function for a Checkout Session. Load this page with
+      <strong>Live endpoints.</strong> Pressing Pay will ask the real payment function for a Checkout Session <em>and</em> create a real Form__c record in Salesforce, which emails the admin recipients. Load this page with
       <code>#order-guide?testMode=1&amp;testKey=&lt;operator key&gt;</code> first, or the session may be created in live mode.
     </div>
   </div>
@@ -86,8 +88,13 @@
   <!-- The embed itself. This is the only part that goes on the live page. -->
   <div id="hospitality-guide-order"></div>
 
+  <div class="panel" id="form-panel" hidden>
+    <h2>Salesforce Form__c record submitted</h2>
+    <div id="form-payload"></div>
+  </div>
+
   <div class="panel">
-    <h2>Last payload posted</h2>
+    <h2>Last payment payload posted</h2>
     <div id="log"></div>
   </div>
 </div>
@@ -106,8 +113,33 @@
     var realFetch = window.fetch.bind(window);
 
     window.fetch = function (url, options) {
-      var isOrderPost = typeof url === "string" && url.indexOf("/api/transaction") !== -1;
-      if (!isOrderPost) return realFetch(url, options);
+      var isPayment = typeof url === "string" && url.indexOf("/api/transaction") !== -1;
+      // The form service is mocked on the same terms as the payment service, and
+      // for a sharper reason: a real call here creates a Form__c record in
+      // production Salesforce and emails the admin recipients. A preview must
+      // not do that, and neither must an automated run of this page.
+      var isForm = typeof url === "string" && url.indexOf("/api/form") !== -1;
+
+      if (isForm && !realApiToggle.checked) {
+        var formBody = {};
+        try { formBody = JSON.parse(options.body); } catch (e) { formBody = {}; }
+        if (formBody.Stripe_Checkout_Session_Id__c) {
+          console.log("[preview] intercepted the checkout-session write-back for " + formBody.FormCode__c);
+        } else {
+          console.log("[preview] intercepted the Salesforce form submission");
+          document.getElementById("form-payload").textContent = JSON.stringify(formBody, null, 2);
+          document.getElementById("form-panel").hidden = false;
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: function () {
+            return Promise.resolve(JSON.stringify({ Id: 'a0XPREVIEW000001', FormCode__c: 'PRV01' }));
+          }
+        });
+      }
+
+      if (!isPayment) return realFetch(url, options);
 
       var payload = {};
       try { payload = JSON.parse(options.body); } catch (e) { payload = { unparseable: String(options && options.body) }; }

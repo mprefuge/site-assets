@@ -1,5 +1,101 @@
 const processOrderAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';
 
+// The forms service, which records the order as a Form__c record in Salesforce:
+// who ordered, for how many participants, where it ships. The payment service
+// above records the money; this records the order. Same endpoint the volunteer,
+// waiver, event and registration forms post to (mprefuge/forms, public/*.js).
+const submitFormAPI = 'https://rif-hhh8e6e7cbc2hvdw.eastus-01.azurewebsites.net/api/form';
+
+// ---------------------------------------------------------------------------
+// SALESFORCE FORM RECORD
+//
+// The forms service takes the whole form configuration inline, on each request,
+// as `__formConfig` - the client owns it, and there is nothing to deploy on the
+// service to add a new form. This is that configuration.
+//
+// allowedFields is an allowlist, and it governs updates as well as creates:
+// anything not named here is dropped from the payload before it reaches
+// Salesforce. So a field added to the payload without being added here fails
+// silently, which is exactly the sort of thing to remember when this is next
+// edited.
+//
+// The participant count goes to Quantity__c, a whole-number field added to
+// Form__c for exactly this. It is what makes "how many guides have we sold"
+// answerable with a report rather than by reading records one at a time.
+//
+// It is ALSO still written into the Custom__c JSON, and that duplication is
+// deliberate: Custom__c is what the forms service unpacks into the notification
+// email, so the count stays visible to whoever reads that, and records created
+// before Quantity__c existed stay readable the same way as the ones after.
+// ---------------------------------------------------------------------------
+// Who gets the notification email when an order is submitted.
+//
+// The forms service resolves recipients from the FIRST source that yields any:
+// the submitted data, then this config's notificationEmails, then the function
+// app's AdminEmail setting. There is no merging - naming anyone here REPLACES
+// the AdminEmail default for this form, which is why it is one editable line.
+// Semicolons or commas separate multiple addresses, the same convention the
+// registration configs in the forms repo use.
+//
+// Currently just the testing address, on purpose, while this is being proved
+// out. Before launch this should almost certainly also name whoever fulfils the
+// orders - otherwise Hospitality Guide orders reach nobody but a test inbox.
+const HOSPITALITY_GUIDE_NOTIFICATION_EMAILS = "micah+testing@refugeintl.org";
+
+const HOSPITALITY_GUIDE_FORM_CONFIG = {
+  id: "hospitality-guide-order",
+  name: "Hospitality Guide Order",
+  description: "Order for the Hospitality Guide, priced per participant",
+  version: "1.0.0",
+  salesforce: {
+    objectName: "Form__c",
+    // An existing record type for standalone registrations, not tied to an
+    // event Campaign - which is what a product order placed from the guide page
+    // is. Keeps these out of event-registration reporting.
+    recordTypeName: "Registration",
+    allowedFields: [
+      "FirstName__c",
+      "LastName__c",
+      "Email__c",
+      "Phone__c",
+      "Church__c",
+      "Street__c",
+      "City__c",
+      "State__c",
+      "Zip__c",
+      "Country__c",
+      "CurrentStatus__c",
+      "Source__c",
+      "WillPay__c",
+      // The participant count, as a number Salesforce can total in a report.
+      "Quantity__c",
+      "Custom__c",
+      "FormCode__c",
+      // Written after Stripe answers, so the Salesforce record points at the
+      // checkout session it became.
+      "Stripe_Checkout_Session_Id__c"
+    ],
+    queryFields: ["Id", "FormCode__c", "FirstName__c", "LastName__c", "Email__c", "CreatedDate"],
+    updateFields: [],
+    searchField: "FormCode__c",
+    lookupEmailField: "Email__c",
+    lookupCodeField: "FormCode__c",
+    codeGenerationEnabled: true,
+    codeLength: 5
+  },
+  // Read straight off this config by the forms service. It has to live here
+  // rather than in the payload: the notification resolver is handed the
+  // FILTERED Salesforce fields, so a top-level NotificationEmail key in the
+  // payload is dropped by the allowlist before anything reads it.
+  notificationEmails: HOSPITALITY_GUIDE_NOTIFICATION_EMAILS,
+  terms: { orgName: "Refuge International" }
+};
+
+// How long to wait for the forms service before giving up on it and going to
+// payment anyway. Deliberately shorter than the payment timeout: this call is
+// the ancillary one, and a buyer must never be kept waiting on it.
+const FORM_SUBMIT_TIMEOUT_MS = 12000;
+
 // ---------------------------------------------------------------------------
 // HOSPITALITY GUIDE ORDER FORM
 //
@@ -1537,6 +1633,141 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       submitBtn.textContent = "Transferring to Stripe...";
       hideSubmitError();
 
+      // The Salesforce side of the order: who ordered, how many participants,
+      // and where it ships.
+      //
+      // Field names are Form__c's own. Church__c holds the church or
+      // organisation name - the object has no generic "organisation" field, and
+      // the buyers for this resource are churches. An individual buyer simply
+      // leaves it unset.
+      //
+      // Quantity__c carries the participant count as a number, so it can be
+      // summed and filtered in a report. Custom__c carries it again, along with
+      // everything Form__c has nowhere else to put, because that is what the
+      // notification email is built from.
+      var formPayload = {
+        __formConfig: HOSPITALITY_GUIDE_FORM_CONFIG,
+        // Asks the service to send its notification, so an order lands in
+        // somebody's inbox rather than only in Salesforce. The service unpacks
+        // Custom__c into readable rows in that email.
+        __sendEmail: true,
+        FirstName__c: firstname,
+        LastName__c: lastname,
+        Email__c: payload.email,
+        Phone__c: payload.phone,
+        Street__c: [addr1.value, addr2.value].filter(Boolean).join(", "),
+        City__c: city.value,
+        State__c: (stateSel.value || "").split(" - ")[0],
+        Zip__c: zip.value,
+        Country__c: countrySel.value,
+        // The form was submitted; whether it was paid is a question for the
+        // payment record. Nothing here flips this to Registered when the charge
+        // succeeds - that would have to happen in the payment pipeline.
+        CurrentStatus__c: "Submitted",
+        WillPay__c: true,
+        Source__c: "Hospitality Guide order form",
+        Quantity__c: order.qty,
+        Custom__c: JSON.stringify({
+          Product: "Hospitality Guide",
+          Participants: order.qty,
+          Workbooks: order.qty,
+          PricePerParticipant: money(order.unitCents),
+          PriceTier: order.tier ? order.tier.label : "",
+          Subtotal: money(order.subtotalCents),
+          Discount: promo ? promo.percentOff + "% " + promo.id : "none",
+          DiscountAmount: money(order.discountCents),
+          OrderTotal: money(order.orderCents),
+          CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
+          TotalCharged: money(totals.totalCents),
+          Fulfillment: promo ? promo.fulfillment : HOSPITALITY_GUIDE_FULFILLMENT,
+          OrderSummary: summary,
+          ClientReferenceId: clientReferenceId
+        })
+      };
+
+      if (buyerType === "organization") {
+        formPayload.Church__c = organization;
+      }
+
+      // Best effort, and deliberately so. A buyer who is ready to pay must not
+      // be stopped because the forms service is slow or down: the money is the
+      // part that cannot be recreated later, and everything in the form record
+      // is also carried in the payment payload's own metadata, so nothing is
+      // actually lost if this fails. It resolves to the created record, or to
+      // null - it never rejects.
+      function createFormRecord() {
+        var formController = typeof AbortController === "function" ? new AbortController() : null;
+        var formTimedOut = false;
+        var formTimeoutId = setTimeout(function () {
+          formTimedOut = true;
+          if (formController) formController.abort();
+        }, FORM_SUBMIT_TIMEOUT_MS);
+
+        var options = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formPayload)
+        };
+        if (formController) options.signal = formController.signal;
+
+        return fetch(submitFormAPI, options)
+          .then(function (r) {
+            clearTimeout(formTimeoutId);
+            return r.text().then(function (text) {
+              var data = null;
+              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+              if (!r.ok) {
+                console.error("Form service error (" + r.status + "):", text);
+                return null;
+              }
+              return data;
+            });
+          })
+          .catch(function (err) {
+            clearTimeout(formTimeoutId);
+            console.error(formTimedOut
+              ? "Form service did not respond within " + FORM_SUBMIT_TIMEOUT_MS + "ms; continuing to payment"
+              : "Form service call failed; continuing to payment", err);
+            return null;
+          });
+      }
+
+      // The confirmation code and record id the forms service hands back, kept
+      // so the payment can name them and the record can be updated afterwards.
+      var formRecord = null;
+
+      function readFormField(record, name) {
+        if (!record || typeof record !== "object") return "";
+        var direct = record[name];
+        if (typeof direct === "string" && direct) return direct;
+        var nested = record.form || record.record || record.data;
+        if (nested && typeof nested === "object" && typeof nested[name] === "string") return nested[name];
+        return "";
+      }
+
+      // Once Stripe has answered, point the Salesforce record at the checkout
+      // session it became. Sent with keepalive so it still completes after the
+      // redirect takes the page away, and never awaited: this is bookkeeping,
+      // and the buyer should not wait a round trip for it.
+      function linkCheckoutSession(session) {
+        var code = readFormField(formRecord, "FormCode__c");
+        if (!code || !session || !session.id) return;
+        try {
+          fetch(submitFormAPI, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            keepalive: true,
+            body: JSON.stringify({
+              __formConfig: HOSPITALITY_GUIDE_FORM_CONFIG,
+              FormCode__c: code,
+              Stripe_Checkout_Session_Id__c: session.id
+            })
+          }).catch(function () { /* bookkeeping only */ });
+        } catch (e) {
+          /* bookkeeping only */
+        }
+      }
+
       // Redacted copy: this line goes to a console the buyer can open, and on a
       // shared screen or a screenshot the key would travel with it.
       var loggablePayload = Object.assign({}, payload);
@@ -1557,7 +1788,23 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       };
       if (controller) fetchOptions.signal = controller.signal;
 
-      fetch(processOrderAPI, fetchOptions)
+      // The order record is created first, the same way the event registration
+      // form does it, so the confirmation code it mints can travel with the
+      // payment and tie the two together in Salesforce. It never rejects and
+      // never blocks: a null record just means the payment carries no code.
+      createFormRecord()
+        .then(function (record) {
+          formRecord = record;
+          var code = readFormField(record, "FormCode__c");
+          var id = readFormField(record, "Id");
+          if (code) payload.metadata.form_code = code;
+          if (id) payload.metadata.form_id = id;
+          if (code || id) {
+            fetchOptions.body = JSON.stringify(payload);
+            console.log("Order recorded in Salesforce" + (code ? " as " + code : "") + "; sending to payment");
+          }
+          return fetch(processOrderAPI, fetchOptions);
+        })
         .then(function (r) {
           clearTimeout(timeoutId);
           // Read the body as text first. An error page from the host (an Azure
@@ -1645,6 +1892,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             submitBtn.textContent = "Stopped - payment mode mismatch";
             return;
           }
+
+          // Only once the mode checks above have passed, so a session the form
+          // refused to send the buyer to is never written to the record either.
+          linkCheckoutSession(session);
 
           if (session.url) {
             window.location.assign(session.url);
