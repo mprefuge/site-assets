@@ -229,7 +229,10 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
     .hg-qty-btn { display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; border:2px solid ${BRAND_PRIMARY}; background:transparent; color:${BRAND_PRIMARY}; cursor:pointer; font-size:24px; font-weight:700; transition:.2s; flex-shrink:0; }
     .hg-qty-btn:hover { background:${BRAND_PRIMARY}; color:#fff; }
     .hg-qty-btn:disabled { opacity:.3; cursor:not-allowed; border-color:#ccc; color:#ccc; background:transparent; }
-    .hg-qty-input { width:120px; text-align:center; font-size:22px; font-weight:800; padding:10px; }
+    /* The native number spinners sit right next to the -/+ buttons and do the
+       same job at a quarter of the size, so they are hidden. */
+    .hg-qty-input { width:120px; text-align:center; font-size:22px; font-weight:800; padding:10px; appearance:textfield; -moz-appearance:textfield; }
+    .hg-qty-input::-webkit-outer-spin-button, .hg-qty-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
     .hg-nudge { text-align:center; font-size:13px; font-weight:600; color:${BRAND_PRIMARY}; min-height:18px; margin-bottom:12px; }
 
     /* Tier table */
@@ -244,6 +247,10 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
     /* Money summary */
     .hg-lines { border-top:1px solid #eee; padding-top:12px; }
     .hg-line { display:flex; justify-content:space-between; gap:12px; font-size:15px; margin-bottom:6px; }
+    /* Load-bearing: a line's own display:flex beats the [hidden] attribute's
+       default display:none, so without this the discount line reads "-$0.00"
+       outside a promotion and the shipping line quotes a $0.00 charge. */
+    .hg-line[hidden] { display:none; }
     .hg-line-muted { color:#555; font-size:13px; }
     .hg-line-discount { color:${BRAND_PRIMARY}; font-weight:700; }
     .hg-line-total { font-weight:800; font-size:20px; border-top:1px solid #eee; padding-top:10px; margin-top:10px; }
