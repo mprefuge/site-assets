@@ -132,6 +132,19 @@ const TIER_NUDGE_WITHIN = 10;
 // ---------------------------------------------------------------------------
 // PROCESSING FEE CONFIGURATION - set the rate once, here.
 //
+// The HG_ prefix is load-bearing, not decoration. The donation form declares
+// these same seven names at the top level of its own file, and two `const`
+// declarations of one name in the same global scope is a SyntaxError that kills
+// whichever script the page loads second - silently, as far as the visitor is
+// concerned: one of the two forms simply never appears. Any page carrying both
+// (the donation popup is injected site-wide, and it only takes one page to also
+// carry this form) would lose one of them. Keep every top-level name in this
+// file prefixed, and do not "tidy" the prefix away.
+//
+// window.STRIPE_RATE and data-stripe-rate are deliberately NOT prefixed: they
+// are the host page's knob for the account's card rate, and both forms should
+// answer to the same one.
+//
 // Identical in behaviour to the donation form's block, and for the same reason:
 // the rate quoted on the payment chips and the rate the total is grossed up by
 // are the same number by construction, so the form can never advertise one rate
@@ -143,14 +156,14 @@ const TIER_NUDGE_WITHIN = 10;
 //     <script src=".../hospitality-guide-order.js" data-stripe-rate="2.2"></script>
 // An override that is absent, empty, null, non-numeric, or outside the sane
 // range (greater than 0, at most 10) is ignored and the default below is used.
-const STRIPE_RATE_PERCENT_DEFAULT = 2.2;
+const HG_STRIPE_RATE_PERCENT_DEFAULT = 2.2;
 
 // American Express settles higher than the other card brands and is quoted on
 // its own chip, so it gets its own knob.
-const STRIPE_AMEX_RATE_PERCENT = 3.5;
+const HG_STRIPE_AMEX_RATE_PERCENT = 3.5;
 
 // Stripe's per-transaction fixed fee on cards and wallets, in cents.
-const STRIPE_FIXED_FEE_CENTS = 30;
+const HG_STRIPE_FIXED_FEE_CENTS = 30;
 
 function hgStripeConfiguredRatePercent() {
   var raw = null;
@@ -165,21 +178,21 @@ function hgStripeConfiguredRatePercent() {
   } catch (e) {
     raw = null;
   }
-  if (raw === null || raw === undefined || String(raw).trim() === "") return STRIPE_RATE_PERCENT_DEFAULT;
+  if (raw === null || raw === undefined || String(raw).trim() === "") return HG_STRIPE_RATE_PERCENT_DEFAULT;
   var pct = parseFloat(raw);
-  if (!isFinite(pct) || pct <= 0 || pct > 10) return STRIPE_RATE_PERCENT_DEFAULT;
+  if (!isFinite(pct) || pct <= 0 || pct > 10) return HG_STRIPE_RATE_PERCENT_DEFAULT;
   return pct;
 }
 
-const STRIPE_RATE_BPS = Math.round(hgStripeConfiguredRatePercent() * 100);
-const STRIPE_AMEX_RATE_BPS = Math.round(STRIPE_AMEX_RATE_PERCENT * 100);
+const HG_STRIPE_RATE_BPS = Math.round(hgStripeConfiguredRatePercent() * 100);
+const HG_STRIPE_AMEX_RATE_BPS = Math.round(HG_STRIPE_AMEX_RATE_PERCENT * 100);
 
 function hgFeeChipLabel(bps, fixedCents) {
   return String(bps / 100) + "% + $" + (fixedCents / 100).toFixed(2);
 }
 
-const STRIPE_CARD_FEE_LABEL = hgFeeChipLabel(STRIPE_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
-const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_FEE_CENTS);
+const HG_STRIPE_CARD_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_RATE_BPS, HG_STRIPE_FIXED_FEE_CENTS);
+const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRIPE_FIXED_FEE_CENTS);
 // ---------------------------------------------------------------------------
 
 (function () {
@@ -614,17 +627,17 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
                   </svg>
                   <span>Digital Wallet</span>
                   <div class="hg-wallet-explainer">Apple Pay, Google Pay</div>
-                  <small>${STRIPE_CARD_FEE_LABEL}</small>
+                  <small>${HG_STRIPE_CARD_FEE_LABEL}</small>
                 </button>
               </div>
 
               <div id="${prefix}-card-type-section" style="margin-top:12px;">
                 <label class="hg-label">Card Type</label>
                 <div class="hg-row" id="${prefix}-card-type-row">
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="visa"><span>Visa</span><small>${STRIPE_CARD_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="mastercard"><span>Mastercard</span><small>${STRIPE_CARD_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="amex"><span>Amex</span><small>${STRIPE_AMEX_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="other"><span>Other</span><small>${STRIPE_CARD_FEE_LABEL}</small></button>
+                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="visa"><span>Visa</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
+                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="mastercard"><span>Mastercard</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
+                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="amex"><span>Amex</span><small>${HG_STRIPE_AMEX_FEE_LABEL}</small></button>
+                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="other"><span>Other</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
                 </div>
               </div>
             </div>
@@ -695,10 +708,10 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
     if (!root) return;
     ensureStyle();
 
-    root.innerHTML = `<div class="hg-modal" id="hg-modal">${formHTML("popup", false)}</div>`;
+    root.innerHTML = `<div class="hg-modal" id="hg-modal">${formHTML("hg-popup", false)}</div>`;
 
     var modal = document.getElementById("hg-modal");
-    var closeBtn = document.getElementById("popup-close");
+    var closeBtn = document.getElementById("hg-popup-close");
 
     function hideModal() {
       modal.style.display = "none";
@@ -712,15 +725,15 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
     modal.addEventListener("click", function (e) { if (e.target === modal) hideModal(); });
     if (closeBtn) closeBtn.addEventListener("click", hideModal);
 
-    wireUp("popup", parseHashParams());
+    wireUp("hg-popup", parseHashParams());
   }
 
   function mountEmbedded() {
     var root = document.getElementById("hospitality-guide-order");
     if (!root) return;
     ensureStyle();
-    root.innerHTML = formHTML("embedded", true);
-    wireUp("embedded", parseHashParams());
+    root.innerHTML = formHTML("hg-embedded", true);
+    wireUp("hg-embedded", parseHashParams());
   }
 
   function populateSelect(id, options) {
@@ -1045,9 +1058,9 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
         return { bps: 80, fixedCents: 0, capCents: 500 };
       }
       if (method === "card" && card === "amex") {
-        return { bps: STRIPE_AMEX_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
+        return { bps: HG_STRIPE_AMEX_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
       }
-      return { bps: STRIPE_RATE_BPS, fixedCents: STRIPE_FIXED_FEE_CENTS, capCents: null };
+      return { bps: HG_STRIPE_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
     }
 
     // What the processor deducts from a charge of totalCents - what the org
