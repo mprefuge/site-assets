@@ -91,6 +91,33 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
   terms: { orgName: "Refuge International" }
 };
 
+// Where a buyer is sent with a question - printed in the confirmation email
+// and in the too-large-to-order-online message below. One literal, so the two
+// cannot drift apart if the address ever changes.
+const HOSPITALITY_GUIDE_CONTACT_EMAIL = "info@refugeintl.org";
+
+// The buyer's confirmation email.
+//
+// This is not optional decoration: asking the forms service to send anything
+// (which is what puts the order in front of a human, via the notification to
+// the address above) REQUIRES a confirmation template, and without one the
+// service rejects the whole request with HTTP 400 and creates no record at all.
+// That is exactly how the first version of this failed - silently, because a
+// failed form submission never blocks the payment.
+//
+// The wording matters. This email is sent when the record is created, which is
+// BEFORE the buyer has paid: they are about to be handed to Stripe and may
+// never arrive. So it confirms the order details and says plainly that payment
+// completes it - it must not claim the order is paid for.
+//
+// Available variables include FirstName, FormCode__c, orgName, and every
+// Form__c field on the payload.
+const HOSPITALITY_GUIDE_ORDER_EMAIL = {
+  subject: "Your Hospitality Guide order",
+  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.\n\nIf you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL + " and quote your order reference.\n\n{{orgName}}",
+  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.</p><p>If you have any questions, please email <a href=\"mailto:" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "\">" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order reference.</p><p>{{orgName}}</p>"
+};
+
 // How long to wait for the forms service before giving up on it and going to
 // payment anyway. Deliberately shorter than the payment timeout: this call is
 // the ancillary one, and a buyer must never be kept waiting on it.
@@ -147,7 +174,7 @@ const HOSPITALITY_GUIDE_TIERS = [
 const MAX_PARTICIPANTS = 1000;
 
 // Who a too-large order is sent to. Shown only when the guard above trips.
-const LARGE_ORDER_CONTACT = "info@refugeintl.org";
+const LARGE_ORDER_CONTACT = HOSPITALITY_GUIDE_CONTACT_EMAIL;
 
 // ---------------------------------------------------------------------------
 // DISCOUNT WINDOWS
@@ -1650,7 +1677,12 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         // Asks the service to send its notification, so an order lands in
         // somebody's inbox rather than only in Salesforce. The service unpacks
         // Custom__c into readable rows in that email.
+        //
+        // __emailTemplates is required alongside it - the key has to end in
+        // "Copy" for the service to recognise it - and omitting it fails the
+        // whole submission, not just the email.
         __sendEmail: true,
+        __emailTemplates: { orderCopy: HOSPITALITY_GUIDE_ORDER_EMAIL },
         FirstName__c: firstname,
         LastName__c: lastname,
         Email__c: payload.email,
@@ -1717,7 +1749,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
               var data = null;
               try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
               if (!r.ok) {
-                console.error("Form service error (" + r.status + "):", text);
+                console.error(
+                  "[Hospitality Guide] The order was NOT recorded in Salesforce: the forms service " +
+                  "returned HTTP " + r.status + ". The payment still went ahead. Response: " + text
+                );
                 return null;
               }
               return data;
