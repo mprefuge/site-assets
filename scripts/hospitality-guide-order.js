@@ -91,6 +91,11 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
   terms: { orgName: "Refuge International" }
 };
 
+// Where a buyer is sent with a question - printed in the confirmation email
+// and in the too-large-to-order-online message below. One literal, so the two
+// cannot drift apart if the address ever changes.
+const HOSPITALITY_GUIDE_CONTACT_EMAIL = "info@refugeintl.org";
+
 // The buyer's confirmation email.
 //
 // This is not optional decoration: asking the forms service to send anything
@@ -109,8 +114,8 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
 // Form__c field on the payload.
 const HOSPITALITY_GUIDE_ORDER_EMAIL = {
   subject: "Your Hospitality Guide order",
-  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.\n\nIf you have any questions, simply reply to this email.\n\n{{orgName}}",
-  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.</p><p>If you have any questions, simply reply to this email.</p><p>{{orgName}}</p>"
+  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.\n\nIf you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL + " and quote your order reference.\n\n{{orgName}}",
+  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.</p><p>If you have any questions, please email <a href=\"mailto:" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "\">" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order reference.</p><p>{{orgName}}</p>"
 };
 
 // How long to wait for the forms service before giving up on it and going to
@@ -169,7 +174,7 @@ const HOSPITALITY_GUIDE_TIERS = [
 const MAX_PARTICIPANTS = 1000;
 
 // Who a too-large order is sent to. Shown only when the guard above trips.
-const LARGE_ORDER_CONTACT = "info@refugeintl.org";
+const LARGE_ORDER_CONTACT = HOSPITALITY_GUIDE_CONTACT_EMAIL;
 
 // ---------------------------------------------------------------------------
 // DISCOUNT WINDOWS
