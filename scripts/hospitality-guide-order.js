@@ -2007,8 +2007,38 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     if (modal) modal.style.display = "none";
   };
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function mountAll() {
     mountPopup();     // attaches to #hospitality-guide-popup (if present)
     mountEmbedded();  // attaches to #hospitality-guide-order (if present)
-  });
+  }
+
+  // A marker for whoever is diagnosing a page: it says which build of this file
+  // the browser actually executed. A stale copy from a CDN or browser cache is
+  // indistinguishable from a broken one until you can see this - the form still
+  // renders and still takes payments, it just quietly lacks whatever was added
+  // since. From a page's console:
+  //
+  //     window.HOSPITALITY_GUIDE_ORDER_FORM
+  //
+  // Absent means the copy predates this marker and is definitely stale. Bump
+  // the date when changing this file, so it keeps answering the question.
+  window.HOSPITALITY_GUIDE_ORDER_FORM = {
+    build: "2026-08-29",
+    recordsOrdersInSalesforce: true,
+    formService: submitFormAPI,
+    paymentService: processOrderAPI
+  };
+
+  // Mount on DOMContentLoaded, or immediately when that has already happened.
+  //
+  // The second case is not hypothetical: a script injected into a page after it
+  // has parsed - which is how a code block on a hosted site, or any loader that
+  // appends the tag itself, can end up running - would otherwise wait forever
+  // for an event that has already fired, and the form would silently never
+  // appear.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountAll);
+  } else {
+    mountAll();
+  }
 })();
