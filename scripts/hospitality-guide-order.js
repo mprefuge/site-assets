@@ -19,17 +19,29 @@ const submitFormAPI = 'https://rif-hhh8e6e7cbc2hvdw.eastus-01.azurewebsites.net/
 // silently, which is exactly the sort of thing to remember when this is next
 // edited.
 //
-// One thing worth knowing before reading the payload below: Form__c has NO
-// numeric field. Not one - no int, double, currency or percent anywhere on the
-// object. The participant count therefore cannot be stored as a number, and
-// goes into Custom__c, the JSON blob the forms service already uses for
-// arbitrary per-form data (it unpacks the keys into the notification email, so
-// they arrive as readable rows rather than a wall of JSON). The cost of that is
-// real: a count inside a JSON string cannot be summed or filtered in a
-// Salesforce report. Adding a Participants__c number field to Form__c is the
-// fix, and when it exists this form can write it with a one-line change - see
-// the payload builder.
+// The participant count goes to Quantity__c, a whole-number field added to
+// Form__c for exactly this. It is what makes "how many guides have we sold"
+// answerable with a report rather than by reading records one at a time.
+//
+// It is ALSO still written into the Custom__c JSON, and that duplication is
+// deliberate: Custom__c is what the forms service unpacks into the notification
+// email, so the count stays visible to whoever reads that, and records created
+// before Quantity__c existed stay readable the same way as the ones after.
 // ---------------------------------------------------------------------------
+// Who gets the notification email when an order is submitted.
+//
+// The forms service resolves recipients from the FIRST source that yields any:
+// the submitted data, then this config's notificationEmails, then the function
+// app's AdminEmail setting. There is no merging - naming anyone here REPLACES
+// the AdminEmail default for this form, which is why it is one editable line.
+// Semicolons or commas separate multiple addresses, the same convention the
+// registration configs in the forms repo use.
+//
+// Currently just the testing address, on purpose, while this is being proved
+// out. Before launch this should almost certainly also name whoever fulfils the
+// orders - otherwise Hospitality Guide orders reach nobody but a test inbox.
+const HOSPITALITY_GUIDE_NOTIFICATION_EMAILS = "micah+testing@refugeintl.org";
+
 const HOSPITALITY_GUIDE_FORM_CONFIG = {
   id: "hospitality-guide-order",
   name: "Hospitality Guide Order",
@@ -55,6 +67,8 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
       "CurrentStatus__c",
       "Source__c",
       "WillPay__c",
+      // The participant count, as a number Salesforce can total in a report.
+      "Quantity__c",
       "Custom__c",
       "FormCode__c",
       // Written after Stripe answers, so the Salesforce record points at the
@@ -69,6 +83,11 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
     codeGenerationEnabled: true,
     codeLength: 5
   },
+  // Read straight off this config by the forms service. It has to live here
+  // rather than in the payload: the notification resolver is handed the
+  // FILTERED Salesforce fields, so a top-level NotificationEmail key in the
+  // payload is dropped by the allowlist before anything reads it.
+  notificationEmails: HOSPITALITY_GUIDE_NOTIFICATION_EMAILS,
   terms: { orgName: "Refuge International" }
 };
 
@@ -1622,15 +1641,15 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       // the buyers for this resource are churches. An individual buyer simply
       // leaves it unset.
       //
-      // Custom__c carries everything Form__c has nowhere to put, as JSON. The
-      // participant count lives here for want of a number field on the object;
-      // when a Participants__c is added, write it alongside rather than moving
-      // it, so historical records stay readable.
+      // Quantity__c carries the participant count as a number, so it can be
+      // summed and filtered in a report. Custom__c carries it again, along with
+      // everything Form__c has nowhere else to put, because that is what the
+      // notification email is built from.
       var formPayload = {
         __formConfig: HOSPITALITY_GUIDE_FORM_CONFIG,
-        // Asks the service to send its notification to the admin recipients, so
-        // an order lands in somebody's inbox rather than only in Salesforce. The
-        // service unpacks Custom__c into readable rows in that email.
+        // Asks the service to send its notification, so an order lands in
+        // somebody's inbox rather than only in Salesforce. The service unpacks
+        // Custom__c into readable rows in that email.
         __sendEmail: true,
         FirstName__c: firstname,
         LastName__c: lastname,
@@ -1647,6 +1666,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         CurrentStatus__c: "Submitted",
         WillPay__c: true,
         Source__c: "Hospitality Guide order form",
+        Quantity__c: order.qty,
         Custom__c: JSON.stringify({
           Product: "Hospitality Guide",
           Participants: order.qty,
