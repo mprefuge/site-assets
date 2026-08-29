@@ -96,11 +96,6 @@ const HOSPITALITY_GUIDE_PROMOS = [
     // Shown under the badge, and again above the pay button. This is the promise
     // the buyer is agreeing to, so it says plainly that the card is charged now.
     note: "Your card is charged today to reserve your order. Guides and printed discussion workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").",
-    // What the charge is called in Stripe, Salesforce and QuickBooks. Kept
-    // constant per window on purpose: it is a reporting key, not a description
-    // of one order, so the participant count stays out of it and lives in the
-    // order metadata instead.
-    category: "Hospitality Guide Pre-Order",
     fulfillment: "ships-at-release"
   },
   {
@@ -110,13 +105,21 @@ const HOSPITALITY_GUIDE_PROMOS = [
     endsAt: "2026-11-15T00:00:00-05:00",
     badge: "Launch month - 15% off",
     note: "Launch pricing, for the first month after release. Guides and printed discussion workbooks ship after your order is placed.",
-    category: "Hospitality Guide",
     fulfillment: "ships-on-order"
   }
 ];
 
-// Used when no discount window is open.
+// The campaign every order is filed under, in Stripe, Salesforce and
+// QuickBooks - and the product name shown on the Stripe payment page.
+//
+// One value for the life of the product, deliberately: it is a reporting key,
+// so a pre-order and a launch-month order and a full-price order all belong to
+// the same campaign and add up in one place. What distinguishes them travels in
+// the order metadata instead - discount_promo, discount_percent and fulfillment
+// - where it can be read per order without splitting the campaign.
 const HOSPITALITY_GUIDE_CATEGORY = "Hospitality Guide";
+
+// Used when no discount window is open.
 const HOSPITALITY_GUIDE_FULFILLMENT = "ships-on-order";
 
 // Shipping is included in the prices above. If the printer starts billing
@@ -690,16 +693,37 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     }
   }
 
-  // Parameters travel on the hash, the same way the donation form takes them:
+  // Parameters are read from the page's query string AND from the hash, so a
+  // link can carry them either way round:
+  //     .../hospitality-guide?testMode=1&testKey=<key>
   //     .../hospitality-guide#order-guide?testMode=1&testKey=<key>
-  function parseHashParams() {
+  //
+  // The donation form reads the hash only, because its parameters ride on the
+  // same #donate fragment that opens its modal. This form is embedded in the
+  // page rather than opened by a fragment, so the query string is the more
+  // natural place to put them and the one an operator reaches for first - a
+  // keyed test link that silently did nothing would be a trap, and the whole
+  // point of the key is that the operator can tell test from live.
+  //
+  // Both are read rather than one or the other, and the hash wins where they
+  // disagree: it is the more specific of the two, and the form of link the
+  // donation form established.
+  function parseParams() {
     var params = {};
+
+    function absorb(queryString) {
+      if (!queryString) return;
+      new URLSearchParams(queryString).forEach(function (value, key) {
+        params[key] = value;
+      });
+    }
+
+    absorb((window.location.search || "").replace(/^\?/, ""));
+
     var hash = window.location.hash || "";
-    if (hash.indexOf("?") === -1) return params;
-    var urlParams = new URLSearchParams(hash.split("?")[1]);
-    urlParams.forEach(function (value, key) {
-      params[key] = value;
-    });
+    var marker = hash.indexOf("?");
+    if (marker !== -1) absorb(hash.slice(marker + 1));
+
     return params;
   }
 
@@ -725,7 +749,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     modal.addEventListener("click", function (e) { if (e.target === modal) hideModal(); });
     if (closeBtn) closeBtn.addEventListener("click", hideModal);
 
-    wireUp("hg-popup", parseHashParams());
+    wireUp("hg-popup", parseParams());
   }
 
   function mountEmbedded() {
@@ -733,7 +757,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     if (!root) return;
     ensureStyle();
     root.innerHTML = formHTML("hg-embedded", true);
-    wireUp("hg-embedded", parseHashParams());
+    wireUp("hg-embedded", parseParams());
   }
 
   function populateSelect(id, options) {
@@ -1438,10 +1462,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         feeAmount: totals.coveredFeeCents,
         // Purchases are never recurring.
         frequency: "onetime",
-        // Doubles as the product name on the Stripe Checkout page, so it is kept
-        // constant per discount window: it is a reporting key, and the order's
-        // own details live in metadata below.
-        category: promo ? promo.category : HOSPITALITY_GUIDE_CATEGORY,
+        // The campaign, and the product name on the Stripe Checkout page. The
+        // same for every order whatever window it was placed in; the window
+        // itself is recorded in metadata below.
+        category: HOSPITALITY_GUIDE_CATEGORY,
         // Everything needed to fulfil and reconcile the order, carried through
         // to Stripe metadata (and from there to Salesforce and QuickBooks).
         // These are the numbers the printer's order and the packing list are
