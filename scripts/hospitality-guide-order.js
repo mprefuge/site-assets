@@ -196,7 +196,15 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
   var style = `
   <style id="hospitality-guide-style">
     .hg-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.48); align-items:center; justify-content:center; padding:16px; }
-    .hg-panel { background:#fff; width:100%; max-width:760px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); }
+    /* The form paints its own light surfaces, so it has to state its own text
+       colour too. Inheriting it from the host page looked fine on a white page
+       and went white-on-white on a dark-themed one: the card titles, the
+       "N participants x $40" line and its amount, and "Order total" all
+       vanished, leaving a form that appeared to have lost the count. The
+       colour-scheme is pinned for the same reason - it is what keeps the
+       browser painting the text inside inputs, selects and the native
+       checkbox dark, whatever scheme the surrounding page declares. */
+    .hg-panel { background:#fff; color:#1a1a1a; color-scheme:light; width:100%; max-width:760px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,.15); }
     .hg-modal .hg-panel { max-height:92vh; overflow-y:auto; }
     .hg-header { display:flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; background:#fff; color:#000; border-bottom:4px solid ${BRAND_PRIMARY}; border-radius:24px 24px 0 0; }
     .hg-header img { height:56px; }
@@ -211,10 +219,13 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
     .hg-grid-2 { grid-template-columns:1fr 1fr; }
     .hg-grid-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
     .hg-label { display:block; font-size:14px; font-weight:600; margin-bottom:6px; color:#222; }
-    .hg-input, .hg-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
+    /* Form controls do not inherit colour from an ancestor by default, so
+       stating it on the panel above is not enough for these. */
+    .hg-input, .hg-select { width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:10px; background:#fafbfc; color:#1a1a1a; font-size:16px; outline:none; transition:.2s border-color,.2s box-shadow,.2s background; box-sizing:border-box; }
+    .hg-input::placeholder { color:#8b8b8b; opacity:1; }
     .hg-input:focus, .hg-select:focus { border-color:${BRAND_PRIMARY}; box-shadow:0 0 0 2px #BD213533; background:#fff; }
     .hg-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
-    .hg-chip { padding:12px 18px; border-radius:8px; border:1.5px solid #d4d4d4; background:#fff; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
+    .hg-chip { padding:12px 18px; border-radius:8px; border:1.5px solid #d4d4d4; background:#fff; color:#1a1a1a; font-weight:700; cursor:pointer; transition:.2s; font-size:16px; }
     .hg-chip:hover { border-color:${BRAND_PRIMARY}; color:${BRAND_PRIMARY}; }
     .hg-chip.selected { background:${BRAND_PRIMARY}; border-color:${BRAND_PRIMARY}; color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
 
@@ -237,7 +248,7 @@ const STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FIXED_
 
     /* Tier table */
     .hg-tiers { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
-    .hg-tier { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:10px; background:#fff; cursor:pointer; font-size:14px; text-align:left; transition:.2s; }
+    .hg-tier { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:10px; background:#fff; color:#1a1a1a; cursor:pointer; font-size:14px; text-align:left; transition:.2s; }
     .hg-tier:hover { border-color:${BRAND_PRIMARY}; }
     .hg-tier.active { border-color:${BRAND_PRIMARY}; background:#fdf1f3; box-shadow:0 2px 10px rgba(189,33,53,.12); }
     .hg-tier-range { color:#333; font-weight:600; }
