@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hospitality Guide order form - local preview</title>
+
+<!--
+  LOCAL PREVIEW HARNESS - development only. Do not embed this page anywhere.
+  It is here so the order form can be exercised in a real browser before the
+  script is pasted into the live page.
+
+  Run it:
+      python3 -m http.server 8000        (from the repository root)
+      open http://localhost:8000/dev/hospitality-guide-preview.html
+
+  Opening the file directly with file:// also works for everything except the
+  address lookup, which needs a real origin to call Nominatim from.
+
+  THE PAYMENT SERVICE IS MOCKED BY DEFAULT, and that default is the point of
+  this file. The form posts to the live payment function, which mints a real
+  Stripe Checkout Session - and the mode it uses is the service's own
+  configuration, not ours, so a curious click on "Pay" against the real
+  endpoint can produce a live session for a four-figure order. Mocked, the
+  request is intercepted before it leaves the page and answered with a
+  synthetic test session, so the whole flow up to the redirect can be walked
+  through as many times as you like with nothing created anywhere.
+
+  To exercise the real service instead, tick "Call the real payment service"
+  below AND load the page with a keyed test-mode hash, which is what tells the
+  service to use its Stripe test keys:
+
+      .../dev/hospitality-guide-preview.html#order-guide?testMode=1&testKey=<operator key>
+
+  The key is the payment function's TEST_MODE_OVERRIDE_KEY. Without it the
+  service routes by its own configuration and the order is live. The form's own
+  test-mode indicator will tell you which mode the session actually came back
+  in, and stops before the redirect if that disagrees with what was asked for.
+-->
+
+<style>
+  body { margin:0; background:#f4f4f6; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#1a1a1a; }
+  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:#666; font-size:14px; margin-bottom:20px; }
+  .panel { background:#fff; border:1px solid #e3e3e8; border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .panel h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:#666; margin:0 0 12px; }
+  .row { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+  label.opt { display:inline-flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; }
+  .warn { margin-top:12px; padding:10px 12px; border-radius:8px; background:#fff4d6; border:1px solid #e0b64d; font-size:13px; line-height:1.45; }
+  .warn[hidden] { display:none; }
+  a.scenario { display:inline-block; font-size:13px; padding:6px 10px; border:1px solid #d5d5dd; border-radius:999px; background:#fff; color:#BD2135; text-decoration:none; }
+  a.scenario:hover { border-color:#BD2135; }
+  #log { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; white-space:pre-wrap; background:#1e1e24; color:#e6e6ea; border-radius:8px; padding:12px; max-height:280px; overflow:auto; }
+  #log:empty::before { content:"Nothing posted yet. Fill the form in and press Pay."; color:#8b8b96; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hospitality Guide order form &mdash; local preview</h1>
+  <div class="sub">Development harness for <code>scripts/hospitality-guide-order.js</code>. Not part of the live site.</div>
+
+  <div class="panel">
+    <h2>Payment service</h2>
+    <div class="row">
+      <label class="opt"><input type="checkbox" id="use-real-api"> Call the real payment service</label>
+      <span class="sub" style="margin:0;">Off = the request is intercepted and answered with a synthetic Stripe test session.</span>
+    </div>
+    <div class="warn" id="real-api-warning" hidden>
+      <strong>Live endpoint.</strong> Pressing Pay will ask the real payment function for a Checkout Session. Load this page with
+      <code>#order-guide?testMode=1&amp;testKey=&lt;operator key&gt;</code> first, or the session may be created in live mode.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Scenarios</h2>
+    <div class="row">
+      <a class="scenario" href="?#order-guide">Today (pre-order, 25%)</a>
+      <a class="scenario" href="?#order-guide?testMode=1&amp;testKey=preview&amp;asOf=2026-10-20T12:00:00-04:00">Launch month (15%)</a>
+      <a class="scenario" href="?#order-guide?testMode=1&amp;testKey=preview&amp;asOf=2026-12-01T12:00:00-05:00">After both windows (full price)</a>
+      <a class="scenario" href="?#order-guide?participants=24">Pre-filled: 24 participants</a>
+    </div>
+    <div class="sub" style="margin:12px 0 0;">The date override only applies alongside a test key &mdash; that is deliberate, since the date decides the price. These links use a dummy key, which is enough for the form's own clock but will not authorise test mode at the real service.</div>
+  </div>
+
+  <!-- The embed itself. This is the only part that goes on the live page. -->
+  <div id="hospitality-guide-order"></div>
+
+  <div class="panel">
+    <h2>Last payload posted</h2>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+  // Wired before the form loads so the very first submission is caught.
+  (function () {
+    var realApiToggle = document.getElementById("use-real-api");
+    var warning = document.getElementById("real-api-warning");
+    var log = document.getElementById("log");
+
+    realApiToggle.addEventListener("change", function () {
+      warning.hidden = !realApiToggle.checked;
+    });
+
+    var realFetch = window.fetch.bind(window);
+
+    window.fetch = function (url, options) {
+      var isOrderPost = typeof url === "string" && url.indexOf("/api/transaction") !== -1;
+      if (!isOrderPost) return realFetch(url, options);
+
+      var payload = {};
+      try { payload = JSON.parse(options.body); } catch (e) { payload = { unparseable: String(options && options.body) }; }
+      log.textContent = JSON.stringify(payload, null, 2);
+
+      if (realApiToggle.checked) {
+        console.log("[preview] posting to the REAL payment service");
+        return realFetch(url, options);
+      }
+
+      console.log("[preview] intercepted; answering with a synthetic session");
+      // Shaped like the real response, and answering in whichever mode the form
+      // asked for, so the happy path runs end to end: the form's own check
+      // agrees and it hands off to the "checkout" page. To see the other side
+      // of that check - the hard stop when the service answers in a mode the
+      // form did not ask for - flip the `wantsTest` line to its opposite.
+      var wantsTest = payload.livemode === false;
+      var session = wantsTest
+        ? { id: "cs_test_preview", url: "checkout-stub.html?session=cs_test_preview", livemode: false }
+        : { id: "cs_live_preview", url: "checkout-stub.html?session=cs_live_preview", livemode: true };
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: function () { return Promise.resolve(JSON.stringify(session)); }
+      });
+    };
+  })();
+</script>
+
+<script src="../scripts/hospitality-guide-order.js"></script>
+</body>
+</html>
