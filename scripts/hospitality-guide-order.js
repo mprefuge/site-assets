@@ -37,10 +37,15 @@ const submitFormAPI = 'https://rif-hhh8e6e7cbc2hvdw.eastus-01.azurewebsites.net/
 // Semicolons or commas separate multiple addresses, the same convention the
 // registration configs in the forms repo use.
 //
-// Currently just the testing address, on purpose, while this is being proved
-// out. Before launch this should almost certainly also name whoever fulfils the
-// orders - otherwise Hospitality Guide orders reach nobody but a test inbox.
-const HOSPITALITY_GUIDE_NOTIFICATION_EMAILS = "micah+testing@refugeintl.org";
+// Matt owns the product and info@ is the address the buyer is pointed at, so
+// both see every order as it arrives. The testing alias stays on the list while
+// this is being proved out and can come off in the same edit later - though it
+// costs nothing to leave, since it is a filtered alias.
+//
+// A live order and a test order look identical in this inbox, which is worth
+// remembering while testing: everyone on this list sees the test ones too.
+const HOSPITALITY_GUIDE_NOTIFICATION_EMAILS =
+  "mattr@refugeintl.org;info@refugeintl.org;micah@refugeintl.org";
 
 const HOSPITALITY_GUIDE_FORM_CONFIG = {
   id: "hospitality-guide-order",
