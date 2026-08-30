@@ -45,7 +45,7 @@ const submitFormAPI = 'https://rif-hhh8e6e7cbc2hvdw.eastus-01.azurewebsites.net/
 // A live order and a test order look identical in this inbox, which is worth
 // remembering while testing: everyone on this list sees the test ones too.
 const HOSPITALITY_GUIDE_NOTIFICATION_EMAILS =
-  "mattr@refugeintl.org;info@refugeintl.org;micah+testing@refugeintl.org";
+  "mattr@refugeintl.org;info@refugeintl.org;micah@refugeintl.org";
 
 const HOSPITALITY_GUIDE_FORM_CONFIG = {
   id: "hospitality-guide-order",
