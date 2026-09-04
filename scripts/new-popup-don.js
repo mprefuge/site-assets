@@ -857,6 +857,19 @@ const STRIPE_AMEX_FEE_LABEL = stripeFeeChipLabel(STRIPE_AMEX_RATE_BPS, STRIPE_FI
     var isTributeSelected = false;
     
     // Category configuration - easily adjustable mapping of frequency to categories
+    //
+    // These strings are not display-only. They ride to the payment service as
+    // `category`, land on the Stripe Checkout Session as `metadata.category`, and the
+    // service maps them onto the QuickBooks Product/Service the sales receipt is booked
+    // to (mprefuge/payment-processor, src/services/qbo/categoryProductService.ts).
+    //
+    // So: adding a Category here is only half the job. Until it is added on that side
+    // too, gifts under the new Category book to the generic default item
+    // (QBO_DEFAULT_SALES_ITEM, "Stripe Transaction") instead of their own line of
+    // income. Renaming one here without renaming it there does the same thing silently.
+    // The mapping is a strict allowlist on purpose - donor-typed text from
+    // "Other (specify)" must never become a QuickBooks item - so a near-miss in spelling
+    // is a miss.
     var categoryConfig = {
       onetime: [
         "General Giving",
