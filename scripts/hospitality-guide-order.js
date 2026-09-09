@@ -182,72 +182,99 @@ const MAX_PARTICIPANTS = 1000;
 const LARGE_ORDER_CONTACT = HOSPITALITY_GUIDE_CONTACT_EMAIL;
 
 // ---------------------------------------------------------------------------
-// DISCOUNT WINDOWS
+// DISCOUNTS - discount codes, not automatic windows.
 //
-// Two windows were agreed, and both are time-limited:
+// This used to be a table of date windows in this file: 25% off automatically
+// until release, then 15% for the launch month. It is now a code the buyer
+// types, checked against Salesforce, because the discount had to become
+// something staff could add, change and switch off themselves - a partner code
+// for a podcast, a conference rate, a code that runs for one week - without a
+// developer editing this file and redeploying it.
 //
-//   Pre-order  25% off, from now until the resource is released. Payment is
-//              taken at order time - the discount is the incentive to buy early
-//              - and the guides ship at release.
-//   Launch     15% off, for the first month after release, promoted through
-//              podcasts, social media and the SBC/PCA/Spire contact lists.
+// Codes are Discount_Code__c records. Each one carries its own percentage, its
+// own start and end dates and an Active tick, so "give Russell Moore's audience
+// 25% until the end of October" is a record somebody creates in Salesforce, not
+// a change here. See the Discount Codes section of the mprefuge/forms README.
 //
-// The discount comes off the ORDER TOTAL, not off each participant's price.
-// Matt asked for it that way and it is the simpler of the two to reason about;
-// at these numbers the two are the same figure anyway, give or take a rounding
-// cent on an odd total.
+// WHAT REPLACING THE AUTOMATIC 25% MEANS IN PRACTICE: nobody gets a discount now
+// unless they have a code. If the pre-order discount is still meant to be open
+// to everyone, that is a code (say PREORDER25) published on the guide page
+// alongside the form - the same discount, but visible as a deliberate offer that
+// can be ended by unticking a box.
 //
-// EDIT THESE DATES. The release date is a mid-October target, not a confirmed
-// date - Chip's video and the printed workbooks both have to land first - so
-// the two boundaries below are placeholders and MUST be reset once the release
-// date is fixed. Nothing else in this file needs to change with them.
+// The discount still comes off the ORDER TOTAL rather than off each
+// participant's price, which is how it was agreed and the simpler of the two to
+// reason about.
 //
-// Each boundary is an exact instant with an explicit UTC offset, so the switch
-// happens at midnight Eastern for every buyer rather than at midnight in
-// whatever timezone their laptop happens to be set to. Mind the offset: -04:00
-// is EDT (through 1 Nov 2026), -05:00 is EST after it.
+// The code is checked server-side, and the list of codes is never sent to the
+// browser: a buyer can test one code at a time, and cannot read the others out
+// of this script.
+// ---------------------------------------------------------------------------
+
+// The forms service endpoint that checks a code. Same Function App as the order
+// record below, which is why there is nothing new to deploy or configure to
+// reach it.
+const discountCodeAPI = submitFormAPI + "/discount-code";
+
+// Which product's codes this form may redeem. A code is scoped to a product in
+// Salesforce, so a Hospitality Guide code cannot later be used against
+// something else, and vice versa.
+const HOSPITALITY_GUIDE_DISCOUNT_PRODUCT = "hospitality-guide";
+
+// How long to wait for the code check. Short: the buyer is sitting there
+// watching the button, and a code that cannot be checked simply is not applied -
+// they can retry, and the form says so rather than pretending.
+const DISCOUNT_LOOKUP_TIMEOUT_MS = 10000;
+
+// ---------------------------------------------------------------------------
+// FULFILMENT
 //
-// Windows are tried in order and the first one open today wins, so they must not
-// overlap. When none is open the guide simply sells at full tier price - that is
-// the intended end state after the launch month, not a fault.
+// Deliberately NOT folded into discount codes, though it used to travel with the
+// promo windows.
+//
+// Whether an order ships now or at release is a fact about the calendar, not
+// about who typed which code: an order placed before the guide exists ships at
+// release whether it was discounted or not, and an order placed afterwards ships
+// on order. Attaching it to codes would have meant a full-price pre-order was
+// silently labelled "ships-on-order" and promised delivery of something that had
+// not been printed yet.
+//
+// So the release date lives on here as one boundary, and it drives the shipping
+// promise shown to the buyer, the `fulfillment` value in the Stripe metadata,
+// and the Fulfillment line on the Salesforce record.
+//
+// EDIT THIS DATE. Mid-October is a target, not a confirmed date - Chip's video
+// and the printed workbooks both have to land first - so it is a placeholder and
+// MUST be reset once the release date is fixed.
+//
+// It is an exact instant with an explicit UTC offset, so the switch happens at
+// midnight Eastern for every buyer rather than at midnight in whatever timezone
+// their laptop is set to. Mind the offset: -04:00 is EDT (through 1 Nov 2026),
+// -05:00 is EST after it.
 // ---------------------------------------------------------------------------
 const HOSPITALITY_GUIDE_RELEASE_TARGET = "mid-October 2026";
+const HOSPITALITY_GUIDE_RELEASE_AT = "2026-10-15T00:00:00-04:00";
 
-const HOSPITALITY_GUIDE_PROMOS = [
-  {
-    id: "preorder",
-    percentOff: 25,
-    // Open from the moment this form goes up until release.
-    startsAt: null,
-    endsAt: "2026-10-15T00:00:00-04:00",
-    badge: "Pre-order pricing - 25% off",
-    // Shown under the badge, and again above the pay button. This is the promise
-    // the buyer is agreeing to, so it says plainly that the card is charged now.
-    note: "Your card is charged today to reserve your order. Guides and printed discussion workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").",
-    fulfillment: "ships-at-release"
-  },
-  {
-    id: "launch",
-    percentOff: 15,
-    startsAt: "2026-10-15T00:00:00-04:00",
-    endsAt: "2026-11-15T00:00:00-05:00",
-    badge: "Launch month - 15% off",
-    note: "Launch pricing, for the first month after release. Guides and printed discussion workbooks ship after your order is placed.",
-    fulfillment: "ships-on-order"
-  }
-];
+// The promise made to a buyer ordering before the guide is out. This is what
+// they are agreeing to, so it says plainly that the card is charged today.
+const HOSPITALITY_GUIDE_PREORDER_NOTE =
+  "Your card is charged today to reserve your order. Guides and printed discussion workbooks ship when the resource releases (target: " +
+  HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
+
+const HOSPITALITY_GUIDE_INSTOCK_NOTE =
+  "Guides and printed discussion workbooks ship after your order is placed.";
 
 // The campaign every order is filed under, in Stripe, Salesforce and
 // QuickBooks - and the product name shown on the Stripe payment page.
 //
 // One value for the life of the product, deliberately: it is a reporting key,
-// so a pre-order and a launch-month order and a full-price order all belong to
+// so a pre-order and a discounted order and a full-price order all belong to
 // the same campaign and add up in one place. What distinguishes them travels in
-// the order metadata instead - discount_promo, discount_percent and fulfillment
+// the order metadata instead - discount_code, discount_percent and fulfillment
 // - where it can be read per order without splitting the campaign.
 const HOSPITALITY_GUIDE_CATEGORY = "Hospitality Guide";
 
-// Used when no discount window is open.
+// Used once the guide has been released.
 const HOSPITALITY_GUIDE_FULFILLMENT = "ships-on-order";
 
 // Shipping is included in the prices above. If the printer starts billing
@@ -373,11 +400,32 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-chip:hover { border-color:${BRAND_PRIMARY}; color:${BRAND_PRIMARY}; }
     .hg-chip.selected { background:${BRAND_PRIMARY}; border-color:${BRAND_PRIMARY}; color:#fff; box-shadow:0 2px 10px rgba(189,33,53,.25); }
 
-    /* Promo banner */
-    .hg-promo { display:flex; flex-direction:column; gap:6px; align-items:center; text-align:center; padding:14px 16px; border-radius:12px; background:#fdf1f3; border:1.5px solid ${BRAND_PRIMARY}; margin-bottom:18px; }
-    .hg-promo[hidden] { display:none; }
-    .hg-promo-badge { font-weight:800; color:${BRAND_PRIMARY}; letter-spacing:.02em; }
-    .hg-promo-note { font-size:13px; color:#444; line-height:1.45; }
+    /* Pre-order notice banner */
+    .hg-notice { display:flex; flex-direction:column; gap:6px; align-items:center; text-align:center; padding:14px 16px; border-radius:12px; background:#fdf1f3; border:1.5px solid ${BRAND_PRIMARY}; margin-bottom:18px; }
+    .hg-notice[hidden] { display:none; }
+    .hg-notice-badge { font-weight:800; color:${BRAND_PRIMARY}; letter-spacing:.02em; }
+    .hg-notice-note { font-size:13px; color:#444; line-height:1.45; }
+
+    /* Discount code entry */
+    .hg-code { margin-bottom:14px; }
+    .hg-code[hidden] { display:none; }
+    .hg-code-optional { font-weight:500; color:#777; }
+    .hg-code-row { display:flex; gap:8px; align-items:stretch; }
+    /* The code itself reads as a code: fixed pitch, spaced, upper case, so a
+       transposed character is visible before the buyer presses Apply. */
+    .hg-code-input { flex:1; text-transform:uppercase; letter-spacing:.06em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .hg-code-input::placeholder { text-transform:none; letter-spacing:normal; font-family:inherit; }
+    .hg-code-btn { flex:0 0 auto; padding:12px 20px; }
+    .hg-code-status { font-size:13px; font-weight:600; margin-top:6px; min-height:18px; }
+    .hg-code-status.hg-code-error { color:${BRAND_PRIMARY}; }
+    .hg-code-status.hg-code-working { color:#555; font-weight:500; }
+    .hg-code-applied { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:12px; background:#fdf1f3; border:1.5px solid ${BRAND_PRIMARY}; margin-bottom:14px; }
+    .hg-code-applied[hidden] { display:none; }
+    .hg-code-applied-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .hg-code-applied-badge { font-weight:800; color:${BRAND_PRIMARY}; }
+    .hg-code-applied-label { font-size:13px; color:#444; overflow-wrap:anywhere; }
+    .hg-code-remove { flex:0 0 auto; border:0; background:transparent; color:${BRAND_PRIMARY}; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:4px; }
+    .hg-code-remove:hover { opacity:.8; }
 
     /* Quantity stepper */
     .hg-qty-wrap { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:8px; }
@@ -404,7 +452,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-line { display:flex; justify-content:space-between; gap:12px; font-size:15px; margin-bottom:6px; }
     /* Load-bearing: a line's own display:flex beats the [hidden] attribute's
        default display:none, so without this the discount line reads "-$0.00"
-       outside a promotion and the shipping line quotes a $0.00 charge. */
+       with no discount code applied and the shipping line quotes a $0.00 charge. */
     .hg-line[hidden] { display:none; }
     .hg-line-muted { color:#555; font-size:13px; }
     .hg-line-discount { color:${BRAND_PRIMARY}; font-weight:700; }
@@ -475,6 +523,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       .hg-tiers { grid-template-columns:1fr; }
       .hg-payment-grid { grid-template-columns:1fr; }
       .hg-payment-chip { min-height:96px; }
+      /* Side by side, the code field and Apply both get too narrow to use on a
+         phone - the field ends up showing about six characters. */
+      .hg-code-row { flex-direction:column; }
+      .hg-code-btn { width:100%; }
       .hg-cta { border-radius:999px; font-size:18px; }
       .hg-nav-buttons { flex-direction:column-reverse; align-items:stretch; }
     }
@@ -511,32 +563,46 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     return -1;
   }
 
-  // A window is open when now is at or after startsAt (or it has no start) and
-  // strictly before endsAt.
+  // Whether the guide has been released yet, judged against the one boundary
+  // above. This decides the shipping promise, not the price.
   //
-  // A boundary that will not parse is treated as "this window is not open",
-  // never as "no limit". A typo in a date must fall back to full price rather
-  // than leave 25% off running forever.
-  function promoOpenAt(promo, nowMs) {
-    if (!promo) return false;
-    if (promo.startsAt) {
-      var starts = Date.parse(promo.startsAt);
-      if (!isFinite(starts)) return false;
-      if (nowMs < starts) return false;
-    }
-    if (promo.endsAt) {
-      var ends = Date.parse(promo.endsAt);
-      if (!isFinite(ends)) return false;
-      if (nowMs >= ends) return false;
-    }
-    return true;
+  // A boundary that will not parse is treated as "not released yet", which is
+  // the safe way round: it promises delivery at release rather than promising to
+  // ship today something that may not exist.
+  function releasedAt(nowMs) {
+    var releasesAt = Date.parse(HOSPITALITY_GUIDE_RELEASE_AT);
+    if (!isFinite(releasesAt)) return false;
+    return nowMs >= releasesAt;
   }
 
-  function activePromoAt(nowMs) {
-    for (var i = 0; i < HOSPITALITY_GUIDE_PROMOS.length; i++) {
-      if (promoOpenAt(HOSPITALITY_GUIDE_PROMOS[i], nowMs)) return HOSPITALITY_GUIDE_PROMOS[i];
-    }
-    return null;
+  function fulfillmentAt(nowMs) {
+    return releasedAt(nowMs)
+      ? { id: HOSPITALITY_GUIDE_FULFILLMENT, note: HOSPITALITY_GUIDE_INSTOCK_NOTE }
+      : { id: "ships-at-release", note: HOSPITALITY_GUIDE_PREORDER_NOTE };
+  }
+
+  // Reduce whatever was typed to the redeemable character set, exactly as the
+  // forms service does before it looks the code up. Doing it here as well means
+  // the code shown back to the buyer is the one that was actually checked, and
+  // that "russell moore" and "RUSSELLMOORE" are visibly the same code rather
+  // than two attempts.
+  function normalizeDiscountCode(raw) {
+    if (raw === null || raw === undefined) return "";
+    return String(raw).toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 40);
+  }
+
+  // The percentage a discount is worth, or 0 for no discount.
+  //
+  // Anything outside 1-100 counts for nothing rather than being clamped. The
+  // service refuses to return such a value in the first place; this is the
+  // second lock on the same door, and the failure it guards against - a total
+  // that goes up, or a "discount" that takes nothing off - is one the buyer
+  // would see on the pay button.
+  function discountPercentOff(discount) {
+    if (!discount) return 0;
+    var pct = Number(discount.percentOff);
+    if (!isFinite(pct) || pct < 1 || pct > 100) return 0;
+    return Math.round(pct);
   }
 
   // The whole order, priced. One function, so the tier table, the running total,
@@ -544,12 +610,12 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
   //
   // The discount is taken off the order total, as agreed, and rounded to the
   // whole cent. Shipping is added after the discount: a freight charge is not
-  // part of what the launch promotion discounts.
-  function priceOrder(qty, promo) {
+  // part of what a discount code discounts.
+  function priceOrder(qty, discount) {
     var tier = qty > 0 ? tierFor(qty) : null;
     var unitCents = tier ? tier.unitCents : 0;
     var subtotalCents = tier ? qty * unitCents : 0;
-    var percentOff = promo ? promo.percentOff : 0;
+    var percentOff = discountPercentOff(discount);
     var discountCents = Math.round(subtotalCents * percentOff / 100);
     var shippingCents = subtotalCents > 0 ? HOSPITALITY_GUIDE_SHIPPING_CENTS : 0;
     return {
@@ -581,9 +647,26 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           <div class="hg-title">Order the Hospitality Guide</div>
           <div class="hg-subtitle">Pricing is per participant, and the price per person drops as your group grows. Every order includes a printed discussion workbook for each participant.</div>
 
-          <div class="hg-promo" id="${prefix}-promo" hidden>
-            <div class="hg-promo-badge" id="${prefix}-promo-badge"></div>
-            <div class="hg-promo-note" id="${prefix}-promo-note"></div>
+          <div class="hg-notice" id="${prefix}-notice" hidden>
+            <div class="hg-notice-badge" id="${prefix}-notice-badge"></div>
+            <div class="hg-notice-note" id="${prefix}-notice-note"></div>
+          </div>
+
+          <div class="hg-code" id="${prefix}-code-block">
+            <label class="hg-label" for="${prefix}-code">Discount code <span class="hg-code-optional">(optional)</span></label>
+            <div class="hg-code-row">
+              <input class="hg-input hg-code-input" id="${prefix}-code" placeholder="Enter a code" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="${prefix}-code-status">
+              <button type="button" class="hg-btn hg-code-btn" id="${prefix}-code-apply">Apply</button>
+            </div>
+            <div id="${prefix}-code-status" class="hg-code-status" role="status" aria-live="polite"></div>
+          </div>
+
+          <div class="hg-code-applied" id="${prefix}-code-applied" hidden>
+            <div class="hg-code-applied-text">
+              <span class="hg-code-applied-badge" id="${prefix}-code-applied-badge"></span>
+              <span class="hg-code-applied-label" id="${prefix}-code-applied-label"></span>
+            </div>
+            <button type="button" class="hg-code-remove" id="${prefix}-code-remove">Remove</button>
           </div>
 
           <label class="hg-label" for="${prefix}-qty" style="text-align:center;">How many participants?</label>
@@ -926,13 +1009,13 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       return testModeKey() !== "";
     }
 
-    // The clock the discount windows are judged against.
+    // The clock the release boundary is judged against.
     //
-    // ?asOf=<date> lets QA see what the form will look like during the launch
-    // window, or after every window has closed, without editing the file. It is
-    // gated behind the same operator key as test mode on purpose: the date
-    // decides the price, so an ungated override would be a link that hands
-    // anyone 25% off long after the pre-order window shut.
+    // ?asOf=<date> lets QA see what the form looks like before and after
+    // release without editing the file. It stays gated behind the operator key
+    // even though the date no longer decides the price: it decides what the
+    // buyer is promised about shipping, and an ungated override would be a link
+    // that tells somebody their order ships today when it cannot.
     function nowMs() {
       if (isTestModeRequested() && params && typeof params.asOf === "string") {
         var pinned = Date.parse(params.asOf);
@@ -942,11 +1025,16 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     }
 
     // Resolved fresh on every recalculation rather than cached at load, so a page
-    // left open across midnight on the day a window closes reprices itself
-    // instead of quietly holding an expired discount.
-    function currentPromo() {
-      return activePromoAt(nowMs());
+    // left open across the release boundary updates its shipping promise instead
+    // of holding yesterday's.
+    function currentFulfillment() {
+      return fulfillmentAt(nowMs());
     }
+
+    // The discount the buyer has successfully applied, as the service returned
+    // it: { code, percentOff, label }. Null until a code is applied, and back to
+    // null the moment one is removed or stops being valid.
+    var appliedDiscount = null;
 
     // --- quantity -----------------------------------------------------------
     var qtyInput = el("qty");
@@ -1002,7 +1090,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     // is genuinely within reach, and it says so in the buyer's terms: the price
     // per person, and - where the tier break more than pays for the extra copies
     // - that the larger order actually costs less in total.
-    function nudgeText(qty, promo) {
+    function nudgeText(qty, discount) {
       if (qty <= 0) return "";
       var idx = tierIndexFor(qty);
       if (idx < 0 || idx >= HOSPITALITY_GUIDE_TIERS.length - 1) return "";
@@ -1012,8 +1100,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
       var msg = "Add " + need + (need === 1 ? " more participant" : " more participants") +
         " to reach " + moneyShort(next.unitCents) + "/person";
-      var here = priceOrder(qty, promo).orderCents;
-      var there = priceOrder(next.minQty, promo).orderCents;
+      var here = priceOrder(qty, discount).orderCents;
+      var there = priceOrder(next.minQty, discount).orderCents;
       if (there < here) {
         msg += " - " + need + " more " + (need === 1 ? "copy" : "copies") + " for " + money(here - there) + " less overall";
       }
@@ -1028,6 +1116,202 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         btn.classList.toggle("active", idx === activeIndex);
       });
     }
+
+    // --- discount code ------------------------------------------------------
+    //
+    // The buyer types a code and presses Apply; the forms service says whether
+    // it is good and for how much off. The list of codes is never sent here, so
+    // this is the only way to find out - one code at a time.
+
+    var codeBlock = el("code-block");
+    var codeInput = el("code");
+    var codeApplyBtn = el("code-apply");
+    var codeStatus = el("code-status");
+    var codeApplied = el("code-applied");
+    var codeAppliedBadge = el("code-applied-badge");
+    var codeAppliedLabel = el("code-applied-label");
+    var codeRemoveBtn = el("code-remove");
+
+    // True while a lookup is in flight. Guards against a double-press queueing
+    // two lookups and the slower answer overwriting the faster one.
+    var checkingCode = false;
+
+    function setCodeStatus(message, kind) {
+      if (!codeStatus) return;
+      codeStatus.textContent = message || "";
+      codeStatus.classList.remove("hg-code-error", "hg-code-working");
+      if (message && kind) codeStatus.classList.add(kind);
+    }
+
+    // Show either the entry field or the applied banner, never both: once a code
+    // is on the order, the thing to offer is a way to take it off, not a second
+    // box to type into.
+    function paintDiscount() {
+      var applied = !!appliedDiscount;
+      if (codeBlock) codeBlock.hidden = applied;
+      if (codeApplied) codeApplied.hidden = !applied;
+
+      if (applied) {
+        codeAppliedBadge.textContent = appliedDiscount.code + " applied - " + appliedDiscount.percentOff + "% off";
+        // The label is the Salesforce record's own name ("Russell Moore
+        // podcast"), which tells the buyer the code was recognised as the one
+        // they were given rather than as some other code that happens to match.
+        codeAppliedLabel.textContent = appliedDiscount.label || "";
+        codeAppliedLabel.hidden = !appliedDiscount.label;
+      }
+    }
+
+    function clearDiscount() {
+      appliedDiscount = null;
+      if (codeInput) codeInput.value = "";
+      setCodeStatus("", null);
+      paintDiscount();
+      updateTotals();
+    }
+
+    /**
+     * Ask the service about one code.
+     *
+     * Resolves to { ok: true, discount } for a code that works, to
+     * { ok: false, message } for one that does not, and to
+     * { ok: false, unavailable: true, message } when the check itself could not
+     * be made.
+     *
+     * That third case is kept separate on purpose. "We could not check" is not
+     * "your code is no good": a buyer holding a perfectly good code must be told
+     * to try again rather than quietly charged full price, which is exactly what
+     * folding the two together would do.
+     */
+    function lookupDiscountCode(code) {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var timedOut = false;
+      var timeoutId = setTimeout(function () {
+        timedOut = true;
+        if (controller) controller.abort();
+      }, DISCOUNT_LOOKUP_TIMEOUT_MS);
+
+      var url = discountCodeAPI +
+        "?code=" + encodeURIComponent(code) +
+        "&product=" + encodeURIComponent(HOSPITALITY_GUIDE_DISCOUNT_PRODUCT);
+
+      var options = { method: "GET", headers: { "Accept": "application/json" } };
+      if (controller) options.signal = controller.signal;
+
+      return fetch(url, options)
+        .then(function (r) {
+          clearTimeout(timeoutId);
+          return r.text().then(function (text) {
+            var data = null;
+            try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+
+            if (r.status === 429) {
+              return {
+                ok: false,
+                unavailable: true,
+                message: (data && data.message) || "Too many attempts. Please wait a moment and try again."
+              };
+            }
+
+            // Anything that is not a clean 200 with a verdict is "could not
+            // check", including a 502 from the service when Salesforce is down.
+            if (!r.ok || !data || typeof data.valid !== "boolean") {
+              console.error("[Hospitality Guide] Discount code check failed: HTTP " + r.status + " " + text);
+              return {
+                ok: false,
+                unavailable: true,
+                message: "We could not check that code just now. Please try again."
+              };
+            }
+
+            if (!data.valid) {
+              return { ok: false, message: data.message || "That code was not recognised." };
+            }
+
+            var percentOff = Number(data.percentOff);
+            if (!isFinite(percentOff) || percentOff < 1 || percentOff > 100) {
+              console.error("[Hospitality Guide] Discount code returned an unusable percentage:", data.percentOff);
+              return { ok: false, message: "That code is not set up correctly. Please contact us." };
+            }
+
+            return {
+              ok: true,
+              discount: {
+                code: normalizeDiscountCode(data.code) || code,
+                percentOff: Math.round(percentOff),
+                label: typeof data.label === "string" ? data.label : ""
+              }
+            };
+          });
+        })
+        .catch(function (err) {
+          clearTimeout(timeoutId);
+          console.error(timedOut
+            ? "Discount code check did not respond within " + DISCOUNT_LOOKUP_TIMEOUT_MS + "ms"
+            : "Discount code check failed", err);
+          return {
+            ok: false,
+            unavailable: true,
+            message: "We could not check that code just now. Please try again."
+          };
+        });
+    }
+
+    function applyTypedCode() {
+      if (checkingCode) return;
+
+      var code = normalizeDiscountCode(codeInput ? codeInput.value : "");
+      if (!code) {
+        setCodeStatus("Enter a code first.", "hg-code-error");
+        return;
+      }
+
+      checkingCode = true;
+      codeApplyBtn.disabled = true;
+      setCodeStatus("Checking...", "hg-code-working");
+      // A lookup in flight must not leave a stale pay button clickable at a
+      // price that is about to change.
+      updateTotals();
+
+      lookupDiscountCode(code).then(function (result) {
+        checkingCode = false;
+        codeApplyBtn.disabled = false;
+
+        if (result.ok) {
+          appliedDiscount = result.discount;
+          setCodeStatus("", null);
+        } else {
+          appliedDiscount = null;
+          setCodeStatus(result.message, "hg-code-error");
+        }
+
+        paintDiscount();
+        updateTotals();
+      });
+    }
+
+    if (codeApplyBtn) codeApplyBtn.addEventListener("click", applyTypedCode);
+    if (codeRemoveBtn) codeRemoveBtn.addEventListener("click", clearDiscount);
+
+    if (codeInput) {
+      // Enter applies the code rather than doing nothing. The form has no
+      // <form> element, so there is no implicit submit to worry about.
+      codeInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.keyCode === 13) {
+          e.preventDefault();
+          applyTypedCode();
+        }
+      });
+      // Typing after a rejection clears the rejection - the message referred to
+      // what was in the box a moment ago.
+      codeInput.addEventListener("input", function () {
+        if (codeStatus && codeStatus.classList.contains("hg-code-error")) setCodeStatus("", null);
+      });
+    }
+
+    // A code carried in the link is applied during the initial paint at the
+    // bottom of this function, NOT here. applyTypedCode repaints the whole form,
+    // and half the things it repaints - the fee checkbox, the pay button - are
+    // still undeclared at this point in wireUp.
 
     // --- buyer type ---------------------------------------------------------
     var buyerTypeHidden = el("buyer-type");
@@ -1255,14 +1539,15 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     // and the payload sends orderCents and coveredFeeCents, whose sum is
     // totalCents by construction.
     function computeTotals() {
-      var promo = currentPromo();
-      var order = priceOrder(quantity(), promo);
+      var fulfillment = currentFulfillment();
+      var order = priceOrder(quantity(), appliedDiscount);
       var cover = coverFee.checked;
       var totalCents = cover ? grossedUpTotalCents(order.orderCents) : order.orderCents;
       var feeCents = cover ? totalCents - order.orderCents : feeCentsOn(order.orderCents);
 
       return {
-        promo: promo,
+        fulfillment: fulfillment,
+        discount: appliedDiscount,
         order: order,
         coverFee: cover,
         feeCents: feeCents,
@@ -1444,17 +1729,22 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     function updateTotals() {
       var t = computeTotals();
       var order = t.order;
-      var promo = t.promo;
+      var discount = t.discount;
+      var fulfillment = t.fulfillment;
 
-      // Promo banner
-      var promoEl = el("promo");
-      if (promoEl) {
-        if (promo) {
-          el("promo-badge").textContent = promo.badge;
-          el("promo-note").textContent = promo.note;
-          promoEl.hidden = false;
+      // Fulfilment banner. Shown only before release, where it is telling the
+      // buyer something they need to know before paying - that the card is
+      // charged today for something that ships later. After release there is
+      // nothing to warn about and the banner would just be noise.
+      var noticeEl = el("notice");
+      if (noticeEl) {
+        var isPreorder = fulfillment.id === "ships-at-release";
+        if (isPreorder) {
+          el("notice-badge").textContent = "Pre-order";
+          el("notice-note").textContent = fulfillment.note;
+          noticeEl.hidden = false;
         } else {
-          promoEl.hidden = true;
+          noticeEl.hidden = true;
         }
       }
 
@@ -1463,7 +1753,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       qtyMinus.disabled = qty <= 1;
       qtyPlus.disabled = qty >= MAX_PARTICIPANTS;
       paintTiers(qty);
-      if (nudgeEl) nudgeEl.textContent = nudgeText(qty, promo);
+      if (nudgeEl) nudgeEl.textContent = nudgeText(qty, discount);
 
       var problem = quantityProblem();
       if (qtyError && problem) {
@@ -1474,12 +1764,15 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       }
 
       var guidesLabel = qty > 0 ? participantsLabel(qty, order.unitCents) : "Guides";
-      var discountLabel = promo ? promo.badge.split(" - ")[0] + " (" + promo.percentOff + "% off)" : "";
+      // The code is named on the discount line so the buyer can see which code
+      // produced the figure, and so the receipt they screenshot says it too.
+      var discountLabel = discount ? discount.code + " (" + order.percentOff + "% off)" : "";
+      var showDiscountLine = !!discount && order.discountCents > 0;
 
       // Step 1 lines
       el("subtotal-label").textContent = guidesLabel;
       el("subtotal").textContent = money(order.subtotalCents);
-      el("discount-line").hidden = !promo || order.discountCents <= 0;
+      el("discount-line").hidden = !showDiscountLine;
       el("discount-label").textContent = discountLabel;
       el("discount").textContent = "-" + money(order.discountCents);
       el("shipping-line").hidden = order.shippingCents <= 0;
@@ -1489,7 +1782,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       // Step 3 lines
       el("review-guides-label").textContent = guidesLabel;
       el("review-guides").textContent = money(order.subtotalCents);
-      el("review-discount-line").hidden = !promo || order.discountCents <= 0;
+      el("review-discount-line").hidden = !showDiscountLine;
       el("review-discount-label").textContent = discountLabel;
       el("review-discount").textContent = "-" + money(order.discountCents);
       el("review-shipping-line").hidden = order.shippingCents <= 0;
@@ -1506,7 +1799,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       }
 
       var fulfillmentNote = el("fulfillment-note");
-      if (fulfillmentNote) fulfillmentNote.textContent = promo ? promo.note : "";
+      if (fulfillmentNote) fulfillmentNote.textContent = fulfillment.note;
 
       // Leave the button label alone while a submission is in flight, so a
       // keystroke cannot wipe out the "Transferring to Stripe..." message.
@@ -1520,6 +1813,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
     function readyToSubmit() {
       if (submitting) return false;
+      // A code being checked is a price about to change. Letting the button stay
+      // live through that is how a buyer pays the undiscounted total a moment
+      // before the discount lands.
+      if (checkingCode) return false;
       return orderStepValid(false) && buyerStepValid(false);
     }
 
@@ -1540,15 +1837,73 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     // --- submit -------------------------------------------------------------
     submitBtn.addEventListener("click", function () {
       if (submitting) return;
+      if (checkingCode) return;
       if (!orderStepValid(true) || !buyerStepValid(true)) return;
 
-      // Priced one last time at the moment of submission rather than reusing a
-      // figure painted earlier: on a page left open across a window boundary,
-      // this is what stops an order being charged at yesterday's discount.
-      var totals = computeTotals();
-      if (totals.totalCents <= 0) return;
+      // A code applied ten minutes ago is not necessarily a code that is still
+      // good: it may have expired at midnight, hit its redemption limit, or been
+      // switched off by somebody who found it posted publicly. Re-checking it
+      // here is what the old code did by re-resolving the promo window at
+      // submission, and it matters for the same reason - a page left open must
+      // not be charged at yesterday's discount.
+      //
+      // If it comes back bad, the order is stopped and repriced rather than put
+      // through: the buyer sees the new total and decides, instead of being
+      // charged a number they never agreed to.
+      if (!appliedDiscount) {
+        beginSubmission();
+        return;
+      }
 
-      var promo = totals.promo;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Checking your code...";
+      hideSubmitError();
+
+      lookupDiscountCode(appliedDiscount.code).then(function (result) {
+        if (result.ok) {
+          appliedDiscount = result.discount;
+          paintDiscount();
+          updateTotals();
+          beginSubmission();
+          return;
+        }
+
+        // Could-not-check is not the same as no-good. Neither is allowed to put
+        // an order through at a discount nobody has confirmed, but they say
+        // different things to the buyer: one is "try again", the other is "this
+        // code is finished".
+        if (!result.unavailable) {
+          appliedDiscount = null;
+          paintDiscount();
+        }
+
+        updateTotals();
+        submitBtn.disabled = !readyToSubmit();
+        showSubmitError(
+          result.unavailable
+            ? result.message + " Your card has not been charged."
+            // The buyer is on the review step, and the code field is back on the
+            // first one where they cannot see it. Say where to go rather than
+            // leaving them hunting for a box that is not on screen.
+            : result.message + " Your order has been repriced without it. Check the total before paying," +
+              " or go back to the first step to try another code."
+        );
+      });
+    });
+
+    function beginSubmission() {
+      // Priced one last time at the moment of submission rather than reusing a
+      // figure painted earlier, so what is charged is what the buyer is looking
+      // at right now.
+      var totals = computeTotals();
+      if (totals.totalCents <= 0) {
+        submitBtn.disabled = !readyToSubmit();
+        updateTotals();
+        return;
+      }
+
+      var discount = totals.discount;
+      var fulfillment = totals.fulfillment;
       var order = totals.order;
       var buyerType = buyerTypeHidden.value;
       var firstname = el("firstname").value.trim();
@@ -1556,7 +1911,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       var organization = el("organization-name").value.trim();
 
       var summary = participantsLabel(order.qty, order.unitCents) + " = " + money(order.subtotalCents) +
-        (order.discountCents > 0 ? ", less " + order.percentOff + "% " + promo.id + " discount (" + money(order.discountCents) + ")" : "") +
+        (order.discountCents > 0 ? ", less " + order.percentOff + "% code " + discount.code + " (" + money(order.discountCents) + ")" : "") +
         (order.shippingCents > 0 ? ", plus " + money(order.shippingCents) + " shipping" : "") +
         " = " + money(order.orderCents);
 
@@ -1605,13 +1960,16 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           unit_price: money(order.unitCents),
           price_tier: order.tier ? order.tier.label : "",
           subtotal: money(order.subtotalCents),
-          discount_promo: promo ? promo.id : "none",
+          // The code that produced the discount, so an order can be traced back
+          // to the partner it came through and a total can be checked against
+          // the percentage the code was actually worth.
+          discount_code: discount ? discount.code : "none",
           discount_percent: order.percentOff,
           discount_amount: money(order.discountCents),
           shipping: money(order.shippingCents),
           order_total: money(order.orderCents),
           order_summary: summary,
-          fulfillment: promo ? promo.fulfillment : HOSPITALITY_GUIDE_FULFILLMENT,
+          fulfillment: fulfillment.id,
           workbooks: order.qty
         }
       };
@@ -1643,7 +2001,13 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         payload.paymentMethod,
         payload.cardType,
         payload.donationType,
-        order.qty
+        order.qty,
+        // The code is part of the signature even though it can only change the
+        // total, which is already here: an order that changed from one code to
+        // another at the same percentage is a different order, and should not
+        // reuse the abandoned one's reference.
+        discount ? discount.code : "",
+        order.percentOff
       ].join("|");
 
       if (!clientReferenceId || referenceSignature !== clientReferenceSignature) {
@@ -1660,7 +2024,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       }
 
       submitting = true;
-      var originalButtonText = submitBtn.textContent;
+      // Derived from the total rather than read off the button, because the
+      // button may currently say "Checking your code..." - restoring that on a
+      // failure would leave the buyer looking at a stale message and no price.
+      var originalButtonText = "Pay " + money(totals.totalCents);
       submitBtn.disabled = true;
       submitBtn.textContent = "Transferring to Stripe...";
       hideSubmitError();
@@ -1711,12 +2078,13 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           PricePerParticipant: money(order.unitCents),
           PriceTier: order.tier ? order.tier.label : "",
           Subtotal: money(order.subtotalCents),
-          Discount: promo ? promo.percentOff + "% " + promo.id : "none",
+          DiscountCode: discount ? discount.code : "none",
+          Discount: discount ? order.percentOff + "% (" + discount.code + ")" : "none",
           DiscountAmount: money(order.discountCents),
           OrderTotal: money(order.orderCents),
           CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
           TotalCharged: money(totals.totalCents),
-          Fulfillment: promo ? promo.fulfillment : HOSPITALITY_GUIDE_FULFILLMENT,
+          Fulfillment: fulfillment.id,
           OrderSummary: summary,
           ClientReferenceId: clientReferenceId
         })
@@ -1980,7 +2348,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           submitBtn.textContent = originalButtonText;
           submitBtn.disabled = false;
         });
-    });
+    }
 
     // --- initial paint ------------------------------------------------------
     if (params && params.participants) {
@@ -1989,6 +2357,24 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     }
 
     updateTotals();
+
+    // A code can be carried in the link, so a partner can send their audience
+    // straight to a form with the discount already on it:
+    //     .../hospitality-guide?code=RUSSELLMOORE
+    //
+    // It goes through exactly the same check as one typed by hand, so a link
+    // carrying an expired or invented code discounts nothing - the code in the
+    // URL is a convenience, never an authority.
+    //
+    // Applied here, after the first paint, because applyTypedCode repaints the
+    // whole form and everything it touches has to exist first.
+    if (params && params.code) {
+      var linkedCode = normalizeDiscountCode(params.code);
+      if (linkedCode && codeInput) {
+        codeInput.value = linkedCode;
+        applyTypedCode();
+      }
+    }
 
     // Provisional half of the test-mode indicator. All this can honestly claim
     // before a request has been made is what the form is going to ask for.
