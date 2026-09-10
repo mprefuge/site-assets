@@ -6,6 +6,13 @@ discount code — applying one, removing it, switching between codes, and the
 re-check at submit that stops an order going through at a discount that has
 since expired.
 
+It also holds the form to what it charges and what it shows: the processing fee
+is absorbed by Refuge International, so the buyer is never asked to cover it,
+no fee is ever added to the charge, and no payment rail is pinned in the
+payload. The step-1 layout is asserted too — the discount code box below the
+participants section, no per-line "Guides" figure — along with the circular back
+arrow in the top-left corner of the review step.
+
 It is here rather than in a scratchpad because a regression guard that does not
 survive the session is not a guard. Nothing runs it automatically — this repo
 has no CI — so run it by hand before changing

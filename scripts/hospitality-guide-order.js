@@ -304,58 +304,15 @@ const TIER_NUDGE_WITHIN = 10;
 // carry this form) would lose one of them. Keep every top-level name in this
 // file prefixed, and do not "tidy" the prefix away.
 //
-// window.STRIPE_RATE and data-stripe-rate are deliberately NOT prefixed: they
-// are the host page's knob for the account's card rate, and both forms should
-// answer to the same one.
+// The donation form still declares the Stripe rate knobs (window.STRIPE_RATE
+// and data-stripe-rate) because it still asks its donors to cover the fee. This
+// form does not: Refuge International absorbs the processing fee on Hospitality
+// Guide orders, so it quotes no rate and declares no rate name at all.
 //
-// Identical in behaviour to the donation form's block, and for the same reason:
-// the rate quoted on the payment chips and the rate the total is grossed up by
-// are the same number by construction, so the form can never advertise one rate
-// and charge another.
-//
-// A host page can override it without editing this file, either by setting
-//     window.STRIPE_RATE = 2.2;   // before this script loads
-// or by putting the rate on this script's own tag:
-//     <script src=".../hospitality-guide-order.js" data-stripe-rate="2.2"></script>
-// An override that is absent, empty, null, non-numeric, or outside the sane
-// range (greater than 0, at most 10) is ignored and the default below is used.
-const HG_STRIPE_RATE_PERCENT_DEFAULT = 2.2;
-
-// American Express settles higher than the other card brands and is quoted on
-// its own chip, so it gets its own knob.
-const HG_STRIPE_AMEX_RATE_PERCENT = 3.5;
-
-// Stripe's per-transaction fixed fee on cards and wallets, in cents.
-const HG_STRIPE_FIXED_FEE_CENTS = 30;
-
-function hgStripeConfiguredRatePercent() {
-  var raw = null;
-  try {
-    if (typeof window !== "undefined" && window.STRIPE_RATE !== undefined && window.STRIPE_RATE !== null) {
-      raw = window.STRIPE_RATE;
-    }
-    if (raw === null && typeof document !== "undefined") {
-      var tag = document.currentScript || document.querySelector("script[data-stripe-rate]");
-      if (tag && tag.getAttribute) raw = tag.getAttribute("data-stripe-rate");
-    }
-  } catch (e) {
-    raw = null;
-  }
-  if (raw === null || raw === undefined || String(raw).trim() === "") return HG_STRIPE_RATE_PERCENT_DEFAULT;
-  var pct = parseFloat(raw);
-  if (!isFinite(pct) || pct <= 0 || pct > 10) return HG_STRIPE_RATE_PERCENT_DEFAULT;
-  return pct;
-}
-
-const HG_STRIPE_RATE_BPS = Math.round(hgStripeConfiguredRatePercent() * 100);
-const HG_STRIPE_AMEX_RATE_BPS = Math.round(HG_STRIPE_AMEX_RATE_PERCENT * 100);
-
-function hgFeeChipLabel(bps, fixedCents) {
-  return String(bps / 100) + "% + $" + (fixedCents / 100).toFixed(2);
-}
-
-const HG_STRIPE_CARD_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_RATE_BPS, HG_STRIPE_FIXED_FEE_CENTS);
-const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRIPE_FIXED_FEE_CENTS);
+// Refuge International absorbs the processing fee on Hospitality Guide orders.
+// The buyer is charged the order total and nothing else, so this form quotes no
+// rate, offers no rail chips, and never grosses a total up. Stripe Checkout is
+// left to offer whatever methods the account has enabled.
 // ---------------------------------------------------------------------------
 
 (function () {
@@ -388,7 +345,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-close:hover { opacity:1; }
     .hg-body { padding:16px; max-width:700px; margin:0 auto; }
     .hg-card { background:#fff; border-radius:18px; box-shadow:0 6px 24px rgba(189,33,53,0.10), 0 1px 6px rgba(0,0,0,0.08); padding:24px; margin-bottom:16px; }
-    .hg-card-inner { box-shadow:none; border:1.5px solid #eee; padding:18px; }
     .hg-title { font-weight:700; font-size:20px; margin-bottom:4px; text-align:center; }
     .hg-subtitle { font-size:14px; color:#555; text-align:center; margin-bottom:18px; }
     .hg-grid { display:grid; gap:12px; }
@@ -465,27 +421,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-line-total span:last-child { color:${BRAND_PRIMARY}; }
 
     /* Payment method chips */
-    .hg-payment-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; justify-items:center; margin-bottom:12px; }
-    .hg-payment-chip { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:16px 18px; min-width:100%; min-height:118px; text-align:center; border-radius:16px; transition:.3s all ease; }
-    .hg-payment-chip:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.2); }
-    .hg-payment-chip span { font-weight:600; font-size:14px; }
-    .hg-payment-chip small { font-size:11px; font-weight:500; opacity:.8; }
-    .hg-payment-chip.selected { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.4); }
-    .hg-payment-chip.selected img { filter:invert(1); }
-    .hg-payment-chip.selected .hg-wallet-explainer { color:#fff; }
-    .hg-payment-chip.selected svg .hg-wallet-main { fill:#fff; stroke:#fff; }
-    .hg-payment-chip.selected svg .hg-wallet-circle, .hg-payment-chip.selected svg .hg-wallet-bar { fill:${BRAND_PRIMARY}; }
-    .hg-wallet-explainer { font-size:10px; color:#666; line-height:1.2; }
-    .hg-card-type-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; min-width:104px; border-radius:12px; }
-    .hg-card-type-chip span { font-weight:600; font-size:13px; }
-    .hg-card-type-chip small { font-size:10px; font-weight:500; opacity:.8; }
 
     /* Checkbox */
-    .hg-checkbox-container { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
-    .hg-checkbox { appearance:none; width:20px; height:20px; border:2px solid #e0e0e0; border-radius:4px; background:#fff; cursor:pointer; transition:.2s; position:relative; flex-shrink:0; }
-    .hg-checkbox:checked { background:${BRAND_PRIMARY}; border-color:${BRAND_PRIMARY}; }
-    .hg-checkbox:checked::after { content:'\\2713'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:12px; font-weight:700; }
-    .hg-checkbox:focus { outline:none; box-shadow:0 0 0 2px rgba(189,33,53,.25); }
 
     /* Buttons + steps */
     .hg-steps { display:flex; justify-content:center; margin-bottom:20px; }
@@ -499,6 +436,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-btn.secondary { background:transparent; color:${BRAND_PRIMARY}; }
     .hg-btn:hover { opacity:.9; transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.25); }
     .hg-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+    .hg-card-with-back { position:relative; }
+    .hg-back { position:absolute; top:16px; left:16px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; padding:0; border:2px solid ${BRAND_PRIMARY}; background:transparent; color:${BRAND_PRIMARY}; border-radius:50%; cursor:pointer; transition:.3s all ease; }
+    .hg-back:hover { background:${BRAND_PRIMARY}; color:#fff; transform:translateY(-1px); box-shadow:0 4px 12px rgba(189,33,53,.25); }
+    .hg-back:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(189,33,53,.25); }
+    .hg-card-with-back .hg-title { padding:0 44px; }
     .hg-cta { display:block; width:100%; padding:16px; font-size:20px; font-weight:800; border:0; border-radius:12px; background:${BRAND_PRIMARY}; color:#fff; cursor:pointer; transition:.2s; box-shadow:0 6px 20px rgba(189,33,53,.18); }
     .hg-cta:hover { background:#a81c2d; }
     .hg-cta:disabled { opacity:.5; cursor:not-allowed; }
@@ -524,10 +466,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       .hg-header { border-radius:12px 12px 0 0; }
       .hg-body { padding:12px; }
       .hg-card { padding:18px; }
+      .hg-back { top:12px; left:12px; }
+      .hg-card-with-back .hg-title { padding:0 36px; }
       .hg-grid-2, .hg-grid-4 { grid-template-columns:1fr; }
       .hg-tiers { grid-template-columns:1fr; }
-      .hg-payment-grid { grid-template-columns:1fr; }
-      .hg-payment-chip { min-height:96px; }
       /* Side by side, the code field and Apply both get too narrow to use on a
          phone - the field ends up showing about six characters. */
       .hg-code-row { flex-direction:column; }
@@ -657,6 +599,17 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-notice-note" id="${prefix}-notice-note"></div>
           </div>
 
+          <label class="hg-label" for="${prefix}-qty" style="text-align:center;">How many participants?</label>
+          <div class="hg-qty-wrap">
+            <button type="button" class="hg-qty-btn" id="${prefix}-qty-minus" aria-label="One fewer participant">&minus;</button>
+            <input type="number" inputmode="numeric" min="1" max="${MAX_PARTICIPANTS}" step="1" id="${prefix}-qty" class="hg-input hg-qty-input" placeholder="0" aria-describedby="${prefix}-qty-error">
+            <button type="button" class="hg-qty-btn" id="${prefix}-qty-plus" aria-label="One more participant">+</button>
+          </div>
+          <div id="${prefix}-qty-error" class="hg-error-message hg-center" role="alert"></div>
+          <div class="hg-nudge" id="${prefix}-nudge"></div>
+
+          <div class="hg-tiers" id="${prefix}-tiers">${tiersHTML}</div>
+
           <div class="hg-code" id="${prefix}-code-block">
             <label class="hg-label" for="${prefix}-code">Discount code <span class="hg-code-optional">(optional)</span></label>
             <div class="hg-code-row">
@@ -674,19 +627,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <button type="button" class="hg-code-remove" id="${prefix}-code-remove">Remove</button>
           </div>
 
-          <label class="hg-label" for="${prefix}-qty" style="text-align:center;">How many participants?</label>
-          <div class="hg-qty-wrap">
-            <button type="button" class="hg-qty-btn" id="${prefix}-qty-minus" aria-label="One fewer participant">&minus;</button>
-            <input type="number" inputmode="numeric" min="1" max="${MAX_PARTICIPANTS}" step="1" id="${prefix}-qty" class="hg-input hg-qty-input" placeholder="0" aria-describedby="${prefix}-qty-error">
-            <button type="button" class="hg-qty-btn" id="${prefix}-qty-plus" aria-label="One more participant">+</button>
-          </div>
-          <div id="${prefix}-qty-error" class="hg-error-message hg-center" role="alert"></div>
-          <div class="hg-nudge" id="${prefix}-nudge"></div>
-
-          <div class="hg-tiers" id="${prefix}-tiers">${tiersHTML}</div>
-
           <div class="hg-lines" id="${prefix}-step1-lines">
-            <div class="hg-line"><span id="${prefix}-subtotal-label">Guides</span><span id="${prefix}-subtotal">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-discount-line" hidden><span id="${prefix}-discount-label">Discount</span><span id="${prefix}-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-shipping-line" hidden><span>Shipping</span><span id="${prefix}-shipping">$0.00</span></div>
             <div class="hg-line hg-line-total"><span>Order total</span><span id="${prefix}-order-total">$0.00</span></div>
@@ -805,7 +746,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
   function reviewHTML(prefix) {
     return `
       <div class="hg-step-content" id="${prefix}-step3">
-        <div class="hg-card">
+        <div class="hg-card hg-card-with-back">
+          <button type="button" class="hg-back" id="${prefix}-prev3" aria-label="Back to your details">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <div class="hg-title">Review Your Order</div>
           <div class="hg-subtitle" id="${prefix}-review-ship-to"></div>
 
@@ -813,53 +757,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-line"><span id="${prefix}-review-guides-label">Guides</span><span id="${prefix}-review-guides">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-review-discount-line" hidden><span id="${prefix}-review-discount-label">Discount</span><span id="${prefix}-review-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-review-shipping-line" hidden><span>Shipping</span><span id="${prefix}-review-shipping">$0.00</span></div>
-            <div class="hg-line hg-line-muted"><span>Processing fees <span id="${prefix}-fee-label"></span></span><span id="${prefix}-review-fee">$0.00</span></div>
             <div class="hg-line hg-line-total"><span>Total charged today</span><span id="${prefix}-review-total">$0.00</span></div>
-          </div>
-
-          <div class="hg-card hg-card-inner" style="margin-top:16px;">
-            <div style="display:flex;justify-content:center;">
-              <label class="hg-checkbox-container">
-                <input type="checkbox" id="${prefix}-cover-fee" class="hg-checkbox">
-                <span style="font-weight:600;">I would like to cover the processing fees</span>
-              </label>
-            </div>
-
-            <div id="${prefix}-payment-method-section" style="display:none;margin-top:16px;">
-              <label class="hg-label">Payment Method</label>
-              <div class="hg-payment-grid" id="${prefix}-pm-row">
-                <button type="button" class="hg-chip hg-payment-chip" data-method="card">
-                  <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="" width="32" height="32" />
-                  <span>Credit/Debit Card</span>
-                </button>
-                <button type="button" class="hg-chip hg-payment-chip" data-method="us_bank_account">
-                  <img src="https://js.stripe.com/v3/fingerprinted/img/bank-de5c9ead31505d57120e98291cb20e57.svg" alt="" width="32" height="32" />
-                  <span>Bank Transfer</span>
-                  <small>0.8% (max $5)</small>
-                </button>
-                <button type="button" class="hg-chip hg-payment-chip" data-method="wallet">
-                  <svg width="32" height="32" viewBox="0 0 40 28" fill="none" aria-hidden="true">
-                    <rect class="hg-wallet-main" x="2" y="4" width="36" height="20" rx="4" fill="#000"/>
-                    <rect class="hg-wallet-main" x="2" y="4" width="36" height="20" rx="4" stroke="#333" stroke-width="2"/>
-                    <circle class="hg-wallet-circle" cx="32" cy="14" r="4" fill="#fff"/>
-                    <rect class="hg-wallet-bar" x="6" y="10" width="18" height="4" rx="2" fill="#fff"/>
-                  </svg>
-                  <span>Digital Wallet</span>
-                  <div class="hg-wallet-explainer">Apple Pay, Google Pay</div>
-                  <small>${HG_STRIPE_CARD_FEE_LABEL}</small>
-                </button>
-              </div>
-
-              <div id="${prefix}-card-type-section" style="margin-top:12px;">
-                <label class="hg-label">Card Type</label>
-                <div class="hg-row" id="${prefix}-card-type-row">
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="visa"><span>Visa</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="mastercard"><span>Mastercard</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="amex"><span>Amex</span><small>${HG_STRIPE_AMEX_FEE_LABEL}</small></button>
-                  <button type="button" class="hg-chip hg-card-type-chip" data-card-type="other"><span>Other</span><small>${HG_STRIPE_CARD_FEE_LABEL}</small></button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="hg-fineprint" id="${prefix}-fulfillment-note"></div>
@@ -868,11 +766,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           <div id="${prefix}-submit-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
           <div class="hg-fineprint">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
           <div class="hg-trust">Secure payment powered by Stripe</div>
-
-          <div class="hg-nav-buttons">
-            <button type="button" class="hg-btn secondary" id="${prefix}-prev3">Previous</button>
-            <span></span>
-          </div>
         </div>
       </div>`;
   }
@@ -1423,141 +1316,24 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       lookupRow.style.display = "none";
     });
 
-    // --- fees ---------------------------------------------------------------
-    var coverFee = el("cover-fee");
-    var paymentMethodSection = el("payment-method-section");
-    var pmRow = el("pm-row");
-    var cardTypeRow = el("card-type-row");
-    var cardTypeSection = el("card-type-section");
-
-    var paymentMethod = "card";
-    var cardType = "visa";
-
-    function selectChipGroup(row, valueAttr, value) {
-      if (!row) return;
-      var btns = row.querySelectorAll(".hg-chip");
-      btns.forEach(function (b) { b.classList.remove("selected"); });
-      var target = Array.prototype.find.call(btns, function (b) { return b.getAttribute(valueAttr) === value; });
-      if (target) target.classList.add("selected");
-    }
-
-    selectChipGroup(pmRow, "data-method", paymentMethod);
-    selectChipGroup(cardTypeRow, "data-card-type", cardType);
-
-    coverFee.addEventListener("change", function () {
-      if (coverFee.checked) {
-        paymentMethodSection.style.display = "block";
-      } else {
-        paymentMethodSection.style.display = "none";
-        // The chips live entirely inside that section, so once it is hidden the
-        // buyer can no longer see or change what is selected. Put both back to
-        // their defaults so the form never submits a rail that is invisible.
-        paymentMethod = "card";
-        cardType = "visa";
-        selectChipGroup(pmRow, "data-method", paymentMethod);
-        selectChipGroup(cardTypeRow, "data-card-type", cardType);
-        if (cardTypeSection) cardTypeSection.style.display = "block";
-      }
-      updateTotals();
-    });
-
-    pmRow.addEventListener("click", function (e) {
-      var t = e.target.closest(".hg-chip");
-      if (!t) return;
-      paymentMethod = t.getAttribute("data-method");
-      selectChipGroup(pmRow, "data-method", paymentMethod);
-      if (paymentMethod === "card") {
-        cardTypeSection.style.display = "block";
-        if (!cardType) {
-          cardType = "visa";
-          selectChipGroup(cardTypeRow, "data-card-type", cardType);
-        }
-      } else {
-        cardTypeSection.style.display = "none";
-        cardType = null;
-      }
-      updateTotals();
-    });
-
-    if (cardTypeRow) {
-      cardTypeRow.addEventListener("click", function (e) {
-        var t = e.target.closest(".hg-chip");
-        if (!t) return;
-        cardType = t.getAttribute("data-card-type");
-        selectChipGroup(cardTypeRow, "data-card-type", cardType);
-        updateTotals();
-      });
-    }
-
-    // The processing fee this form quotes, by payment method: a percentage in
-    // basis points, a fixed charge in cents, and an optional cap. One table,
-    // because both numbers feed the gross-up as well as the quote.
-    function feeRateFor(method, card) {
-      if (method === "us_bank_account") {
-        // Stripe's ACH pricing is its own structure and does not follow the card
-        // rate: 0.8% capped at $5.00, and NO per-transaction fixed fee.
-        return { bps: 80, fixedCents: 0, capCents: 500 };
-      }
-      if (method === "card" && card === "amex") {
-        return { bps: HG_STRIPE_AMEX_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
-      }
-      return { bps: HG_STRIPE_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
-    }
-
-    // What the processor deducts from a charge of totalCents - what the org
-    // gives up, not what the buyer adds.
-    function feeCentsOn(totalCents) {
-      if (totalCents <= 0) return 0;
-      var rate = feeRateFor(paymentMethod, cardType);
-      var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
-      if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
-      return fee;
-    }
-
-    // The total to charge so that, once the processor has taken its cut, exactly
-    // baseCents reaches the org.
-    //
-    // This is a gross-up, not a surcharge. Charging baseCents plus the fee ON
-    // baseCents always lands short, because the processor then takes its
-    // percentage on the larger total too: the fee has to pay for itself. Solving
-    //     total - (pct * total + fixed) = base
-    // gives total = (base + fixed) / (1 - pct), carried out in basis points so
-    // both operands stay exact integers, rounded UP to the whole cent so the
-    // rounding can never leave the org short.
-    function grossedUpTotalCents(baseCents) {
-      if (baseCents <= 0) return 0;
-      var rate = feeRateFor(paymentMethod, cardType);
-      var numerator = (baseCents + rate.fixedCents) * 10000;
-      var denominator = 10000 - rate.bps;
-      var totalCents = Math.floor((numerator + denominator - 1) / denominator);
-      // Past the cap the fee stops growing with the total, so grossing up is just
-      // the flat cap on top; the formula above would over-charge beyond that.
-      if (rate.capCents !== null && totalCents - baseCents > rate.capCents) {
-        return baseCents + rate.capCents;
-      }
-      return totalCents;
-    }
-
     // Single source of truth for every money figure on the form. Everything is
     // derived from the same integers, so the number on the pay button and the
-    // numbers in the payload cannot drift apart: the button shows totalCents,
-    // and the payload sends orderCents and coveredFeeCents, whose sum is
-    // totalCents by construction.
+    // numbers in the payload cannot drift apart.
+    //
+    // The org absorbs the processing fee, so the buyer is charged the order
+    // total and nothing more: totalCents IS orderCents, and the covered fee is
+    // always zero. Those two are still reported separately because the payment
+    // service charges amount + feeAmount and reads both.
     function computeTotals() {
-      var fulfillment = currentFulfillment();
       var order = priceOrder(quantity(), appliedDiscount);
-      var cover = coverFee.checked;
-      var totalCents = cover ? grossedUpTotalCents(order.orderCents) : order.orderCents;
-      var feeCents = cover ? totalCents - order.orderCents : feeCentsOn(order.orderCents);
 
       return {
-        fulfillment: fulfillment,
+        fulfillment: currentFulfillment(),
         discount: appliedDiscount,
         order: order,
-        coverFee: cover,
-        feeCents: feeCents,
-        coveredFeeCents: cover ? feeCents : 0,
-        totalCents: totalCents
+        coverFee: false,
+        coveredFeeCents: 0,
+        totalCents: order.orderCents
       };
     }
 
@@ -1775,8 +1551,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       var showDiscountLine = !!discount && order.discountCents > 0;
 
       // Step 1 lines
-      el("subtotal-label").textContent = guidesLabel;
-      el("subtotal").textContent = money(order.subtotalCents);
       el("discount-line").hidden = !showDiscountLine;
       el("discount-label").textContent = discountLabel;
       el("discount").textContent = "-" + money(order.discountCents);
@@ -1792,8 +1566,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       el("review-discount").textContent = "-" + money(order.discountCents);
       el("review-shipping-line").hidden = order.shippingCents <= 0;
       el("review-shipping").textContent = money(order.shippingCents);
-      el("review-fee").textContent = money(t.feeCents);
-      el("fee-label").textContent = t.coverFee ? "" : "(covered by Refuge International)";
       el("review-total").textContent = money(t.totalCents);
 
       var shipTo = el("review-ship-to");
@@ -1942,11 +1714,12 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         // The order total in whole cents, after the discount, with no fee folded
         // in. The service charges exactly amount + feeAmount.
         amount: order.orderCents,
-        coverFee: coverFee.checked,
-        // The fee this form quoted, in whole cents - always a non-negative
-        // integer, and 0 whenever the buyer did not elect to cover it. The API
-        // uses this verbatim instead of recalculating, so the charge is exactly
-        // the number printed on the pay button.
+        // Refuge International absorbs the processing fee on these orders, so
+        // the buyer never covers it and there is nothing to add to the charge.
+        // Both fields are still sent, and sent explicitly: the payment service
+        // charges amount + feeAmount, and a missing feeAmount would leave that
+        // sum to a default this form does not control.
+        coverFee: false,
         feeAmount: totals.coveredFeeCents,
         // Purchases are never recurring.
         frequency: "onetime",
@@ -1994,16 +1767,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         payload.organization = organization;
       }
 
-      // Declare a payment rail only when the buyer actually chose one. The rail
-      // chips are shown only when cover-fees is ticked; posting the reset
-      // default otherwise would pin Checkout to card only and make paying by
-      // bank impossible for exactly the orders that cost the most to collect.
-      // It must be OMITTED, not sent as null or "" - request validation accepts
-      // an absent field and rejects an empty string with HTTP 400.
-      if (coverFee.checked) {
-        payload.paymentMethod = paymentMethod;
-        payload.cardType = cardType;
-      }
+      // No payment rail is declared. The form no longer asks the buyer which
+      // one they will use, and naming one here would pin Stripe Checkout to it;
+      // omitting it lets Checkout offer every method the account has enabled.
+      // The field must be OMITTED, not sent as null or "" - request validation
+      // accepts an absent field and rejects an empty string with HTTP 400.
 
       // Stable across retries of the same order: a buyer who resubmits after a
       // failure keeps the same reference, while a changed order gets a new one.
@@ -2013,9 +1781,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         payload.feeAmount,
         payload.category,
         payload.email,
-        payload.coverFee,
-        payload.paymentMethod,
-        payload.cardType,
         payload.donationType,
         order.qty,
         // The code is part of the signature even though it can only change the
@@ -2098,7 +1863,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           Discount: discount ? order.percentOff + "% (" + discount.code + ")" : "none",
           DiscountAmount: money(order.discountCents),
           OrderTotal: money(order.orderCents),
-          CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
+          // Always zero on this form. Recorded as words rather than $0.00 so a
+          // reader of the record cannot mistake it for a buyer who declined.
+          CoveredProcessingFee: "absorbed by Refuge International",
           TotalCharged: money(totals.totalCents),
           Fulfillment: fulfillment.id,
           OrderSummary: summary,

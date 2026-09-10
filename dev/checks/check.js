@@ -55,12 +55,29 @@ function check(name, actual, expected) {
   check('pre-order notice is shown', await $('notice').isVisible(), true);
   check('notice badge reads Pre-order', (await $('notice-badge').textContent()).trim(), 'Pre-order');
 
+  // --- step 1 layout --------------------------------------------------------
+  //
+  // The first page shows the code, the discount, shipping and the total. The
+  // per-line "Guides" figure was removed from it; it still appears on the
+  // review step, where the buyer is checking the order before paying.
+  check('step 1 no longer carries a Guides line', await $('subtotal').count(), 0);
+  check('step 1 no longer carries a Guides label', await $('subtotal-label').count(), 0);
+
+  const step1Order = await page.evaluate((prefix) => {
+    const at = (id) => {
+      const node = document.getElementById(prefix + '-' + id);
+      return node ? node.getBoundingClientRect().top : null;
+    };
+    return { qty: at('qty'), tiers: at('tiers'), code: at('code-block'), lines: at('step1-lines') };
+  }, p);
+  check('the discount code box sits below the participants section', step1Order.code > step1Order.qty, true);
+  check('the discount code box sits above the order total', step1Order.code < step1Order.lines, true);
+
   // --- pricing with no code ------------------------------------------------
   await $('qty').fill('30');
   await page.waitForTimeout(120);
-  check('30 participants subtotal is 30 x $38', (await $('subtotal').textContent()).trim(), '$1140.00');
   check('no discount line without a code', await $('discount-line').isHidden(), true);
-  check('order total is the undiscounted subtotal', (await $('order-total').textContent()).trim(), '$1140.00');
+  check('order total is 30 participants at $38 each', (await $('order-total').textContent()).trim(), '$1140.00');
 
   // --- an unknown code ------------------------------------------------------
   await $('code').fill('NOPE');
@@ -139,15 +156,44 @@ function check(name, actual, expected) {
   check('pay button shows the discounted total', (await $('submit').textContent()).trim(), 'Pay $855.00');
   check('fulfilment note is the pre-order promise', (await $('fulfillment-note').textContent()).includes('ship when the resource releases'), true);
 
-  // --- cover fees grosses up on the DISCOUNTED total ------------------------
-  await $('cover-fee').check();
-  await page.waitForTimeout(200);
-  const coveredTotal = (await $('review-total').textContent()).trim();
-  // ceil((85500 + 30) * 10000 / 9780) = 87454 cents - the gross-up runs on the
-  // discounted total, since the processor takes its cut of the whole charge.
-  check('cover-fee grosses up from the discounted total', coveredTotal, '$874.54');
-  await $('cover-fee').uncheck();
+  // --- the org absorbs the processing fee ----------------------------------
+  //
+  // Refuge International eats the fee, so the buyer is never asked about it and
+  // never sees it: no checkbox, no rail chips, no fee line, and the total
+  // charged is the order total to the cent with nothing grossed up onto it.
+  check('no cover-the-fee checkbox', await $('cover-fee').count(), 0);
+  check('no payment-method chips', await $('pm-row').count(), 0);
+  check('no card-type chips', await $('card-type-row').count(), 0);
+  check('no processing fee line in the summary', await $('review-fee').count(), 0);
+  check('the total charged is the order total, not a grossed-up one', (await $('review-total').textContent()).trim(), '$855.00');
+
+  // --- the back arrow -------------------------------------------------------
+  check('step 3 still has a way back', await $('prev3').count(), 1);
+  check('it is an icon, not a "Previous" button', (await $('prev3').textContent()).trim(), '');
+  check('no Previous button is left on the review step', (await $('step3').textContent()).includes('Previous'), false);
+
+  const backShape = await page.evaluate((prefix) => {
+    const btn = document.getElementById(prefix + '-prev3');
+    const card = btn.closest('.hg-card');
+    const b = btn.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const style = getComputedStyle(btn);
+    return {
+      square: Math.round(b.width) === Math.round(b.height),
+      round: parseFloat(style.borderRadius) >= b.width / 2,
+      fromLeft: b.left - c.left,
+      fromTop: b.top - c.top
+    };
+  }, p);
+  check('the back control is circular', backShape.square && backShape.round, true);
+  check('it sits in the top-left corner of the card', backShape.fromLeft < 40 && backShape.fromTop < 40, true);
+
+  await $('prev3').click();
   await page.waitForTimeout(150);
+  check('the back arrow goes back a step', await $('step2').isVisible(), true);
+  await $('next2').click();
+  await page.waitForTimeout(200);
+  check('and forward again returns to the review step', await $('step3').isVisible(), true);
 
   // --- submit: the payload carries the code and the discounted amount -------
   await $('submit').click();
@@ -163,6 +209,14 @@ function check(name, actual, expected) {
   check('a payment was requested', !!paymentPayload, true);
 
   check('payment amount is the discounted total in cents', paymentPayload.amount, 85500);
+  // The buyer never covers the fee, so nothing is ever added to the charge -
+  // and no rail is named, which is what leaves Stripe Checkout free to offer
+  // every method the account has enabled rather than pinning it to one.
+  check('the payload never covers the fee', paymentPayload.coverFee, false);
+  check('no fee is added to the charge', paymentPayload.feeAmount, 0);
+  check('the charge is the order total and nothing else', paymentPayload.amount + paymentPayload.feeAmount, 85500);
+  check('no payment rail is pinned', Object.prototype.hasOwnProperty.call(paymentPayload, 'paymentMethod'), false);
+  check('no card type is pinned', Object.prototype.hasOwnProperty.call(paymentPayload, 'cardType'), false);
   check('metadata carries the code', paymentPayload.metadata.discount_code, 'PREVIEW25');
   check('metadata carries the percent', paymentPayload.metadata.discount_percent, 25);
   check('metadata carries the discount amount for humans', paymentPayload.metadata.discount_amount, '$285.00');
