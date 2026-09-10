@@ -348,6 +348,48 @@ const TAX_EXEMPTION_ORG_TYPES = [
 // no right answer.
 const TAX_EXEMPTION_STATE = "KY";
 
+// ---------------------------------------------------------------------------
+// PAYING BY CHECK
+//
+// SET THE ADDRESS BELOW TO TURN THIS ON. While it is empty the check option is
+// not rendered at all, and the form behaves exactly as it did before this
+// existed. That is deliberate rather than a placeholder somebody forgot: the
+// one thing a check option cannot ship without is somewhere to post the check,
+// and a form that tells a buyer to mail money nowhere is worse than a form with
+// no check option.
+//
+// Use a newline between lines; they are rendered as separate lines.
+// ---------------------------------------------------------------------------
+const HOSPITALITY_GUIDE_CHECK_ADDRESS_DEFAULT = "";
+
+// A host page can set it without editing this file, the same way it can set the
+// card rate:
+//     window.HG_CHECK_ADDRESS = "Refuge International\nPO Box 1\nLouisville, KY 40202";
+// Anything that is not a non-empty string is ignored and the default above is
+// used - which means the check option stays hidden rather than appearing with
+// an address of "undefined".
+function hgConfiguredCheckAddress() {
+  try {
+    if (typeof window !== "undefined" && typeof window.HG_CHECK_ADDRESS === "string") {
+      var configured = window.HG_CHECK_ADDRESS.trim();
+      if (configured) return configured;
+    }
+  } catch (e) {
+    /* no window, or a sandbox that will not hand it over */
+  }
+  return HOSPITALITY_GUIDE_CHECK_ADDRESS_DEFAULT;
+}
+
+const HOSPITALITY_GUIDE_CHECK_ADDRESS = hgConfiguredCheckAddress();
+
+// Who the check is made out to.
+const HOSPITALITY_GUIDE_CHECK_PAYABLE_TO = "Refuge International";
+
+// Where a check order is recorded. Same Function App as the payment endpoint,
+// and it creates a PENDING transaction rather than taking any money - the
+// order exists in the books, and somebody reconciles it when the check lands.
+const CHECK_ORDER_API = processOrderAPI + "/check";
+
 // Shipping is included in the prices above. If the printer starts billing
 // freight separately, set this to the flat amount in cents and it is added to
 // every order, quoted on its own line. Left at 0 there is no shipping line at
@@ -519,6 +561,19 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-cert-applied-label { font-size:13px; color:#444; overflow-wrap:anywhere; }
     .hg-cert-remove { flex:0 0 auto; background:none; border:none; color:#666; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:0; }
     .hg-cert-file { font-size:13px; }
+
+    /* Paying by check */
+    .hg-check-switch { margin-top:14px; text-align:center; }
+    .hg-check-switch[hidden], .hg-check-panel[hidden], .hg-check-done[hidden] { display:none; }
+    .hg-check-link { background:none; border:none; color:#666; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:6px 0; }
+    .hg-check-panel, .hg-check-done { margin-top:16px; padding:16px; border-radius:14px; border:1.5px solid #d8d8d8; background:#fafafa; text-align:center; }
+    .hg-check-title { font-weight:800; font-size:16px; margin-bottom:8px; }
+    .hg-check-body { font-size:14px; color:#444; line-height:1.55; margin-bottom:12px; }
+    .hg-check-detail { display:flex; flex-direction:column; gap:8px; margin:0 0 14px; text-align:left; }
+    .hg-check-detail > div { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
+    .hg-check-detail span { color:#666; }
+    .hg-check-detail strong { text-align:right; white-space:pre-line; }
+    .hg-check-address { white-space:pre-line; font-weight:700; line-height:1.6; margin-bottom:12px; }
 
     /* Discount code entry */
     .hg-code { margin-bottom:14px; }
@@ -1137,8 +1192,50 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
           <button type="button" id="${prefix}-submit" class="hg-cta" disabled>Enter the number of participants</button>
           <div id="${prefix}-submit-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-          <div class="hg-fineprint">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
-          <div class="hg-trust">Secure payment powered by Stripe</div>
+          <div class="hg-fineprint" id="${prefix}-stripe-note">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
+          <div class="hg-trust" id="${prefix}-stripe-trust">Secure payment powered by Stripe</div>
+
+          <!--
+            Rendered only when there is somewhere to post a check - see
+            HOSPITALITY_GUIDE_CHECK_ADDRESS. A form that tells a buyer to mail
+            money nowhere is worse than a form with no check option.
+          -->
+          <div class="hg-check-switch" id="${prefix}-check-switch" hidden>
+            <button type="button" class="hg-check-link" id="${prefix}-check-toggle">Prefer to pay by check?</button>
+          </div>
+
+          <div class="hg-check-panel" id="${prefix}-check-panel" hidden>
+            <div class="hg-check-title">Paying by check</div>
+            <div class="hg-check-body">
+              We will record your order now and hold it until your check arrives. Nothing is charged
+              today, and your guides ship once the check clears.
+            </div>
+            <div class="hg-check-detail">
+              <div><span>Make it payable to</span><strong id="${prefix}-check-payable"></strong></div>
+              <div><span>Amount</span><strong id="${prefix}-check-amount">$0.00</strong></div>
+              <div><span>Mail to</span><strong id="${prefix}-check-address"></strong></div>
+            </div>
+            <div class="hg-check-body" id="${prefix}-check-reference-note" hidden>
+              Please write your order reference on the check:
+              <strong id="${prefix}-check-reference"></strong>
+            </div>
+            <button type="button" class="hg-cta" id="${prefix}-check-submit">Place this order and mail a check</button>
+            <div id="${prefix}-check-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
+            <button type="button" class="hg-check-link" id="${prefix}-check-cancel">Pay by card or bank instead</button>
+          </div>
+
+          <div class="hg-check-done" id="${prefix}-check-done" hidden>
+            <div class="hg-check-title">Your order is recorded</div>
+            <div class="hg-check-body">
+              We are expecting a check for <strong id="${prefix}-done-amount">$0.00</strong>, payable to
+              <strong id="${prefix}-done-payable"></strong>. Please write the reference
+              <strong id="${prefix}-done-reference"></strong> on it and mail it to:
+            </div>
+            <div class="hg-check-address" id="${prefix}-done-address"></div>
+            <div class="hg-check-body">
+              Your guides ship once the check clears. A copy of this has gone to your email.
+            </div>
+          </div>
 
           <div class="hg-nav-buttons">
             <button type="button" class="hg-btn secondary" id="${prefix}-prev3">Previous</button>
@@ -2334,6 +2431,29 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         "-" + Math.random().toString(16).slice(2, 10);
     }
 
+    /**
+     * A reference a person can actually write on a check.
+     *
+     * clientReferenceId is a UUID, which is the right shape for an idempotency
+     * key and the wrong shape for a pen: thirty-six characters of hex is not
+     * something anybody copies onto a check correctly. This folds it down to
+     * twelve, upper-cased and grouped, and it is DERIVED rather than generated -
+     * the same order resubmitted produces the same reference, which is what
+     * keeps the upsert on Manual_Reference__c idempotent.
+     *
+     * Twelve hex characters is 2.8e14 possibilities. Against the number of
+     * checks this organisation will ever take, a collision is not a risk worth
+     * trading legibility for - and Manual_Reference__c is unique, so a
+     * collision would surface as a refused write rather than one order quietly
+     * overwriting another.
+     */
+    function makeCheckReference(referenceId) {
+      var hex = String(referenceId || "").replace(/[^a-fA-F0-9]/g, "").toUpperCase();
+      while (hex.length < 12) hex += "0";
+      var trimmed = hex.slice(-12);
+      return "HG-" + trimmed.slice(0, 4) + "-" + trimmed.slice(4, 8) + "-" + trimmed.slice(8, 12);
+    }
+
     // --- test-mode indicator ------------------------------------------------
     //
     // isTestModeRequested() is only this form's intent. The payment service
@@ -2526,6 +2646,102 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     });
 
+    // --- paying by check ----------------------------------------------------
+    //
+    // No money moves here. The order is recorded as a PENDING transaction so it
+    // exists in the books, and a person reconciles it when the check arrives.
+    // Nothing about the card path changes: this is a separate button that
+    // reaches a separate endpoint, and it is not rendered at all unless there is
+    // an address to post a check to.
+
+    var checkSwitch = el("check-switch");
+    var checkToggle = el("check-toggle");
+    var checkPanel = el("check-panel");
+    var checkCancel = el("check-cancel");
+    var checkSubmitBtn = el("check-submit");
+    var checkError = el("check-error");
+    var checkDone = el("check-done");
+    var stripeNote = el("stripe-note");
+    var stripeTrust = el("stripe-trust");
+
+    var checkAvailable = (HOSPITALITY_GUIDE_CHECK_ADDRESS || "").trim().length > 0;
+    var checkSubmitting = false;
+
+    function showCheckError(message) {
+      if (!checkError) return;
+      checkError.textContent = message || "";
+      checkError.style.display = message ? "block" : "none";
+    }
+
+    // Which of the three faces the review step is wearing: the card path, the
+    // check panel, or the confirmation once a check order has been recorded.
+    function paintCheckMode(mode) {
+      var payingByCheck = mode === "check";
+      var recorded = mode === "done";
+
+      if (checkSwitch) checkSwitch.hidden = !checkAvailable || payingByCheck || recorded;
+      if (checkPanel) checkPanel.hidden = !payingByCheck;
+      if (checkDone) checkDone.hidden = !recorded;
+
+      // The card apparatus is hidden rather than disabled while the buyer is
+      // looking at check instructions - a live Pay button under them is an
+      // invitation to be charged for an order they are about to post a check
+      // for.
+      [submitBtn, stripeNote, stripeTrust, el("submit-error")].forEach(function (node) {
+        if (node) node.style.display = payingByCheck || recorded ? "none" : "";
+      });
+      var feeCard = coverFee ? coverFee.closest(".hg-card-inner") : null;
+      if (feeCard) feeCard.style.display = payingByCheck || recorded ? "none" : "";
+      var prevBtn = el("prev3");
+      if (prevBtn) prevBtn.style.display = recorded ? "none" : "";
+    }
+
+    function paintCheckPanel() {
+      if (!checkAvailable || !checkPanel || checkPanel.hidden) return;
+      var order = computeTotals().order;
+      var payable = el("check-payable");
+      var amount = el("check-amount");
+      var address = el("check-address");
+      if (payable) payable.textContent = HOSPITALITY_GUIDE_CHECK_PAYABLE_TO;
+      // The order total and nothing else. A check costs the organisation no
+      // processing fee, so there is none to quote and none to cover.
+      if (amount) amount.textContent = money(order.orderCents);
+      if (address) address.textContent = HOSPITALITY_GUIDE_CHECK_ADDRESS;
+    }
+
+    if (checkToggle) {
+      checkToggle.addEventListener("click", function () {
+        if (!checkAvailable) return;
+        // Covering the processing fee is meaningless on a check, and leaving it
+        // ticked would quote a total nobody is going to pay.
+        if (coverFee && coverFee.checked) {
+          coverFee.checked = false;
+          coverFee.dispatchEvent(new Event("change"));
+        }
+        showCheckError("");
+        paintCheckMode("check");
+        paintCheckPanel();
+      });
+    }
+
+    if (checkCancel) {
+      checkCancel.addEventListener("click", function () {
+        showCheckError("");
+        paintCheckMode("card");
+        updateTotals();
+      });
+    }
+
+    if (checkSubmitBtn) {
+      checkSubmitBtn.addEventListener("click", function () {
+        if (checkSubmitting || checkingCode || recordingCertificate) return;
+        if (!orderStepValid(true) || !buyerStepValid(true)) return;
+        beginSubmission("check");
+      });
+    }
+
+    paintCheckMode("card");
+
     // --- submit -------------------------------------------------------------
     submitBtn.addEventListener("click", function () {
       if (submitting) return;
@@ -2584,7 +2800,16 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     });
 
-    function beginSubmission() {
+    /**
+     * mode is "card" (the default) or "check".
+     *
+     * Everything up to and including the Form__c record is shared: a check
+     * order is the same order, recorded the same way, with the same
+     * confirmation email. Only the last step differs - a Checkout Session, or a
+     * pending transaction the organisation reconciles when the check arrives.
+     */
+    function beginSubmission(mode) {
+      var payingByCheck = mode === "check";
       // Priced one last time at the moment of submission rather than reusing a
       // figure painted earlier, so what is charged is what the buyer is looking
       // at right now.
@@ -2716,6 +2941,18 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         payload.cardType = cardType;
       }
 
+      // Nobody takes a cut of a check, so there is no fee to quote, none to
+      // cover and no rail to declare. Forced here rather than trusted to have
+      // been cleared elsewhere: the charged figure and the recorded figure both
+      // come off this object, and a stale cover-fee would put a processing fee
+      // on an order that never saw a processor.
+      if (payingByCheck) {
+        payload.coverFee = false;
+        payload.feeAmount = 0;
+        delete payload.paymentMethod;
+        delete payload.cardType;
+      }
+
       // Stable across retries of the same order: a buyer who resubmits after a
       // failure keeps the same reference, while a changed order gets a new one.
       // Every field that can move the charged total belongs here.
@@ -2755,13 +2992,37 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       }
 
       submitting = true;
+      if (payingByCheck) checkSubmitting = true;
+
       // Derived from the total rather than read off the button, because the
       // button may currently say "Checking your code..." - restoring that on a
       // failure would leave the buyer looking at a stale message and no price.
       var originalButtonText = "Pay " + money(totals.totalCents);
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Transferring to Stripe...";
+      var busyButton = payingByCheck ? checkSubmitBtn : submitBtn;
+      var busyOriginalText = payingByCheck
+        ? "Place this order and mail a check"
+        : originalButtonText;
+      if (busyButton) {
+        busyButton.disabled = true;
+        busyButton.textContent = payingByCheck ? "Recording your order..." : "Transferring to Stripe...";
+      }
       hideSubmitError();
+      if (payingByCheck) showCheckError("");
+
+      /** Put the buyer back where they were, with whichever error box is theirs. */
+      function releaseSubmission(message) {
+        submitting = false;
+        checkSubmitting = false;
+        if (busyButton) {
+          busyButton.disabled = false;
+          busyButton.textContent = busyOriginalText;
+        }
+        if (message) {
+          if (payingByCheck) showCheckError(message);
+          else showSubmitError(message);
+        }
+        updateTotals();
+      }
 
       // The Salesforce side of the order: who ordered, how many participants,
       // and where it ships.
@@ -2911,6 +3172,92 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         } catch (e) {
           /* bookkeeping only */
         }
+      }
+
+      // The check path forks here, BEFORE any of the Stripe apparatus below, so
+      // the card path is left exactly as it was. Same order, same Form__c, same
+      // confirmation email - a different last step.
+      if (payingByCheck) {
+        var checkController = typeof AbortController === "function" ? new AbortController() : null;
+        var checkTimedOut = false;
+        var checkTimeoutId = setTimeout(function () {
+          checkTimedOut = true;
+          if (checkController) checkController.abort();
+        }, SUBMIT_TIMEOUT_MS);
+
+        createFormRecord()
+          .then(function (record) {
+            var code = readFormField(record, "FormCode__c");
+            var id = readFormField(record, "Id");
+            if (code) payload.metadata.form_code = code;
+            if (id) payload.metadata.form_id = id;
+
+            var checkBody = {
+              // The order total, with no fee on top - see the override above.
+              amount: order.orderCents,
+              // The record's only unique key, and the thing the buyer writes on
+              // the check. Derived from clientReferenceId rather than generated,
+              // so a buyer who presses the button twice updates one pending
+              // transaction instead of creating a second one.
+              clientReferenceId: makeCheckReference(clientReferenceId),
+              email: payload.email,
+              category: HOSPITALITY_GUIDE_CATEGORY,
+              metadata: payload.metadata
+            };
+            if (buyerType === "organization") checkBody.organization = organization;
+
+            var options = {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(checkBody)
+            };
+            if (checkController) options.signal = checkController.signal;
+
+            return fetch(CHECK_ORDER_API, options);
+          })
+          .then(function (r) {
+            clearTimeout(checkTimeoutId);
+            return r.text().then(function (text) {
+              var data = null;
+              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+
+              if (!r.ok || !data || data.recorded !== true) {
+                console.error("[Hospitality Guide] Check order not recorded: HTTP " + r.status + " " + text);
+                // Said plainly, because a buyer about to post a cheque needs to
+                // know whether anyone is expecting it.
+                releaseSubmission(
+                  (data && data.error) ||
+                  "We could not record your order just now. Please try again before mailing a check."
+                );
+                return;
+              }
+
+              var reference = String(data.reference || makeCheckReference(clientReferenceId));
+              var doneAmount = el("done-amount");
+              var donePayable = el("done-payable");
+              var doneReference = el("done-reference");
+              var doneAddress = el("done-address");
+              if (doneAmount) doneAmount.textContent = money(order.orderCents);
+              if (donePayable) donePayable.textContent = HOSPITALITY_GUIDE_CHECK_PAYABLE_TO;
+              if (doneReference) doneReference.textContent = reference;
+              if (doneAddress) doneAddress.textContent = HOSPITALITY_GUIDE_CHECK_ADDRESS;
+
+              submitting = false;
+              checkSubmitting = false;
+              paintCheckMode("done");
+            });
+          })
+          .catch(function (err) {
+            clearTimeout(checkTimeoutId);
+            console.error("[Hospitality Guide] Check order request failed:", err);
+            releaseSubmission(
+              checkTimedOut
+                ? "That took too long. Please try again before mailing a check."
+                : "We could not record your order just now. Please try again before mailing a check."
+            );
+          });
+
+        return;
       }
 
       // Redacted copy: this line goes to a console the buyer can open, and on a
