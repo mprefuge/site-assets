@@ -282,6 +282,36 @@ const HOSPITALITY_GUIDE_CATEGORY = "Hospitality Guide";
 // Used once the guide has been released.
 const HOSPITALITY_GUIDE_FULFILLMENT = "ships-on-order";
 
+// ---------------------------------------------------------------------------
+// SALES TAX
+//
+// Kentucky charges 6% state-wide with no local sales tax, so one flat rate is
+// the whole rule for KY - unlike most states, there is no county or city
+// component to look up. Anywhere else is zero, which is a decision about NEXUS
+// rather than about those states' rates: tax is collected where there is an
+// obligation to collect it, and that obligation currently exists only in
+// Kentucky. If that ever changes, this table is where it changes.
+//
+// The rate is basis points so the arithmetic stays in integers - 600 = 6.00%.
+//
+// WHAT IS TAXED: the order subtotal after the discount, plus shipping. Kentucky
+// taxes delivery charges on taxable goods, so shipping belongs in the base;
+// it is $0 today, and this is the line that keeps it correct if it ever is not.
+// Tax is NOT charged on the processing fee a buyer elects to cover - that is
+// not part of the sale price.
+// ---------------------------------------------------------------------------
+const HOSPITALITY_GUIDE_TAX_RULES = {
+  KY: { rateBps: 600, label: "KY sales tax" }
+};
+
+// Exemption is claimed on Kentucky Form 51A126, the purchase exemption
+// certificate a resident nonprofit or educational institution files. Ticking a
+// box is a claim, not a certificate: tax comes off only when the certificate is
+// COMPLETE. Everything else - unticked, ticked but unfinished - is taxed.
+const TAX_CERTIFICATE_COMPLETE = "Complete";
+const TAX_CERTIFICATE_PENDING = "Pending";
+const TAX_CERTIFICATE_NOT_APPLICABLE = "Not Applicable";
+
 // Shipping is included in the prices above. If the printer starts billing
 // freight separately, set this to the flat amount in cents and it is added to
 // every order, quoted on its own line. Left at 0 there is no shipping line at
@@ -410,6 +440,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-notice[hidden] { display:none; }
     .hg-notice-badge { font-weight:800; color:${BRAND_PRIMARY}; letter-spacing:.02em; }
     .hg-notice-note { font-size:13px; color:#444; line-height:1.45; }
+
+    /* Says why there is no total yet on step 1. */
+    .hg-await-address { margin-top:10px; font-size:13px; color:#555; text-align:center; line-height:1.45; }
+    .hg-await-address[hidden] { display:none; }
 
     /* Discount code entry */
     .hg-code { margin-bottom:14px; }
@@ -610,19 +644,58 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     return Math.round(pct);
   }
 
+  // What tax applies to a destination, given the state of the exemption
+  // paperwork. Returns the components rather than a single figure, because that
+  // is what gets stored: base, rate, state and amount are each recorded, and
+  // every total downstream is derived from them rather than from a stored lump.
+  //
+  // certificateStatus is the ONLY thing that can zero tax on a Kentucky order,
+  // and only when it is Complete. A ticked box with an unfinished certificate
+  // is Pending, and Pending is taxed - the buyer pays, and the exemption is
+  // sorted out afterwards. That is the safe direction to be wrong in: refunding
+  // over-collected tax is an inconvenience, under-collecting it is a debt to
+  // the Commonwealth that the organisation pays out of its own funds.
+  function taxFor(stateCode, baseCents, certificateStatus) {
+    var code = (stateCode || "").toString().trim().toUpperCase().slice(0, 2);
+    var rule = HOSPITALITY_GUIDE_TAX_RULES[code];
+
+    if (!rule || baseCents <= 0) {
+      return { state: code, rateBps: 0, taxCents: 0, label: "Sales tax", exempt: false };
+    }
+
+    if (certificateStatus === TAX_CERTIFICATE_COMPLETE) {
+      return { state: code, rateBps: 0, taxCents: 0, label: rule.label, exempt: true };
+    }
+
+    return {
+      state: code,
+      rateBps: rule.rateBps,
+      // Rounded to the whole cent once, here, so the figure shown, the figure
+      // charged and the figure recorded are one rounding and not three.
+      taxCents: Math.round(baseCents * rule.rateBps / 10000),
+      label: rule.label,
+      exempt: false
+    };
+  }
+
   // The whole order, priced. One function, so the tier table, the running total,
   // the review lines, the pay button and the payload all read the same numbers.
   //
   // The discount is taken off the order total, as agreed, and rounded to the
   // whole cent. Shipping is added after the discount: a freight charge is not
-  // part of what a discount code discounts.
-  function priceOrder(qty, discount) {
+  // part of what a discount code discounts. Tax is applied last, to the
+  // discounted, shipped total - tax follows what was actually charged for the
+  // goods, not the list price.
+  function priceOrder(qty, discount, stateCode, certificateStatus) {
     var tier = qty > 0 ? tierFor(qty) : null;
     var unitCents = tier ? tier.unitCents : 0;
     var subtotalCents = tier ? qty * unitCents : 0;
     var percentOff = discountPercentOff(discount);
     var discountCents = Math.round(subtotalCents * percentOff / 100);
     var shippingCents = subtotalCents > 0 ? HOSPITALITY_GUIDE_SHIPPING_CENTS : 0;
+    var taxBaseCents = subtotalCents - discountCents + shippingCents;
+    var tax = taxFor(stateCode, taxBaseCents, certificateStatus);
+
     return {
       qty: qty,
       tier: tier,
@@ -631,7 +704,15 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       percentOff: percentOff,
       discountCents: discountCents,
       shippingCents: shippingCents,
-      orderCents: subtotalCents - discountCents + shippingCents
+      // What tax was calculated on, kept separate from the order total so the
+      // stored components reconcile without anyone having to re-derive it.
+      taxBaseCents: taxBaseCents,
+      taxState: tax.state,
+      taxRateBps: tax.rateBps,
+      taxCents: tax.taxCents,
+      taxLabel: tax.label,
+      taxExempt: tax.exempt,
+      orderCents: taxBaseCents + tax.taxCents
     };
   }
 
@@ -689,8 +770,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-line"><span id="${prefix}-subtotal-label">Guides</span><span id="${prefix}-subtotal">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-discount-line" hidden><span id="${prefix}-discount-label">Discount</span><span id="${prefix}-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-shipping-line" hidden><span>Shipping</span><span id="${prefix}-shipping">$0.00</span></div>
-            <div class="hg-line hg-line-total"><span>Order total</span><span id="${prefix}-order-total">$0.00</span></div>
+            <div class="hg-line hg-line-total"><span>Subtotal</span><span id="${prefix}-order-total">$0.00</span></div>
           </div>
+          <div class="hg-await-address" id="${prefix}-await-address">Sales tax and your total are worked out once we have the shipping address.</div>
 
           <div class="hg-nav-buttons">
             <span></span>
@@ -813,6 +895,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-line"><span id="${prefix}-review-guides-label">Guides</span><span id="${prefix}-review-guides">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-review-discount-line" hidden><span id="${prefix}-review-discount-label">Discount</span><span id="${prefix}-review-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-review-shipping-line" hidden><span>Shipping</span><span id="${prefix}-review-shipping">$0.00</span></div>
+            <div class="hg-line" id="${prefix}-review-tax-line"><span id="${prefix}-review-tax-label">Sales tax</span><span id="${prefix}-review-tax">$0.00</span></div>
             <div class="hg-line hg-line-muted"><span>Processing fees <span id="${prefix}-fee-label"></span></span><span id="${prefix}-review-fee">$0.00</span></div>
             <div class="hg-line hg-line-total"><span>Total charged today</span><span id="${prefix}-review-total">$0.00</span></div>
           </div>
@@ -1105,8 +1188,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
       var msg = "Add " + need + (need === 1 ? " more participant" : " more participants") +
         " to reach " + moneyShort(next.unitCents) + "/person";
-      var here = priceOrder(qty, discount).orderCents;
-      var there = priceOrder(next.minQty, discount).orderCents;
+      // Priced against the same destination as the real order, so the "order a
+      // few more" saving quoted here is the saving the buyer actually gets -
+      // tax included once an address is known.
+      var here = priceOrder(qty, discount, destinationState(), certificateStatus()).orderCents;
+      var there = priceOrder(next.minQty, discount, destinationState(), certificateStatus()).orderCents;
       if (there < here) {
         msg += " - " + need + " more " + (need === 1 ? "copy" : "copies") + " for " + money(here - there) + " less overall";
       }
@@ -1120,6 +1206,28 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         var idx = parseInt(btn.getAttribute("data-tier"), 10);
         btn.classList.toggle("active", idx === activeIndex);
       });
+    }
+
+    // --- destination and exemption -------------------------------------------
+    //
+    // Tax follows where the order SHIPS, not where the card is billed, so the
+    // state read here is the one from the shipping address on step 2. Until
+    // that is filled in there is no destination and no tax - which is why the
+    // total does not appear until the address does.
+
+    function destinationState() {
+      var sel = document.getElementById(prefix + "-state");
+      // The options read "KY - Kentucky"; the code is the part before the dash.
+      return sel ? (sel.value || "").split(" - ")[0].trim().toUpperCase() : "";
+    }
+
+    // Where the exemption paperwork stands. Stage 1 has no certificate capture,
+    // so nothing can be exempt yet and every Kentucky order is taxed. The
+    // 51A126 form lands here next, and this is the only place that has to
+    // change for it: taxFor already refuses to zero the tax on anything short
+    // of Complete.
+    function certificateStatus() {
+      return TAX_CERTIFICATE_NOT_APPLICABLE;
     }
 
     // --- discount code ------------------------------------------------------
@@ -1543,9 +1651,14 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     // numbers in the payload cannot drift apart: the button shows totalCents,
     // and the payload sends orderCents and coveredFeeCents, whose sum is
     // totalCents by construction.
+    // The processing fee is quoted and grossed up on order.orderCents, which
+    // now INCLUDES tax - the processor takes its cut of the whole charge, tax
+    // and all, so a gross-up that ignored tax would leave the organisation
+    // short by the fee on the tax. Tax itself is never grossed up: the state is
+    // owed 6% of the sale price, not 6% of the sale price plus a card fee.
     function computeTotals() {
       var fulfillment = currentFulfillment();
-      var order = priceOrder(quantity(), appliedDiscount);
+      var order = priceOrder(quantity(), appliedDiscount, destinationState(), certificateStatus());
       var cover = coverFee.checked;
       var totalCents = cover ? grossedUpTotalCents(order.orderCents) : order.orderCents;
       var feeCents = cover ? totalCents - order.orderCents : feeCentsOn(order.orderCents);
@@ -1782,7 +1895,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       el("discount").textContent = "-" + money(order.discountCents);
       el("shipping-line").hidden = order.shippingCents <= 0;
       el("shipping").textContent = money(order.shippingCents);
-      el("order-total").textContent = money(order.orderCents);
+      // The step 1 figure is the tax BASE, not the order total - the total is
+      // not knowable until the destination is, and step 1 has no address.
+      el("order-total").textContent = money(order.taxBaseCents);
+      var awaiting = el("await-address");
+      if (awaiting) awaiting.hidden = order.taxBaseCents <= 0;
 
       // Step 3 lines
       el("review-guides-label").textContent = guidesLabel;
@@ -1790,6 +1907,17 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       el("review-discount-line").hidden = !showDiscountLine;
       el("review-discount-label").textContent = discountLabel;
       el("review-discount").textContent = "-" + money(order.discountCents);
+      // Always rendered, $0.00 included: a buyer outside Kentucky should see
+      // that tax was considered and came to nothing, not wonder whether it is
+      // about to be added later.
+      var taxLabel = el("review-tax-label");
+      if (taxLabel) {
+        taxLabel.textContent = order.taxRateBps > 0
+          ? order.taxLabel + " (" + (order.taxRateBps / 100) + "%)"
+          : (order.taxExempt ? order.taxLabel + " (exempt)" : "Sales tax");
+      }
+      el("review-tax").textContent = money(order.taxCents);
+
       el("review-shipping-line").hidden = order.shippingCents <= 0;
       el("review-shipping").textContent = money(order.shippingCents);
       el("review-fee").textContent = money(t.feeCents);
@@ -1826,6 +1954,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     }
 
     // Recalculate on anything that can move a number or unlock the button.
+    // `state` is load-bearing here in a way the others are not: it is an input
+    // to the tax calculation, so changing it changes the total, not just
+    // whether the form validates.
     ["qty", "organization-name", "firstname", "lastname", "email", "phone",
       "addr1", "addr2", "city", "state", "zip", "country", "address-lookup"].forEach(function (id) {
       var field = el(id);
@@ -1918,6 +2049,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       var summary = participantsLabel(order.qty, order.unitCents) + " = " + money(order.subtotalCents) +
         (order.discountCents > 0 ? ", less " + order.percentOff + "% code " + discount.code + " (" + money(order.discountCents) + ")" : "") +
         (order.shippingCents > 0 ? ", plus " + money(order.shippingCents) + " shipping" : "") +
+        (order.taxCents > 0
+          ? ", plus " + (order.taxRateBps / 100) + "% " + order.taxState + " sales tax (" + money(order.taxCents) + ")"
+          : "") +
         " = " + money(order.orderCents);
 
       var payload = {
@@ -1983,6 +2117,21 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           // `amount` and `feeAmount` at the top level.
           discount_amount_cents: order.discountCents,
           shipping: money(order.shippingCents),
+          // Tax as its COMPONENTS, not a single figure. Base, rate and state
+          // are each recorded so the amount can be re-derived and checked
+          // rather than taken on trust, and so a later rate change cannot
+          // rewrite what this buyer was charged.
+          //
+          // Cents as an integer for the same reason as the discount: a number
+          // that has been through a currency formatter has lost the argument
+          // about what unit it is in.
+          tax_base_cents: order.taxBaseCents,
+          tax_amount_cents: order.taxCents,
+          tax_rate: order.taxRateBps / 100,
+          tax_state: order.taxState || "",
+          tax_amount: money(order.taxCents),
+          tax_certificate_status: certificateStatus(),
+          tax_exemption_id: "",
           order_total: money(order.orderCents),
           order_summary: summary,
           fulfillment: fulfillment.id,
@@ -2097,6 +2246,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           DiscountCode: discount ? discount.code : "none",
           Discount: discount ? order.percentOff + "% (" + discount.code + ")" : "none",
           DiscountAmount: money(order.discountCents),
+          TaxBase: money(order.taxBaseCents),
+          TaxState: order.taxState || "none",
+          TaxRate: (order.taxRateBps / 100) + "%",
+          TaxAmount: money(order.taxCents),
+          TaxCertificateStatus: certificateStatus(),
           OrderTotal: money(order.orderCents),
           CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
           TotalCharged: money(totals.totalCents),
