@@ -394,6 +394,21 @@ const HG_STRIPE_AMEX_RATE_PERCENT = 3.5;
 // Stripe's per-transaction fixed fee on cards and wallets, in cents.
 const HG_STRIPE_FIXED_FEE_CENTS = 30;
 
+// How much cheaper bank transfer has to be before the form leads with it
+// instead of with card.
+//
+// Expressed as a SAVING rather than an order total on purpose. ACH is 0.8%
+// capped at $5 against 2.2% plus 30c, so bank is technically cheaper on almost
+// any order - leading with it everywhere would just be a layout change wearing
+// a justification. Ten dollars is the point where it stops being a rounding
+// difference and starts being worth asking somebody to type a routing number,
+// and it works out around a fifteen to twenty person order at today's rates.
+//
+// Because it is derived from the live rates rather than hardcoded as a dollar
+// total, a rate change moves the threshold on its own instead of leaving a
+// stale number behind.
+const HG_ACH_LEAD_SAVING_CENTS = 1000;
+
 function hgStripeConfiguredRatePercent() {
   var raw = null;
   try {
@@ -560,6 +575,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
     /* Payment method chips */
     .hg-payment-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; justify-items:center; margin-bottom:12px; }
+    /* Says why bank transfer moved to the front, and what it is worth. */
+    .hg-rail-lead { font-size:13px; color:#2f7d4f; font-weight:600; line-height:1.45; margin:0 0 10px; }
+    .hg-rail-lead[hidden] { display:none; }
     .hg-payment-chip { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:16px 18px; min-width:100%; min-height:118px; text-align:center; border-radius:16px; transition:.3s all ease; }
     .hg-payment-chip:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.2); }
     .hg-payment-chip span { font-weight:600; font-size:14px; }
@@ -1079,6 +1097,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
             <div id="${prefix}-payment-method-section" style="display:none;margin-top:16px;">
               <label class="hg-label">Payment Method</label>
+              <div class="hg-rail-lead" id="${prefix}-rail-lead" hidden></div>
               <div class="hg-payment-grid" id="${prefix}-pm-row">
                 <button type="button" class="hg-chip hg-payment-chip" data-method="card">
                   <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="" width="32" height="32" />
@@ -2071,6 +2090,49 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     }
 
+    // Which rail the form leads with, and why.
+    //
+    // The rails themselves are unchanged and all three stay available - this
+    // moves them, it does not gate them. Card is first on a small order because
+    // that is what most buyers reach for; on a large one bank transfer goes
+    // first, because 0.8% capped at $5 against 2.2% plus 30c stops being a
+    // rounding difference and starts being real money the organisation keeps.
+    //
+    // Done with CSS `order` rather than by moving nodes: the click handler and
+    // selectChipGroup both read the DOM, and reordering it would mean two
+    // places that have to agree about which chip is which.
+    var railLead = el("rail-lead");
+
+    function railSavingCents(totalCents) {
+      if (totalCents <= 0) return 0;
+      // Priced against the ordinary card rate rather than the selected one. The
+      // question is which rail to put in front of a buyer who has not chosen
+      // yet, and answering it from Amex would recommend bank transfer on the
+      // strength of a card they may not be holding.
+      return feeCentsFor("card", "visa", totalCents) - feeCentsFor("us_bank_account", null, totalCents);
+    }
+
+    function paintRailOrder(totalCents) {
+      if (!pmRow) return;
+      var saving = railSavingCents(totalCents);
+      var bankLeads = saving >= HG_ACH_LEAD_SAVING_CENTS;
+
+      Array.prototype.forEach.call(pmRow.querySelectorAll(".hg-payment-chip"), function (chip) {
+        var method = chip.getAttribute("data-method");
+        // Wallet stays last either way; only the top two ever trade places.
+        var position = method === "wallet" ? 3 : (method === "us_bank_account" ? (bankLeads ? 1 : 2) : (bankLeads ? 2 : 1));
+        chip.style.order = String(position);
+      });
+
+      if (railLead) {
+        railLead.hidden = !bankLeads;
+        if (bankLeads) {
+          railLead.textContent = "Bank transfer costs " + money(saving) +
+            " less to process on an order this size, so it is listed first.";
+        }
+      }
+    }
+
     // The processing fee this form quotes, by payment method: a percentage in
     // basis points, a fixed charge in cents, and an optional cap. One table,
     // because both numbers feed the gross-up as well as the quote.
@@ -2086,14 +2148,22 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       return { bps: HG_STRIPE_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
     }
 
-    // What the processor deducts from a charge of totalCents - what the org
-    // gives up, not what the buyer adds.
-    function feeCentsOn(totalCents) {
+    // What the processor would deduct from a charge of totalCents on a GIVEN
+    // rail. Split out from feeCentsOn so a rail can be priced without being
+    // selected first - which is what lets the form work out whether bank
+    // transfer is worth leading with before the buyer has chosen anything.
+    function feeCentsFor(method, card, totalCents) {
       if (totalCents <= 0) return 0;
-      var rate = feeRateFor(paymentMethod, cardType);
+      var rate = feeRateFor(method, card);
       var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
       if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
       return fee;
+    }
+
+    // What the processor deducts from a charge of totalCents - what the org
+    // gives up, not what the buyer adds.
+    function feeCentsOn(totalCents) {
+      return feeCentsFor(paymentMethod, cardType, totalCents);
     }
 
     // The total to charge so that, once the processor has taken its cut, exactly
@@ -2398,6 +2468,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
       el("review-shipping-line").hidden = order.shippingCents <= 0;
       el("review-shipping").textContent = money(order.shippingCents);
+      // Priced on the tax-inclusive order total, because that is what the
+      // processor takes its cut of - the same figure the gross-up runs on.
+      paintRailOrder(order.orderCents);
+
       el("review-fee").textContent = money(t.feeCents);
       el("fee-label").textContent = t.coverFee ? "" : "(covered by Refuge International)";
       el("review-total").textContent = money(t.totalCents);
