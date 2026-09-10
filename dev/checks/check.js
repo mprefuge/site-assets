@@ -135,22 +135,17 @@ function check(name, actual, expected) {
 
   check('review discount matches step 1', (await $('review-discount').textContent()).trim(), '-$285.00');
   check('review discount names the code', (await $('review-discount-label').textContent()).trim(), 'PREVIEW25 (25% off)');
-  // Tax applies to the DISCOUNTED base, which is the correct order of
-  // operations: Kentucky taxes what was actually charged for the goods, not the
-  // list price. $855.00 + 6% = $51.30 tax = $906.30.
-  check('tax is charged on the discounted base', (await $('review-tax').textContent()).trim(), '$51.30');
-  check('review total is discounted base plus tax', (await $('review-total').textContent()).trim(), '$906.30');
-  check('pay button shows the tax-inclusive total', (await $('submit').textContent()).trim(), 'Pay $906.30');
+  check('review total is the discounted base', (await $('review-total').textContent()).trim(), '$855.00');
+  check('pay button shows the discounted total', (await $('submit').textContent()).trim(), 'Pay $855.00');
   check('fulfilment note is the pre-order promise', (await $('fulfillment-note').textContent()).includes('ship when the resource releases'), true);
 
   // --- cover fees grosses up on the DISCOUNTED total ------------------------
   await $('cover-fee').check();
   await page.waitForTimeout(200);
   const coveredTotal = (await $('review-total').textContent()).trim();
-  // ceil((90630 + 30) * 10000 / 9780) = 92700 cents - the gross-up runs on the
-  // discounted, taxed total, since the processor takes its cut of the whole
-  // charge including tax.
-  check('cover-fee grosses up from the discounted, taxed total', coveredTotal, '$927.00');
+  // ceil((85500 + 30) * 10000 / 9780) = 87454 cents - the gross-up runs on the
+  // discounted total, since the processor takes its cut of the whole charge.
+  check('cover-fee grosses up from the discounted total', coveredTotal, '$874.54');
   await $('cover-fee').uncheck();
   await page.waitForTimeout(150);
 
@@ -167,9 +162,7 @@ function check(name, actual, expected) {
   check('an order record was submitted', !!formPayload, true);
   check('a payment was requested', !!paymentPayload, true);
 
-  check('payment amount is the discounted, taxed total in cents', paymentPayload.amount, 90630);
-  check('tax base is the discounted subtotal', paymentPayload.metadata.tax_base_cents, 85500);
-  check('tax is 6% of the discounted base', paymentPayload.metadata.tax_amount_cents, 5130);
+  check('payment amount is the discounted total in cents', paymentPayload.amount, 85500);
   check('metadata carries the code', paymentPayload.metadata.discount_code, 'PREVIEW25');
   check('metadata carries the percent', paymentPayload.metadata.discount_percent, 25);
   check('metadata carries the discount amount for humans', paymentPayload.metadata.discount_amount, '$285.00');
@@ -179,14 +172,9 @@ function check(name, actual, expected) {
   check('metadata carries the discount amount in integer cents', paymentPayload.metadata.discount_amount_cents, 28500);
   check('cents and the display string agree', paymentPayload.metadata.discount_amount_cents / 100, 285.00);
   check(
-    'subtotal less discount equals the tax base, to the cent',
-    paymentPayload.metadata.tax_base_cents + paymentPayload.metadata.discount_amount_cents,
+    'subtotal less discount equals the charge, to the cent',
+    paymentPayload.amount + paymentPayload.metadata.discount_amount_cents,
     114000
-  );
-  check(
-    'tax base plus tax equals the charge, to the cent',
-    paymentPayload.metadata.tax_base_cents + paymentPayload.metadata.tax_amount_cents,
-    paymentPayload.amount
   );
   check('the code is checked against the order campaign', paymentPayload.category, 'Hospitality Guide');
   check('metadata fulfilment is ships-at-release', paymentPayload.metadata.fulfillment, 'ships-at-release');
@@ -196,9 +184,7 @@ function check(name, actual, expected) {
   check('Salesforce record carries the code', custom.DiscountCode, 'PREVIEW25');
   check('Salesforce record carries the discount', custom.Discount, '25% (PREVIEW25)');
   check('Salesforce record carries the discount amount', custom.DiscountAmount, '$285.00');
-  check('Salesforce record total matches the charge', custom.OrderTotal, '$906.30');
-  check('Salesforce record carries the tax base', custom.TaxBase, '$855.00');
-  check('Salesforce record carries the tax', custom.TaxAmount, '$51.30');
+  check('Salesforce record total matches the charge', custom.OrderTotal, '$855.00');
   check('Salesforce quantity is the participant count', formPayload.Quantity__c, 30);
 
   // --- a code that goes bad between Apply and Pay ---------------------------
@@ -262,9 +248,9 @@ function check(name, actual, expected) {
     (await $('submit-error').textContent()).includes('repriced'),
     true
   );
-  // Repriced without the code, and re-taxed on the higher base: $1140 + 6%.
-  check('the order is repriced to full price plus tax', (await $('review-total').textContent()).trim(), '$1208.40');
-  check('the pay button shows the new total', (await $('submit').textContent()).trim(), 'Pay $1208.40');
+  // Repriced without the code, at the full list price.
+  check('the order is repriced to full price', (await $('review-total').textContent()).trim(), '$1140.00');
+  check('the pay button shows the new total', (await $('submit').textContent()).trim(), 'Pay $1140.00');
   // Checked on the attribute, not on visibility: the buyer is on the review
   // step, so step 1 as a whole is off screen. What matters is that the field is
   // waiting for them when they go back.
