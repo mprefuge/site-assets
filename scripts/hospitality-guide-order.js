@@ -216,10 +216,15 @@ const LARGE_ORDER_CONTACT = HOSPITALITY_GUIDE_CONTACT_EMAIL;
 // reach it.
 const discountCodeAPI = submitFormAPI + "/discount-code";
 
-// Which product's codes this form may redeem. A code is scoped to a product in
-// Salesforce, so a Hospitality Guide code cannot later be used against
-// something else, and vice versa.
-const HOSPITALITY_GUIDE_DISCOUNT_PRODUCT = "hospitality-guide";
+// Codes are scoped to a CAMPAIGN in Salesforce, and the campaign a code is
+// checked against is the same one this order is filed under - see
+// HOSPITALITY_GUIDE_CATEGORY below, which is what the payment service resolves
+// to Transaction__c.Campaign__c.
+//
+// One constant serving both is the point rather than a convenience: it means a
+// code can only ever discount a purchase that lands on the campaign the code
+// was issued for. Splitting them would let the two drift, and a code would
+// start discounting orders it was never meant to touch.
 
 // How long to wait for the code check. Short: the buyer is sitting there
 // watching the button, and a code that cannot be checked simply is not applied -
@@ -1192,7 +1197,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
       var url = discountCodeAPI +
         "?code=" + encodeURIComponent(code) +
-        "&product=" + encodeURIComponent(HOSPITALITY_GUIDE_DISCOUNT_PRODUCT);
+        "&campaign=" + encodeURIComponent(HOSPITALITY_GUIDE_CATEGORY);
 
       var options = { method: "GET", headers: { "Accept": "application/json" } };
       if (controller) options.signal = controller.signal;
@@ -1966,6 +1971,17 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           discount_code: discount ? discount.code : "none",
           discount_percent: order.percentOff,
           discount_amount: money(order.discountCents),
+          // The same figure as an integer number of cents, which is what the
+          // payment service reads into Transaction__c.Discount_Amount__c.
+          //
+          // The formatted string above stays, because it is what a human reads
+          // in the Stripe dashboard - but it is a DISPLAY value and nothing
+          // should parse it. Sending only that is how Cover_Fees_Amount__c came
+          // to be stored 100x overstated on one of the two write paths: a
+          // number that has been through a currency formatter has already lost
+          // the argument about what unit it is in. Cents, integer, like
+          // `amount` and `feeAmount` at the top level.
+          discount_amount_cents: order.discountCents,
           shipping: money(order.shippingCents),
           order_total: money(order.orderCents),
           order_summary: summary,
