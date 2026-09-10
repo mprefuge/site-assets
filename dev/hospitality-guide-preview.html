@@ -174,104 +174,6 @@
       }
       if (isDiscount) return realFetch(url, options);
 
-      // The certificate endpoint is mocked for the same reason as the form
-      // service below - a real call writes a Tax_Exemption_Certificate__c into
-      // production Salesforce - and it has to be checked BEFORE the generic
-      // /api/form branch, whose URL test would otherwise swallow it and answer
-      // with a form record, which the form would read as "could not record".
-      var isCertificate = typeof url === "string" && url.indexOf("/api/form/tax-exemption-certificate") !== -1;
-
-      if (isCertificate && !realApiToggle.checked) {
-        var certBody = {};
-        try { certBody = JSON.parse(options.body); } catch (e) { certBody = {}; }
-        var certId = String(certBody.exemptionId || "").toUpperCase();
-        console.log("[preview] intercepted certificate recording for " + certId);
-
-        // TAKEN and BROKEN walk the two branches the form has to handle
-        // differently: a refusal the buyer can act on, and a failure they can
-        // only retry. Neither may remove the tax.
-        if (certId === "TAKEN") {
-          return Promise.resolve({
-            ok: false,
-            status: 409,
-            text: function () {
-              return Promise.resolve(JSON.stringify({
-                recorded: false,
-                reason: "exemption_id_belongs_to_another_organization",
-                message: "That exemption number is already on file for a different organization. Please check the number, or contact us."
-              }));
-            }
-          });
-        }
-
-        if (certId === "BROKEN") {
-          return Promise.resolve({
-            ok: false,
-            status: 502,
-            text: function () {
-              return Promise.resolve(JSON.stringify({ recorded: false, reason: "unavailable" }));
-            }
-          });
-        }
-
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          text: function () {
-            return Promise.resolve(JSON.stringify({
-              recorded: true,
-              id: "a1YPREVIEW000001",
-              exemptionId: certId,
-              status: "Complete",
-              fileAttached: !!certBody.file
-            }));
-          }
-        });
-      }
-      if (isCertificate) return realFetch(url, options);
-
-      // A check order writes a PENDING Transaction__c into production Salesforce,
-      // so it is mocked like everything else. Checked before the generic
-      // /api/transaction branch below, whose URL test would otherwise swallow it
-      // and answer with a synthetic Checkout Session.
-      var isCheckOrder = typeof url === "string" && url.indexOf("/api/transaction/check") !== -1;
-
-      if (isCheckOrder && !realApiToggle.checked) {
-        var checkBody = {};
-        try { checkBody = JSON.parse(options.body); } catch (e) { checkBody = {}; }
-        console.log("[preview] intercepted check order " + checkBody.clientReferenceId);
-        document.getElementById("form-payload").textContent = JSON.stringify(checkBody, null, 2);
-        document.getElementById("form-panel").hidden = false;
-
-        // A buyer email containing "checkfail" walks the branch where nothing was
-        // recorded, which a buyer about to post a cheque has to be told about
-        // plainly. Keyed off the email rather than the reference because the
-        // reference is minted inside the form and nothing outside can choose it.
-        if (String(checkBody.email || "").toLowerCase().indexOf("checkfail") !== -1) {
-          return Promise.resolve({
-            ok: false,
-            status: 502,
-            text: function () {
-              return Promise.resolve(JSON.stringify({ error: "We could not record that order just now. Please try again." }));
-            }
-          });
-        }
-
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          text: function () {
-            return Promise.resolve(JSON.stringify({
-              recorded: true,
-              reference: checkBody.clientReferenceId,
-              status: "pending",
-              amountCents: checkBody.amount
-            }));
-          }
-        });
-      }
-      if (isCheckOrder) return realFetch(url, options);
-
       // The form service is mocked on the same terms as the payment service, and
       // for a sharper reason: a real call here creates a Form__c record in
       // production Salesforce and emails the admin recipients. A preview must
@@ -328,13 +230,6 @@
   })();
 </script>
 
-<script>
-  // The check option is not rendered unless there is somewhere to post a check.
-  // Set here rather than in the script so the preview can exercise it without
-  // committing a mailing address, and because this is site configuration
-  // rather than code - the same reasoning as window.STRIPE_RATE.
-  window.HG_CHECK_ADDRESS = "Refuge International\nPO Box 4242\nLouisville, KY 40202";
-</script>
 <script src="../scripts/hospitality-guide-order.js"></script>
 </body>
 </html>

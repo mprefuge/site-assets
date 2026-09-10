@@ -282,114 +282,6 @@ const HOSPITALITY_GUIDE_CATEGORY = "Hospitality Guide";
 // Used once the guide has been released.
 const HOSPITALITY_GUIDE_FULFILLMENT = "ships-on-order";
 
-// ---------------------------------------------------------------------------
-// SALES TAX
-//
-// Kentucky charges 6% state-wide with no local sales tax, so one flat rate is
-// the whole rule for KY - unlike most states, there is no county or city
-// component to look up. Anywhere else is zero, which is a decision about NEXUS
-// rather than about those states' rates: tax is collected where there is an
-// obligation to collect it, and that obligation currently exists only in
-// Kentucky. If that ever changes, this table is where it changes.
-//
-// The rate is basis points so the arithmetic stays in integers - 600 = 6.00%.
-//
-// WHAT IS TAXED: the order subtotal after the discount, plus shipping. Kentucky
-// taxes delivery charges on taxable goods, so shipping belongs in the base;
-// it is $0 today, and this is the line that keeps it correct if it ever is not.
-// Tax is NOT charged on the processing fee a buyer elects to cover - that is
-// not part of the sale price.
-// ---------------------------------------------------------------------------
-const HOSPITALITY_GUIDE_TAX_RULES = {
-  KY: { rateBps: 600, label: "KY sales tax" }
-};
-
-// Exemption is claimed on Kentucky Form 51A126, the purchase exemption
-// certificate a resident nonprofit or educational institution files. Ticking a
-// box is a claim, not a certificate: tax comes off only when the certificate is
-// COMPLETE. Everything else - unticked, ticked but unfinished - is taxed.
-const TAX_CERTIFICATE_COMPLETE = "Complete";
-const TAX_CERTIFICATE_PENDING = "Pending";
-const TAX_CERTIFICATE_NOT_APPLICABLE = "Not Applicable";
-
-// The forms service endpoint that records a certificate. Same Function App as
-// the order record and the discount code check, so there is nothing new to
-// deploy or configure to reach it.
-//
-// The exemption is recorded BEFORE the buyer is sent to Stripe, and the tax
-// only comes off once the service has said it landed. That ordering is the
-// point: a certificate recorded after payment would leave an untaxed order with
-// nothing behind it if the write failed, and the six percent would be the
-// organisation's own to pay. Taxing a buyer who is genuinely exempt is a
-// refund; failing to tax one who is not is a debt to the Commonwealth.
-const TAX_EXEMPTION_API = submitFormAPI + "/tax-exemption-certificate";
-
-// Short, for the same reason the discount lookup is: the buyer is sitting there
-// watching the button, and an exemption that cannot be recorded is simply not
-// applied - the order is taxed and they are told to try again.
-const TAX_EXEMPTION_TIMEOUT_MS = 12000;
-
-// The bases for exemption Kentucky Form 51A126 offers. Kept identical to the
-// forms service's own list and to the Salesforce picklist, which is restricted:
-// a value those two do not know fails the write after the buyer has been told
-// their certificate was accepted.
-const TAX_EXEMPTION_ORG_TYPES = [
-  "Resident nonprofit educational institution",
-  "Resident nonprofit charitable institution",
-  "Resident nonprofit religious institution",
-  "Government agency",
-  "Resale",
-  "Other"
-];
-
-// Only this state asks the exemption question, because only this state charges
-// the tax - see HOSPITALITY_GUIDE_TAX_RULES above. Asking a buyer in Tennessee
-// whether they are exempt from a tax they were not charged is a question with
-// no right answer.
-const TAX_EXEMPTION_STATE = "KY";
-
-// ---------------------------------------------------------------------------
-// PAYING BY CHECK
-//
-// SET THE ADDRESS BELOW TO TURN THIS ON. While it is empty the check option is
-// not rendered at all, and the form behaves exactly as it did before this
-// existed. That is deliberate rather than a placeholder somebody forgot: the
-// one thing a check option cannot ship without is somewhere to post the check,
-// and a form that tells a buyer to mail money nowhere is worse than a form with
-// no check option.
-//
-// Use a newline between lines; they are rendered as separate lines.
-// ---------------------------------------------------------------------------
-const HOSPITALITY_GUIDE_CHECK_ADDRESS_DEFAULT = "";
-
-// A host page can set it without editing this file, the same way it can set the
-// card rate:
-//     window.HG_CHECK_ADDRESS = "Refuge International\nPO Box 1\nLouisville, KY 40202";
-// Anything that is not a non-empty string is ignored and the default above is
-// used - which means the check option stays hidden rather than appearing with
-// an address of "undefined".
-function hgConfiguredCheckAddress() {
-  try {
-    if (typeof window !== "undefined" && typeof window.HG_CHECK_ADDRESS === "string") {
-      var configured = window.HG_CHECK_ADDRESS.trim();
-      if (configured) return configured;
-    }
-  } catch (e) {
-    /* no window, or a sandbox that will not hand it over */
-  }
-  return HOSPITALITY_GUIDE_CHECK_ADDRESS_DEFAULT;
-}
-
-const HOSPITALITY_GUIDE_CHECK_ADDRESS = hgConfiguredCheckAddress();
-
-// Who the check is made out to.
-const HOSPITALITY_GUIDE_CHECK_PAYABLE_TO = "Refuge International";
-
-// Where a check order is recorded. Same Function App as the payment endpoint,
-// and it creates a PENDING transaction rather than taking any money - the
-// order exists in the books, and somebody reconciles it when the check lands.
-const CHECK_ORDER_API = processOrderAPI + "/check";
-
 // Shipping is included in the prices above. If the printer starts billing
 // freight separately, set this to the flat amount in cents and it is added to
 // every order, quoted on its own line. Left at 0 there is no shipping line at
@@ -435,21 +327,6 @@ const HG_STRIPE_AMEX_RATE_PERCENT = 3.5;
 
 // Stripe's per-transaction fixed fee on cards and wallets, in cents.
 const HG_STRIPE_FIXED_FEE_CENTS = 30;
-
-// How much cheaper bank transfer has to be before the form leads with it
-// instead of with card.
-//
-// Expressed as a SAVING rather than an order total on purpose. ACH is 0.8%
-// capped at $5 against 2.2% plus 30c, so bank is technically cheaper on almost
-// any order - leading with it everywhere would just be a layout change wearing
-// a justification. Ten dollars is the point where it stops being a rounding
-// difference and starts being worth asking somebody to type a routing number,
-// and it works out around a fifteen to twenty person order at today's rates.
-//
-// Because it is derived from the live rates rather than hardcoded as a dollar
-// total, a rate change moves the threshold on its own instead of leaving a
-// stale number behind.
-const HG_ACH_LEAD_SAVING_CENTS = 1000;
 
 function hgStripeConfiguredRatePercent() {
   var raw = null;
@@ -534,47 +411,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     .hg-notice-badge { font-weight:800; color:${BRAND_PRIMARY}; letter-spacing:.02em; }
     .hg-notice-note { font-size:13px; color:#444; line-height:1.45; }
 
-    /* Says why there is no total yet on step 1. */
-    .hg-await-address { margin-top:10px; font-size:13px; color:#555; text-align:center; line-height:1.45; }
-    .hg-await-address[hidden] { display:none; }
-
-    /* Kentucky sales tax exemption - the checkbox, and the 51A126 it opens. */
-    .hg-exempt { margin-top:18px; }
-    .hg-exempt[hidden] { display:none; }
-    .hg-exempt-note { font-size:13px; color:#555; line-height:1.5; margin-top:8px; }
-    .hg-cert { margin-top:14px; padding-top:14px; border-top:1px solid #e6e6e6; }
-    .hg-cert[hidden] { display:none; }
-    .hg-cert-legal { font-size:12px; color:#666; line-height:1.5; margin:10px 0 12px; }
-    .hg-cert-row { display:flex; gap:8px; align-items:stretch; margin-top:12px; }
-    .hg-cert-btn { flex:0 0 auto; padding:12px 20px; }
-    /* The signature is meant to look like one: this is an attestation signed
-       under penalty of perjury, and a box that looks like every other box
-       invites it to be filled in like every other box. */
-    .hg-cert-signature { font-family:"Brush Script MT","Segoe Script",cursive; font-size:22px; }
-    .hg-cert-status { font-size:13px; font-weight:600; margin-top:6px; min-height:18px; }
-    .hg-cert-status.hg-cert-error { color:${BRAND_PRIMARY}; }
-    .hg-cert-status.hg-cert-working { color:#555; font-weight:500; }
-    .hg-cert-applied { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:12px; background:#f1f7f2; border:1.5px solid #2f7d4f; margin-top:12px; }
-    .hg-cert-applied[hidden] { display:none; }
-    .hg-cert-applied-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
-    .hg-cert-applied-badge { font-weight:800; color:#2f7d4f; }
-    .hg-cert-applied-label { font-size:13px; color:#444; overflow-wrap:anywhere; }
-    .hg-cert-remove { flex:0 0 auto; background:none; border:none; color:#666; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:0; }
-    .hg-cert-file { font-size:13px; }
-
-    /* Paying by check */
-    .hg-check-switch { margin-top:14px; text-align:center; }
-    .hg-check-switch[hidden], .hg-check-panel[hidden], .hg-check-done[hidden] { display:none; }
-    .hg-check-link { background:none; border:none; color:#666; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:6px 0; }
-    .hg-check-panel, .hg-check-done { margin-top:16px; padding:16px; border-radius:14px; border:1.5px solid #d8d8d8; background:#fafafa; text-align:center; }
-    .hg-check-title { font-weight:800; font-size:16px; margin-bottom:8px; }
-    .hg-check-body { font-size:14px; color:#444; line-height:1.55; margin-bottom:12px; }
-    .hg-check-detail { display:flex; flex-direction:column; gap:8px; margin:0 0 14px; text-align:left; }
-    .hg-check-detail > div { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
-    .hg-check-detail span { color:#666; }
-    .hg-check-detail strong { text-align:right; white-space:pre-line; }
-    .hg-check-address { white-space:pre-line; font-weight:700; line-height:1.6; margin-bottom:12px; }
-
     /* Discount code entry */
     .hg-code { margin-bottom:14px; }
     .hg-code[hidden] { display:none; }
@@ -630,9 +466,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
     /* Payment method chips */
     .hg-payment-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; justify-items:center; margin-bottom:12px; }
-    /* Says why bank transfer moved to the front, and what it is worth. */
-    .hg-rail-lead { font-size:13px; color:#2f7d4f; font-weight:600; line-height:1.45; margin:0 0 10px; }
-    .hg-rail-lead[hidden] { display:none; }
     .hg-payment-chip { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:16px 18px; min-width:100%; min-height:118px; text-align:center; border-radius:16px; transition:.3s all ease; }
     .hg-payment-chip:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(189,33,53,.2); }
     .hg-payment-chip span { font-weight:600; font-size:14px; }
@@ -777,78 +610,19 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     return Math.round(pct);
   }
 
-  // Today's date in Eastern time, as YYYY-MM-DD, for the certificate's date box.
-  //
-  // Asked of Intl rather than taken from the browser's own clock, because a
-  // buyer in Phoenix signing at nine in the evening would otherwise date the
-  // certificate the day before Louisville is on - and the forms service checks
-  // the signing date against Eastern time, so that certificate would be
-  // refused as signed in the future. en-CA formats as YYYY-MM-DD.
-  function todayInEastern() {
-    try {
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/New_York",
-        year: "numeric", month: "2-digit", day: "2-digit"
-      }).format(new Date());
-    } catch (e) {
-      // Somewhere without Intl. An empty box the buyer fills in themselves is
-      // better than a wrong date they do not notice.
-      return "";
-    }
-  }
-
-  // What tax applies to a destination, given the state of the exemption
-  // paperwork. Returns the components rather than a single figure, because that
-  // is what gets stored: base, rate, state and amount are each recorded, and
-  // every total downstream is derived from them rather than from a stored lump.
-  //
-  // certificateStatus is the ONLY thing that can zero tax on a Kentucky order,
-  // and only when it is Complete. A ticked box with an unfinished certificate
-  // is Pending, and Pending is taxed - the buyer pays, and the exemption is
-  // sorted out afterwards. That is the safe direction to be wrong in: refunding
-  // over-collected tax is an inconvenience, under-collecting it is a debt to
-  // the Commonwealth that the organisation pays out of its own funds.
-  function taxFor(stateCode, baseCents, certificateStatus) {
-    var code = (stateCode || "").toString().trim().toUpperCase().slice(0, 2);
-    var rule = HOSPITALITY_GUIDE_TAX_RULES[code];
-
-    if (!rule || baseCents <= 0) {
-      return { state: code, rateBps: 0, taxCents: 0, label: "Sales tax", exempt: false };
-    }
-
-    if (certificateStatus === TAX_CERTIFICATE_COMPLETE) {
-      return { state: code, rateBps: 0, taxCents: 0, label: rule.label, exempt: true };
-    }
-
-    return {
-      state: code,
-      rateBps: rule.rateBps,
-      // Rounded to the whole cent once, here, so the figure shown, the figure
-      // charged and the figure recorded are one rounding and not three.
-      taxCents: Math.round(baseCents * rule.rateBps / 10000),
-      label: rule.label,
-      exempt: false
-    };
-  }
-
   // The whole order, priced. One function, so the tier table, the running total,
   // the review lines, the pay button and the payload all read the same numbers.
   //
   // The discount is taken off the order total, as agreed, and rounded to the
   // whole cent. Shipping is added after the discount: a freight charge is not
-  // part of what a discount code discounts. Tax is applied last, to the
-  // discounted, shipped total - tax follows what was actually charged for the
-  // goods, not the list price.
-  function priceOrder(qty, discount, stateCode, certificateStatus) {
+  // part of what a discount code discounts.
+  function priceOrder(qty, discount) {
     var tier = qty > 0 ? tierFor(qty) : null;
     var unitCents = tier ? tier.unitCents : 0;
     var subtotalCents = tier ? qty * unitCents : 0;
     var percentOff = discountPercentOff(discount);
     var discountCents = Math.round(subtotalCents * percentOff / 100);
     var shippingCents = subtotalCents > 0 ? HOSPITALITY_GUIDE_SHIPPING_CENTS : 0;
-    var taxBaseCents = subtotalCents - discountCents + shippingCents;
-    var tax = taxFor(stateCode, taxBaseCents, certificateStatus);
-
     return {
       qty: qty,
       tier: tier,
@@ -857,15 +631,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       percentOff: percentOff,
       discountCents: discountCents,
       shippingCents: shippingCents,
-      // What tax was calculated on, kept separate from the order total so the
-      // stored components reconcile without anyone having to re-derive it.
-      taxBaseCents: taxBaseCents,
-      taxState: tax.state,
-      taxRateBps: tax.rateBps,
-      taxCents: tax.taxCents,
-      taxLabel: tax.label,
-      taxExempt: tax.exempt,
-      orderCents: taxBaseCents + tax.taxCents
+      orderCents: subtotalCents - discountCents + shippingCents
     };
   }
 
@@ -923,9 +689,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-line"><span id="${prefix}-subtotal-label">Guides</span><span id="${prefix}-subtotal">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-discount-line" hidden><span id="${prefix}-discount-label">Discount</span><span id="${prefix}-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-shipping-line" hidden><span>Shipping</span><span id="${prefix}-shipping">$0.00</span></div>
-            <div class="hg-line hg-line-total"><span>Subtotal</span><span id="${prefix}-order-total">$0.00</span></div>
+            <div class="hg-line hg-line-total"><span>Order total</span><span id="${prefix}-order-total">$0.00</span></div>
           </div>
-          <div class="hg-await-address" id="${prefix}-await-address">Sales tax and your total are worked out once we have the shipping address.</div>
 
           <div class="hg-nav-buttons">
             <span></span>
@@ -1029,95 +794,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             </div>
           </div>
 
-          <!--
-            The exemption question sits here, after the address and before the
-            tax line on the review step, because it is a question about the
-            address: only a Kentucky destination is taxed, so only a Kentucky
-            destination is asked. Hidden entirely otherwise - see
-            paintExemption - rather than shown and disabled, because a question
-            that cannot apply to you is noise, not information.
-          -->
-          <div class="hg-card hg-card-inner hg-exempt" id="${prefix}-exempt-block" hidden>
-            <label class="hg-checkbox-container">
-              <input type="checkbox" id="${prefix}-exempt" class="hg-checkbox">
-              <span style="font-weight:600;">My organization is exempt from Kentucky sales tax</span>
-            </label>
-            <div class="hg-exempt-note">
-              Kentucky charges 6% sales tax on orders shipped in state. If your organization holds a
-              purchase exemption, complete Form 51A126 below and the tax comes off. Ticking the box
-              on its own does not remove it.
-            </div>
-
-            <div class="hg-cert" id="${prefix}-cert" hidden>
-              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-id">Exemption number</label>
-                  <input class="hg-input" id="${prefix}-cert-id" autocomplete="off" spellcheck="false" placeholder="From your exemption letter">
-                </div>
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-org">Exempt organization</label>
-                  <input class="hg-input" id="${prefix}-cert-org" autocomplete="organization">
-                </div>
-              </div>
-
-              <div style="margin-bottom:12px;">
-                <label class="hg-label" for="${prefix}-cert-type">Type of organization</label>
-                <select class="hg-select" id="${prefix}-cert-type">
-                  <option value="">Choose one</option>
-                  ${TAX_EXEMPTION_ORG_TYPES.map(function (t) {
-                    return '<option value="' + t + '">' + t + '</option>';
-                  }).join("")}
-                </select>
-              </div>
-
-              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-signer">Name of person signing</label>
-                  <input class="hg-input" id="${prefix}-cert-signer" autocomplete="name">
-                </div>
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-title">Title (optional)</label>
-                  <input class="hg-input" id="${prefix}-cert-title">
-                </div>
-              </div>
-
-              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-signature">Signature</label>
-                  <input class="hg-input hg-cert-signature" id="${prefix}-cert-signature" autocomplete="off" placeholder="Type your name">
-                </div>
-                <div>
-                  <label class="hg-label" for="${prefix}-cert-date">Date</label>
-                  <input class="hg-input" type="date" id="${prefix}-cert-date">
-                </div>
-              </div>
-
-              <div style="margin-bottom:12px;">
-                <label class="hg-label" for="${prefix}-cert-file">Upload your signed 51A126 (optional)</label>
-                <input class="hg-input hg-cert-file" type="file" id="${prefix}-cert-file" accept="application/pdf,image/jpeg,image/png">
-              </div>
-
-              <div class="hg-cert-legal">
-                By signing above you certify, under penalty of perjury, that the organization named
-                holds the exemption number given and that this purchase is exempt from Kentucky
-                sales and use tax. We keep this certificate on file as required by the Commonwealth.
-              </div>
-
-              <div class="hg-cert-row">
-                <button type="button" class="hg-btn hg-cert-btn" id="${prefix}-cert-apply">Apply exemption</button>
-              </div>
-              <div id="${prefix}-cert-status" class="hg-cert-status" role="status" aria-live="polite"></div>
-            </div>
-
-            <div class="hg-cert-applied" id="${prefix}-cert-applied" hidden>
-              <div class="hg-cert-applied-text">
-                <span class="hg-cert-applied-badge" id="${prefix}-cert-applied-badge"></span>
-                <span class="hg-cert-applied-label" id="${prefix}-cert-applied-label"></span>
-              </div>
-              <button type="button" class="hg-cert-remove" id="${prefix}-cert-remove">Change</button>
-            </div>
-          </div>
-
           <div class="hg-nav-buttons">
             <button type="button" class="hg-btn secondary" id="${prefix}-prev2">Previous</button>
             <button type="button" class="hg-btn" id="${prefix}-next2">Next</button>
@@ -1137,7 +813,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
             <div class="hg-line"><span id="${prefix}-review-guides-label">Guides</span><span id="${prefix}-review-guides">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-review-discount-line" hidden><span id="${prefix}-review-discount-label">Discount</span><span id="${prefix}-review-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-review-shipping-line" hidden><span>Shipping</span><span id="${prefix}-review-shipping">$0.00</span></div>
-            <div class="hg-line" id="${prefix}-review-tax-line"><span id="${prefix}-review-tax-label">Sales tax</span><span id="${prefix}-review-tax">$0.00</span></div>
             <div class="hg-line hg-line-muted"><span>Processing fees <span id="${prefix}-fee-label"></span></span><span id="${prefix}-review-fee">$0.00</span></div>
             <div class="hg-line hg-line-total"><span>Total charged today</span><span id="${prefix}-review-total">$0.00</span></div>
           </div>
@@ -1152,7 +827,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
             <div id="${prefix}-payment-method-section" style="display:none;margin-top:16px;">
               <label class="hg-label">Payment Method</label>
-              <div class="hg-rail-lead" id="${prefix}-rail-lead" hidden></div>
               <div class="hg-payment-grid" id="${prefix}-pm-row">
                 <button type="button" class="hg-chip hg-payment-chip" data-method="card">
                   <img src="https://js.stripe.com/v3/fingerprinted/img/card-ce24697297bd3c6a00fdd2fb6f760f0d.svg" alt="" width="32" height="32" />
@@ -1192,50 +866,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
           <button type="button" id="${prefix}-submit" class="hg-cta" disabled>Enter the number of participants</button>
           <div id="${prefix}-submit-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-          <div class="hg-fineprint" id="${prefix}-stripe-note">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
-          <div class="hg-trust" id="${prefix}-stripe-trust">Secure payment powered by Stripe</div>
-
-          <!--
-            Rendered only when there is somewhere to post a check - see
-            HOSPITALITY_GUIDE_CHECK_ADDRESS. A form that tells a buyer to mail
-            money nowhere is worse than a form with no check option.
-          -->
-          <div class="hg-check-switch" id="${prefix}-check-switch" hidden>
-            <button type="button" class="hg-check-link" id="${prefix}-check-toggle">Prefer to pay by check?</button>
-          </div>
-
-          <div class="hg-check-panel" id="${prefix}-check-panel" hidden>
-            <div class="hg-check-title">Paying by check</div>
-            <div class="hg-check-body">
-              We will record your order now and hold it until your check arrives. Nothing is charged
-              today, and your guides ship once the check clears.
-            </div>
-            <div class="hg-check-detail">
-              <div><span>Make it payable to</span><strong id="${prefix}-check-payable"></strong></div>
-              <div><span>Amount</span><strong id="${prefix}-check-amount">$0.00</strong></div>
-              <div><span>Mail to</span><strong id="${prefix}-check-address"></strong></div>
-            </div>
-            <div class="hg-check-body" id="${prefix}-check-reference-note" hidden>
-              Please write your order reference on the check:
-              <strong id="${prefix}-check-reference"></strong>
-            </div>
-            <button type="button" class="hg-cta" id="${prefix}-check-submit">Place this order and mail a check</button>
-            <div id="${prefix}-check-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-            <button type="button" class="hg-check-link" id="${prefix}-check-cancel">Pay by card or bank instead</button>
-          </div>
-
-          <div class="hg-check-done" id="${prefix}-check-done" hidden>
-            <div class="hg-check-title">Your order is recorded</div>
-            <div class="hg-check-body">
-              We are expecting a check for <strong id="${prefix}-done-amount">$0.00</strong>, payable to
-              <strong id="${prefix}-done-payable"></strong>. Please write the reference
-              <strong id="${prefix}-done-reference"></strong> on it and mail it to:
-            </div>
-            <div class="hg-check-address" id="${prefix}-done-address"></div>
-            <div class="hg-check-body">
-              Your guides ship once the check clears. A copy of this has gone to your email.
-            </div>
-          </div>
+          <div class="hg-fineprint">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
+          <div class="hg-trust">Secure payment powered by Stripe</div>
 
           <div class="hg-nav-buttons">
             <button type="button" class="hg-btn secondary" id="${prefix}-prev3">Previous</button>
@@ -1473,11 +1105,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
 
       var msg = "Add " + need + (need === 1 ? " more participant" : " more participants") +
         " to reach " + moneyShort(next.unitCents) + "/person";
-      // Priced against the same destination as the real order, so the "order a
-      // few more" saving quoted here is the saving the buyer actually gets -
-      // tax included once an address is known.
-      var here = priceOrder(qty, discount, destinationState(), certificateStatus()).orderCents;
-      var there = priceOrder(next.minQty, discount, destinationState(), certificateStatus()).orderCents;
+      var here = priceOrder(qty, discount).orderCents;
+      var there = priceOrder(next.minQty, discount).orderCents;
       if (there < here) {
         msg += " - " + need + " more " + (need === 1 ? "copy" : "copies") + " for " + money(here - there) + " less overall";
       }
@@ -1492,333 +1121,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         btn.classList.toggle("active", idx === activeIndex);
       });
     }
-
-    // --- destination and exemption -------------------------------------------
-    //
-    // Tax follows where the order SHIPS, not where the card is billed, so the
-    // state read here is the one from the shipping address on step 2. Until
-    // that is filled in there is no destination and no tax - which is why the
-    // total does not appear until the address does.
-
-    function destinationState() {
-      var sel = document.getElementById(prefix + "-state");
-      // The options read "KY - Kentucky"; the code is the part before the dash.
-      return sel ? (sel.value || "").split(" - ")[0].trim().toUpperCase() : "";
-    }
-
-    // --- exemption certificate ----------------------------------------------
-    //
-    // The buyer fills in Kentucky Form 51A126 and presses Apply; the forms
-    // service records it and says whether it landed. Only then does the tax
-    // come off.
-    //
-    // This is deliberately the same shape as the discount code above, and for a
-    // stronger reason. A discount applied optimistically costs the organisation
-    // a few dollars if it turns out to be wrong. An exemption applied
-    // optimistically means an order shipped untaxed with no certificate behind
-    // it, and the six percent becomes the organisation's own money.
-
-    var exemptBox = el("exempt");
-    var exemptBlock = el("exempt-block");
-    var certBlock = el("cert");
-    var certApplyBtn = el("cert-apply");
-    var certStatus = el("cert-status");
-    var certApplied = el("cert-applied");
-    var certAppliedBadge = el("cert-applied-badge");
-    var certAppliedLabel = el("cert-applied-label");
-    var certRemoveBtn = el("cert-remove");
-    var certFile = el("cert-file");
-
-    var certFieldIds = ["cert-id", "cert-org", "cert-type", "cert-signer",
-      "cert-title", "cert-signature", "cert-date"];
-
-    // The certificate the SERVICE has confirmed, or null. Not what is typed in
-    // the boxes - what has actually been recorded. Nothing else may zero the
-    // tax.
-    var appliedCertificate = null;
-
-    // True while a recording is in flight, so a double-press cannot file the
-    // certificate twice or let the slower answer overwrite the faster one.
-    var recordingCertificate = false;
-
-    function certValue(id) {
-      var field = el(id);
-      return field ? field.value.trim() : "";
-    }
-
-    // Are all six parts of Form 51A126 present?
-    //
-    // The forms service decides whether a certificate is good, and this does
-    // not try to second-guess it - no format checks, no date arithmetic, just
-    // "is anything obviously still empty". It exists so a buyer who has filled
-    // in half the form is not sent a round trip to be told so, and so the Apply
-    // button says what it is waiting for by being unavailable. The title is not
-    // here because the title is optional.
-    function certificateFilledIn() {
-      return certValue("cert-id") !== "" &&
-        certValue("cert-org") !== "" &&
-        certValue("cert-type") !== "" &&
-        certValue("cert-signer") !== "" &&
-        certValue("cert-signature") !== "" &&
-        certValue("cert-date") !== "";
-    }
-
-    // Where the exemption paperwork stands, for taxFor and for the payload.
-    //
-    // Three states, and the middle one is the one that matters: a ticked box
-    // with no recorded certificate is Pending, and Pending is TAXED. The buyer
-    // pays and the exemption is sorted out afterwards, because refunding
-    // over-collected tax is an inconvenience and under-collecting it is a debt.
-    function certificateStatus() {
-      if (destinationState() !== TAX_EXEMPTION_STATE) return TAX_CERTIFICATE_NOT_APPLICABLE;
-      if (!exemptBox || !exemptBox.checked) return TAX_CERTIFICATE_NOT_APPLICABLE;
-      return appliedCertificate ? TAX_CERTIFICATE_COMPLETE : TAX_CERTIFICATE_PENDING;
-    }
-
-    /** The exemption number on the recorded certificate, or "" - for the payload. */
-    function certificateExemptionId() {
-      return certificateStatus() === TAX_CERTIFICATE_COMPLETE ? appliedCertificate.exemptionId : "";
-    }
-
-    /** The Salesforce id of the recorded certificate, or "" - for the payload. */
-    function certificateRecordId() {
-      return certificateStatus() === TAX_CERTIFICATE_COMPLETE ? appliedCertificate.id : "";
-    }
-
-    function setCertStatus(message, kind) {
-      if (!certStatus) return;
-      certStatus.textContent = message || "";
-      certStatus.classList.toggle("hg-cert-error", kind === "error");
-      certStatus.classList.toggle("hg-cert-working", kind === "working");
-    }
-
-    // Shown only where the tax it is about is charged. A buyer who fills in a
-    // certificate and then changes the destination to Tennessee keeps the
-    // recorded certificate - it is a real document they signed - but the
-    // question disappears, because out of state there is no tax to exempt.
-    function paintExemption() {
-      if (!exemptBlock) return;
-      exemptBlock.hidden = destinationState() !== TAX_EXEMPTION_STATE;
-
-      var claimed = !!(exemptBox && exemptBox.checked);
-      var recorded = !!appliedCertificate;
-
-      if (certBlock) certBlock.hidden = !claimed || recorded;
-      if (certApplied) certApplied.hidden = !claimed || !recorded;
-
-      if (recorded && certAppliedBadge && certAppliedLabel) {
-        certAppliedBadge.textContent = "Exemption on file";
-        certAppliedLabel.textContent = appliedCertificate.organizationName +
-          " - " + appliedCertificate.exemptionId +
-          (appliedCertificate.fileAttached ? " - certificate uploaded" : "");
-      }
-
-      if (claimed && !recorded && certApplyBtn) {
-        certApplyBtn.disabled = recordingCertificate || !certificateFilledIn();
-        certApplyBtn.textContent = recordingCertificate ? "Recording..." : "Apply exemption";
-      }
-    }
-
-    /**
-     * Read the optional upload, if there is one.
-     *
-     * Resolves to null when there is no file, and to null again when the file
-     * cannot be read - never rejects. The scan is corroboration, not the
-     * certificate itself: a browser that will not hand over the bytes is not a
-     * reason to charge a buyer tax they do not owe.
-     */
-    function readCertificateFile() {
-      return new Promise(function (resolve) {
-        var file = certFile && certFile.files && certFile.files[0];
-        if (!file || typeof FileReader !== "function") return resolve(null);
-
-        var reader = new FileReader();
-        reader.onload = function () {
-          try {
-            // readAsDataURL gives "data:<type>;base64,<payload>". The service
-            // wants the payload, and it wants the type declared separately.
-            var comma = String(reader.result).indexOf(",");
-            resolve(comma < 0 ? null : {
-              fileName: file.name,
-              contentType: file.type || "application/pdf",
-              base64: String(reader.result).slice(comma + 1)
-            });
-          } catch (e) {
-            resolve(null);
-          }
-        };
-        reader.onerror = function () { resolve(null); };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    /**
-     * Send the certificate to the forms service.
-     *
-     * Resolves to { ok: true, certificate } when it is recorded, to
-     * { ok: false, message } when the service refused it, and to
-     * { ok: false, unavailable: true, message } when the call could not be made
-     * at all. The third case is kept separate for the same reason as the
-     * discount lookup: "we could not record it" and "your certificate is no
-     * good" are different things to tell a buyer, and only one of them is
-     * something they can fix.
-     */
-    function recordCertificate() {
-      return readCertificateFile().then(function (file) {
-        var controller = typeof AbortController === "function" ? new AbortController() : null;
-        var timedOut = false;
-        var timeoutId = setTimeout(function () {
-          timedOut = true;
-          if (controller) controller.abort();
-        }, TAX_EXEMPTION_TIMEOUT_MS);
-
-        var payload = {
-          exemptionId: certValue("cert-id"),
-          organizationName: certValue("cert-org"),
-          organizationType: certValue("cert-type"),
-          signerName: certValue("cert-signer"),
-          signerTitle: certValue("cert-title"),
-          signature: certValue("cert-signature"),
-          signedDate: certValue("cert-date"),
-          source: "Hospitality Guide order form"
-        };
-        if (file) payload.file = file;
-
-        var options = {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify(payload)
-        };
-        if (controller) options.signal = controller.signal;
-
-        return fetch(TAX_EXEMPTION_API, options)
-          .then(function (r) {
-            clearTimeout(timeoutId);
-            return r.text().then(function (text) {
-              var data = null;
-              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
-
-              if (r.ok && data && data.recorded === true && data.id) {
-                return {
-                  ok: true,
-                  certificate: {
-                    id: String(data.id),
-                    exemptionId: String(data.exemptionId || payload.exemptionId),
-                    organizationName: payload.organizationName,
-                    fileAttached: data.fileAttached === true
-                  }
-                };
-              }
-
-              // 400 and 409 are the service telling the buyer something they can
-              // act on - a missing field, or a number that is already on file
-              // for somebody else. Passed through verbatim.
-              if ((r.status === 400 || r.status === 409) && data && data.message) {
-                return { ok: false, message: data.message };
-              }
-
-              if (r.status === 429) {
-                return {
-                  ok: false,
-                  unavailable: true,
-                  message: (data && data.message) || "Too many attempts. Please wait a moment and try again."
-                };
-              }
-
-              console.error("[Hospitality Guide] Certificate could not be recorded: HTTP " + r.status + " " + text);
-              return {
-                ok: false,
-                unavailable: true,
-                message: "We could not record your certificate just now. Please try again."
-              };
-            });
-          })
-          .catch(function (err) {
-            clearTimeout(timeoutId);
-            console.error("[Hospitality Guide] Certificate request failed:", err);
-            return {
-              ok: false,
-              unavailable: true,
-              message: timedOut
-                ? "That took too long. Please try again."
-                : "We could not record your certificate just now. Please try again."
-            };
-          });
-      });
-    }
-
-    if (certApplyBtn) {
-      certApplyBtn.addEventListener("click", function () {
-        if (recordingCertificate) return;
-
-        recordingCertificate = true;
-        setCertStatus("Recording your certificate...", "working");
-        paintExemption();
-        updateTotals();
-
-        recordCertificate().then(function (result) {
-          recordingCertificate = false;
-
-          if (result.ok) {
-            appliedCertificate = result.certificate;
-            setCertStatus("");
-          } else {
-            appliedCertificate = null;
-            setCertStatus(result.message, "error");
-          }
-
-          paintExemption();
-          updateTotals();
-        });
-      });
-    }
-
-    if (certRemoveBtn) {
-      certRemoveBtn.addEventListener("click", function () {
-        // Reopens the form for editing and puts the tax back. The record in
-        // Salesforce stays - it is a signed attestation, and deleting one
-        // because a buyer clicked Change is not something a public form should
-        // be able to do.
-        appliedCertificate = null;
-        setCertStatus("");
-        paintExemption();
-        updateTotals();
-      });
-    }
-
-    if (exemptBox) {
-      exemptBox.addEventListener("change", function () {
-        if (!exemptBox.checked) setCertStatus("");
-        // Prefill from what the buyer has already typed. The organisation
-        // claiming exemption is almost always the one placing the order, and
-        // asking for it twice invites the two to disagree.
-        var orgField = el("cert-org");
-        var orgName = el("organization-name");
-        if (orgField && !orgField.value && orgName) orgField.value = orgName.value.trim();
-
-        var dateField = el("cert-date");
-        if (dateField && !dateField.value) dateField.value = todayInEastern();
-
-        paintExemption();
-        updateTotals();
-      });
-    }
-
-    // Repainted on every keystroke, so the Apply button unlocks the moment the
-    // last empty box is filled.
-    //
-    // There is no "editing un-applies it" here, the way there is for a discount
-    // code, because there is nothing to edit: applying closes the form behind
-    // the certificate, and Change is the only way back to the boxes. Change
-    // un-applies it, so what is on screen and what has been recorded cannot
-    // disagree - the tax is back on before the first keystroke.
-    certFieldIds.concat(["cert-file"]).forEach(function (id) {
-      var field = el(id);
-      if (!field) return;
-      ["input", "change"].forEach(function (ev) {
-        field.addEventListener(ev, paintExemption);
-      });
-    });
 
     // --- discount code ------------------------------------------------------
     //
@@ -2187,49 +1489,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     }
 
-    // Which rail the form leads with, and why.
-    //
-    // The rails themselves are unchanged and all three stay available - this
-    // moves them, it does not gate them. Card is first on a small order because
-    // that is what most buyers reach for; on a large one bank transfer goes
-    // first, because 0.8% capped at $5 against 2.2% plus 30c stops being a
-    // rounding difference and starts being real money the organisation keeps.
-    //
-    // Done with CSS `order` rather than by moving nodes: the click handler and
-    // selectChipGroup both read the DOM, and reordering it would mean two
-    // places that have to agree about which chip is which.
-    var railLead = el("rail-lead");
-
-    function railSavingCents(totalCents) {
-      if (totalCents <= 0) return 0;
-      // Priced against the ordinary card rate rather than the selected one. The
-      // question is which rail to put in front of a buyer who has not chosen
-      // yet, and answering it from Amex would recommend bank transfer on the
-      // strength of a card they may not be holding.
-      return feeCentsFor("card", "visa", totalCents) - feeCentsFor("us_bank_account", null, totalCents);
-    }
-
-    function paintRailOrder(totalCents) {
-      if (!pmRow) return;
-      var saving = railSavingCents(totalCents);
-      var bankLeads = saving >= HG_ACH_LEAD_SAVING_CENTS;
-
-      Array.prototype.forEach.call(pmRow.querySelectorAll(".hg-payment-chip"), function (chip) {
-        var method = chip.getAttribute("data-method");
-        // Wallet stays last either way; only the top two ever trade places.
-        var position = method === "wallet" ? 3 : (method === "us_bank_account" ? (bankLeads ? 1 : 2) : (bankLeads ? 2 : 1));
-        chip.style.order = String(position);
-      });
-
-      if (railLead) {
-        railLead.hidden = !bankLeads;
-        if (bankLeads) {
-          railLead.textContent = "Bank transfer costs " + money(saving) +
-            " less to process on an order this size, so it is listed first.";
-        }
-      }
-    }
-
     // The processing fee this form quotes, by payment method: a percentage in
     // basis points, a fixed charge in cents, and an optional cap. One table,
     // because both numbers feed the gross-up as well as the quote.
@@ -2245,22 +1504,14 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       return { bps: HG_STRIPE_RATE_BPS, fixedCents: HG_STRIPE_FIXED_FEE_CENTS, capCents: null };
     }
 
-    // What the processor would deduct from a charge of totalCents on a GIVEN
-    // rail. Split out from feeCentsOn so a rail can be priced without being
-    // selected first - which is what lets the form work out whether bank
-    // transfer is worth leading with before the buyer has chosen anything.
-    function feeCentsFor(method, card, totalCents) {
-      if (totalCents <= 0) return 0;
-      var rate = feeRateFor(method, card);
-      var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
-      if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
-      return fee;
-    }
-
     // What the processor deducts from a charge of totalCents - what the org
     // gives up, not what the buyer adds.
     function feeCentsOn(totalCents) {
-      return feeCentsFor(paymentMethod, cardType, totalCents);
+      if (totalCents <= 0) return 0;
+      var rate = feeRateFor(paymentMethod, cardType);
+      var fee = Math.round(totalCents * rate.bps / 10000) + rate.fixedCents;
+      if (rate.capCents !== null && fee > rate.capCents) return rate.capCents;
+      return fee;
     }
 
     // The total to charge so that, once the processor has taken its cut, exactly
@@ -2292,14 +1543,9 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     // numbers in the payload cannot drift apart: the button shows totalCents,
     // and the payload sends orderCents and coveredFeeCents, whose sum is
     // totalCents by construction.
-    // The processing fee is quoted and grossed up on order.orderCents, which
-    // now INCLUDES tax - the processor takes its cut of the whole charge, tax
-    // and all, so a gross-up that ignored tax would leave the organisation
-    // short by the fee on the tax. Tax itself is never grossed up: the state is
-    // owed 6% of the sale price, not 6% of the sale price plus a card fee.
     function computeTotals() {
       var fulfillment = currentFulfillment();
-      var order = priceOrder(quantity(), appliedDiscount, destinationState(), certificateStatus());
+      var order = priceOrder(quantity(), appliedDiscount);
       var cover = coverFee.checked;
       var totalCents = cover ? grossedUpTotalCents(order.orderCents) : order.orderCents;
       var feeCents = cover ? totalCents - order.orderCents : feeCentsOn(order.orderCents);
@@ -2431,29 +1677,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         "-" + Math.random().toString(16).slice(2, 10);
     }
 
-    /**
-     * A reference a person can actually write on a check.
-     *
-     * clientReferenceId is a UUID, which is the right shape for an idempotency
-     * key and the wrong shape for a pen: thirty-six characters of hex is not
-     * something anybody copies onto a check correctly. This folds it down to
-     * twelve, upper-cased and grouped, and it is DERIVED rather than generated -
-     * the same order resubmitted produces the same reference, which is what
-     * keeps the upsert on Manual_Reference__c idempotent.
-     *
-     * Twelve hex characters is 2.8e14 possibilities. Against the number of
-     * checks this organisation will ever take, a collision is not a risk worth
-     * trading legibility for - and Manual_Reference__c is unique, so a
-     * collision would surface as a refused write rather than one order quietly
-     * overwriting another.
-     */
-    function makeCheckReference(referenceId) {
-      var hex = String(referenceId || "").replace(/[^a-fA-F0-9]/g, "").toUpperCase();
-      while (hex.length < 12) hex += "0";
-      var trimmed = hex.slice(-12);
-      return "HG-" + trimmed.slice(0, 4) + "-" + trimmed.slice(4, 8) + "-" + trimmed.slice(8, 12);
-    }
-
     // --- test-mode indicator ------------------------------------------------
     //
     // isTestModeRequested() is only this form's intent. The payment service
@@ -2559,15 +1782,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       el("discount").textContent = "-" + money(order.discountCents);
       el("shipping-line").hidden = order.shippingCents <= 0;
       el("shipping").textContent = money(order.shippingCents);
-      // The step 1 figure is the tax BASE, not the order total - the total is
-      // not knowable until the destination is, and step 1 has no address.
-      el("order-total").textContent = money(order.taxBaseCents);
-      var awaiting = el("await-address");
-      if (awaiting) awaiting.hidden = order.taxBaseCents <= 0;
-
-      // The exemption question follows the destination, so it is repainted on
-      // the same pass as the numbers rather than only when the box is ticked.
-      paintExemption();
+      el("order-total").textContent = money(order.orderCents);
 
       // Step 3 lines
       el("review-guides-label").textContent = guidesLabel;
@@ -2575,23 +1790,8 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       el("review-discount-line").hidden = !showDiscountLine;
       el("review-discount-label").textContent = discountLabel;
       el("review-discount").textContent = "-" + money(order.discountCents);
-      // Always rendered, $0.00 included: a buyer outside Kentucky should see
-      // that tax was considered and came to nothing, not wonder whether it is
-      // about to be added later.
-      var taxLabel = el("review-tax-label");
-      if (taxLabel) {
-        taxLabel.textContent = order.taxRateBps > 0
-          ? order.taxLabel + " (" + (order.taxRateBps / 100) + "%)"
-          : (order.taxExempt ? order.taxLabel + " (exempt)" : "Sales tax");
-      }
-      el("review-tax").textContent = money(order.taxCents);
-
       el("review-shipping-line").hidden = order.shippingCents <= 0;
       el("review-shipping").textContent = money(order.shippingCents);
-      // Priced on the tax-inclusive order total, because that is what the
-      // processor takes its cut of - the same figure the gross-up runs on.
-      paintRailOrder(order.orderCents);
-
       el("review-fee").textContent = money(t.feeCents);
       el("fee-label").textContent = t.coverFee ? "" : "(covered by Refuge International)";
       el("review-total").textContent = money(t.totalCents);
@@ -2622,17 +1822,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       // live through that is how a buyer pays the undiscounted total a moment
       // before the discount lands.
       if (checkingCode) return false;
-      // Same reason: a certificate being recorded is six percent about to come
-      // off. Letting the button stay live through that is how a buyer pays the
-      // taxed total a moment before the exemption lands.
-      if (recordingCertificate) return false;
       return orderStepValid(false) && buyerStepValid(false);
     }
 
     // Recalculate on anything that can move a number or unlock the button.
-    // `state` is load-bearing here in a way the others are not: it is an input
-    // to the tax calculation, so changing it changes the total, not just
-    // whether the form validates.
     ["qty", "organization-name", "firstname", "lastname", "email", "phone",
       "addr1", "addr2", "city", "state", "zip", "country", "address-lookup"].forEach(function (id) {
       var field = el(id);
@@ -2646,107 +1839,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     });
 
-    // --- paying by check ----------------------------------------------------
-    //
-    // No money moves here. The order is recorded as a PENDING transaction so it
-    // exists in the books, and a person reconciles it when the check arrives.
-    // Nothing about the card path changes: this is a separate button that
-    // reaches a separate endpoint, and it is not rendered at all unless there is
-    // an address to post a check to.
-
-    var checkSwitch = el("check-switch");
-    var checkToggle = el("check-toggle");
-    var checkPanel = el("check-panel");
-    var checkCancel = el("check-cancel");
-    var checkSubmitBtn = el("check-submit");
-    var checkError = el("check-error");
-    var checkDone = el("check-done");
-    var stripeNote = el("stripe-note");
-    var stripeTrust = el("stripe-trust");
-
-    var checkAvailable = (HOSPITALITY_GUIDE_CHECK_ADDRESS || "").trim().length > 0;
-    var checkSubmitting = false;
-
-    function showCheckError(message) {
-      if (!checkError) return;
-      checkError.textContent = message || "";
-      checkError.style.display = message ? "block" : "none";
-    }
-
-    // Which of the three faces the review step is wearing: the card path, the
-    // check panel, or the confirmation once a check order has been recorded.
-    function paintCheckMode(mode) {
-      var payingByCheck = mode === "check";
-      var recorded = mode === "done";
-
-      if (checkSwitch) checkSwitch.hidden = !checkAvailable || payingByCheck || recorded;
-      if (checkPanel) checkPanel.hidden = !payingByCheck;
-      if (checkDone) checkDone.hidden = !recorded;
-
-      // The card apparatus is hidden rather than disabled while the buyer is
-      // looking at check instructions - a live Pay button under them is an
-      // invitation to be charged for an order they are about to post a check
-      // for.
-      [submitBtn, stripeNote, stripeTrust, el("submit-error")].forEach(function (node) {
-        if (node) node.style.display = payingByCheck || recorded ? "none" : "";
-      });
-      var feeCard = coverFee ? coverFee.closest(".hg-card-inner") : null;
-      if (feeCard) feeCard.style.display = payingByCheck || recorded ? "none" : "";
-      var prevBtn = el("prev3");
-      if (prevBtn) prevBtn.style.display = recorded ? "none" : "";
-    }
-
-    function paintCheckPanel() {
-      if (!checkAvailable || !checkPanel || checkPanel.hidden) return;
-      var order = computeTotals().order;
-      var payable = el("check-payable");
-      var amount = el("check-amount");
-      var address = el("check-address");
-      if (payable) payable.textContent = HOSPITALITY_GUIDE_CHECK_PAYABLE_TO;
-      // The order total and nothing else. A check costs the organisation no
-      // processing fee, so there is none to quote and none to cover.
-      if (amount) amount.textContent = money(order.orderCents);
-      if (address) address.textContent = HOSPITALITY_GUIDE_CHECK_ADDRESS;
-    }
-
-    if (checkToggle) {
-      checkToggle.addEventListener("click", function () {
-        if (!checkAvailable) return;
-        // Covering the processing fee is meaningless on a check, and leaving it
-        // ticked would quote a total nobody is going to pay.
-        if (coverFee && coverFee.checked) {
-          coverFee.checked = false;
-          coverFee.dispatchEvent(new Event("change"));
-        }
-        showCheckError("");
-        paintCheckMode("check");
-        paintCheckPanel();
-      });
-    }
-
-    if (checkCancel) {
-      checkCancel.addEventListener("click", function () {
-        showCheckError("");
-        paintCheckMode("card");
-        updateTotals();
-      });
-    }
-
-    if (checkSubmitBtn) {
-      checkSubmitBtn.addEventListener("click", function () {
-        if (checkSubmitting || checkingCode || recordingCertificate) return;
-        if (!orderStepValid(true) || !buyerStepValid(true)) return;
-        beginSubmission("check");
-      });
-    }
-
-    paintCheckMode("card");
-
     // --- submit -------------------------------------------------------------
     submitBtn.addEventListener("click", function () {
       if (submitting) return;
       if (checkingCode) return;
-      if (recordingCertificate) return;
       if (!orderStepValid(true) || !buyerStepValid(true)) return;
 
       // A code applied ten minutes ago is not necessarily a code that is still
@@ -2800,16 +1896,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       });
     });
 
-    /**
-     * mode is "card" (the default) or "check".
-     *
-     * Everything up to and including the Form__c record is shared: a check
-     * order is the same order, recorded the same way, with the same
-     * confirmation email. Only the last step differs - a Checkout Session, or a
-     * pending transaction the organisation reconciles when the check arrives.
-     */
-    function beginSubmission(mode) {
-      var payingByCheck = mode === "check";
+    function beginSubmission() {
       // Priced one last time at the moment of submission rather than reusing a
       // figure painted earlier, so what is charged is what the buyer is looking
       // at right now.
@@ -2831,9 +1918,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       var summary = participantsLabel(order.qty, order.unitCents) + " = " + money(order.subtotalCents) +
         (order.discountCents > 0 ? ", less " + order.percentOff + "% code " + discount.code + " (" + money(order.discountCents) + ")" : "") +
         (order.shippingCents > 0 ? ", plus " + money(order.shippingCents) + " shipping" : "") +
-        (order.taxCents > 0
-          ? ", plus " + (order.taxRateBps / 100) + "% " + order.taxState + " sales tax (" + money(order.taxCents) + ")"
-          : "") +
         " = " + money(order.orderCents);
 
       var payload = {
@@ -2899,26 +1983,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           // `amount` and `feeAmount` at the top level.
           discount_amount_cents: order.discountCents,
           shipping: money(order.shippingCents),
-          // Tax as its COMPONENTS, not a single figure. Base, rate and state
-          // are each recorded so the amount can be re-derived and checked
-          // rather than taken on trust, and so a later rate change cannot
-          // rewrite what this buyer was charged.
-          //
-          // Cents as an integer for the same reason as the discount: a number
-          // that has been through a currency formatter has lost the argument
-          // about what unit it is in.
-          tax_base_cents: order.taxBaseCents,
-          tax_amount_cents: order.taxCents,
-          tax_rate: order.taxRateBps / 100,
-          tax_state: order.taxState || "",
-          tax_amount: money(order.taxCents),
-          tax_certificate_status: certificateStatus(),
-          // Both only ever set alongside a Complete status - see
-          // certificateExemptionId. The id is what the buyer typed; the record
-          // id is the certificate in Salesforce that evidences it, and the
-          // payment service uses it to point Transaction__c at that record.
-          tax_exemption_id: certificateExemptionId(),
-          tax_certificate_id: certificateRecordId(),
           order_total: money(order.orderCents),
           order_summary: summary,
           fulfillment: fulfillment.id,
@@ -2941,18 +2005,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         payload.cardType = cardType;
       }
 
-      // Nobody takes a cut of a check, so there is no fee to quote, none to
-      // cover and no rail to declare. Forced here rather than trusted to have
-      // been cleared elsewhere: the charged figure and the recorded figure both
-      // come off this object, and a stale cover-fee would put a processing fee
-      // on an order that never saw a processor.
-      if (payingByCheck) {
-        payload.coverFee = false;
-        payload.feeAmount = 0;
-        delete payload.paymentMethod;
-        delete payload.cardType;
-      }
-
       // Stable across retries of the same order: a buyer who resubmits after a
       // failure keeps the same reference, while a changed order gets a new one.
       // Every field that can move the charged total belongs here.
@@ -2971,11 +2023,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         // another at the same percentage is a different order, and should not
         // reuse the abandoned one's reference.
         discount ? discount.code : "",
-        order.percentOff,
-        // An order that was taxed and an order that was not are different
-        // orders, and must not share an abandoned attempt's reference.
-        order.taxCents,
-        certificateRecordId()
+        order.percentOff
       ].join("|");
 
       if (!clientReferenceId || referenceSignature !== clientReferenceSignature) {
@@ -2992,37 +2040,13 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       }
 
       submitting = true;
-      if (payingByCheck) checkSubmitting = true;
-
       // Derived from the total rather than read off the button, because the
       // button may currently say "Checking your code..." - restoring that on a
       // failure would leave the buyer looking at a stale message and no price.
       var originalButtonText = "Pay " + money(totals.totalCents);
-      var busyButton = payingByCheck ? checkSubmitBtn : submitBtn;
-      var busyOriginalText = payingByCheck
-        ? "Place this order and mail a check"
-        : originalButtonText;
-      if (busyButton) {
-        busyButton.disabled = true;
-        busyButton.textContent = payingByCheck ? "Recording your order..." : "Transferring to Stripe...";
-      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Transferring to Stripe...";
       hideSubmitError();
-      if (payingByCheck) showCheckError("");
-
-      /** Put the buyer back where they were, with whichever error box is theirs. */
-      function releaseSubmission(message) {
-        submitting = false;
-        checkSubmitting = false;
-        if (busyButton) {
-          busyButton.disabled = false;
-          busyButton.textContent = busyOriginalText;
-        }
-        if (message) {
-          if (payingByCheck) showCheckError(message);
-          else showSubmitError(message);
-        }
-        updateTotals();
-      }
 
       // The Salesforce side of the order: who ordered, how many participants,
       // and where it ships.
@@ -3073,12 +2097,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           DiscountCode: discount ? discount.code : "none",
           Discount: discount ? order.percentOff + "% (" + discount.code + ")" : "none",
           DiscountAmount: money(order.discountCents),
-          TaxBase: money(order.taxBaseCents),
-          TaxState: order.taxState || "none",
-          TaxRate: (order.taxRateBps / 100) + "%",
-          TaxAmount: money(order.taxCents),
-          TaxCertificateStatus: certificateStatus(),
-          TaxExemptionId: certificateExemptionId() || "none",
           OrderTotal: money(order.orderCents),
           CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
           TotalCharged: money(totals.totalCents),
@@ -3172,92 +2190,6 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         } catch (e) {
           /* bookkeeping only */
         }
-      }
-
-      // The check path forks here, BEFORE any of the Stripe apparatus below, so
-      // the card path is left exactly as it was. Same order, same Form__c, same
-      // confirmation email - a different last step.
-      if (payingByCheck) {
-        var checkController = typeof AbortController === "function" ? new AbortController() : null;
-        var checkTimedOut = false;
-        var checkTimeoutId = setTimeout(function () {
-          checkTimedOut = true;
-          if (checkController) checkController.abort();
-        }, SUBMIT_TIMEOUT_MS);
-
-        createFormRecord()
-          .then(function (record) {
-            var code = readFormField(record, "FormCode__c");
-            var id = readFormField(record, "Id");
-            if (code) payload.metadata.form_code = code;
-            if (id) payload.metadata.form_id = id;
-
-            var checkBody = {
-              // The order total, with no fee on top - see the override above.
-              amount: order.orderCents,
-              // The record's only unique key, and the thing the buyer writes on
-              // the check. Derived from clientReferenceId rather than generated,
-              // so a buyer who presses the button twice updates one pending
-              // transaction instead of creating a second one.
-              clientReferenceId: makeCheckReference(clientReferenceId),
-              email: payload.email,
-              category: HOSPITALITY_GUIDE_CATEGORY,
-              metadata: payload.metadata
-            };
-            if (buyerType === "organization") checkBody.organization = organization;
-
-            var options = {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(checkBody)
-            };
-            if (checkController) options.signal = checkController.signal;
-
-            return fetch(CHECK_ORDER_API, options);
-          })
-          .then(function (r) {
-            clearTimeout(checkTimeoutId);
-            return r.text().then(function (text) {
-              var data = null;
-              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
-
-              if (!r.ok || !data || data.recorded !== true) {
-                console.error("[Hospitality Guide] Check order not recorded: HTTP " + r.status + " " + text);
-                // Said plainly, because a buyer about to post a cheque needs to
-                // know whether anyone is expecting it.
-                releaseSubmission(
-                  (data && data.error) ||
-                  "We could not record your order just now. Please try again before mailing a check."
-                );
-                return;
-              }
-
-              var reference = String(data.reference || makeCheckReference(clientReferenceId));
-              var doneAmount = el("done-amount");
-              var donePayable = el("done-payable");
-              var doneReference = el("done-reference");
-              var doneAddress = el("done-address");
-              if (doneAmount) doneAmount.textContent = money(order.orderCents);
-              if (donePayable) donePayable.textContent = HOSPITALITY_GUIDE_CHECK_PAYABLE_TO;
-              if (doneReference) doneReference.textContent = reference;
-              if (doneAddress) doneAddress.textContent = HOSPITALITY_GUIDE_CHECK_ADDRESS;
-
-              submitting = false;
-              checkSubmitting = false;
-              paintCheckMode("done");
-            });
-          })
-          .catch(function (err) {
-            clearTimeout(checkTimeoutId);
-            console.error("[Hospitality Guide] Check order request failed:", err);
-            releaseSubmission(
-              checkTimedOut
-                ? "That took too long. Please try again before mailing a check."
-                : "We could not record your order just now. Please try again before mailing a check."
-            );
-          });
-
-        return;
       }
 
       // Redacted copy: this line goes to a console the buyer can open, and on a
