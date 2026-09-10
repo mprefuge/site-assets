@@ -77,12 +77,29 @@
   <div class="panel">
     <h2>Scenarios</h2>
     <div class="row">
-      <a class="scenario" href="?#order-guide">Today (pre-order, 25%)</a>
-      <a class="scenario" href="?#order-guide?testMode=1&amp;testKey=preview&amp;asOf=2026-10-20T12:00:00-04:00">Launch month (15%)</a>
-      <a class="scenario" href="?#order-guide?testMode=1&amp;testKey=preview&amp;asOf=2026-12-01T12:00:00-05:00">After both windows (full price)</a>
+      <a class="scenario" href="?#order-guide">Today (pre-order)</a>
+      <a class="scenario" href="?#order-guide?testMode=1&amp;testKey=preview&amp;asOf=2026-12-01T12:00:00-05:00">After release (ships on order)</a>
       <a class="scenario" href="?#order-guide?participants=24">Pre-filled: 24 participants</a>
+      <a class="scenario" href="?code=PREVIEW25#order-guide">Code carried in the link</a>
     </div>
-    <div class="sub" style="margin:12px 0 0;">The date override only applies alongside a test key &mdash; that is deliberate, since the date decides the price. These links use a dummy key, which is enough for the form's own clock but will not authorise test mode at the real service.</div>
+    <div class="sub" style="margin:12px 0 0;">The date override only applies alongside a test key. It no longer decides the price &mdash; discounts are codes now &mdash; but it does decide what the buyer is promised about shipping, so it stays gated. These links use a dummy key, which is enough for the form's own clock but will not authorise test mode at the real service.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Discount codes</h2>
+    <div class="row">
+      <label class="opt"><input type="checkbox" id="use-real-discounts"> Check codes against the real forms service</label>
+      <span class="sub" style="margin:0;">Off = codes are answered from the table below, without touching Salesforce.</span>
+    </div>
+    <div class="sub" style="margin:12px 0 0;">
+      Mocked codes:
+      <code>PREVIEW25</code> 25% off &middot;
+      <code>PREVIEW10</code> 10% off &middot;
+      <code>EXPIRED</code> refused as expired &middot;
+      <code>BROKEN</code> answers as though Salesforce were down, so the
+      "we could not check" path can be walked.
+      Anything else comes back as not recognised.
+    </div>
   </div>
 
   <!-- The embed itself. This is the only part that goes on the live page. -->
@@ -112,8 +129,51 @@
 
     var realFetch = window.fetch.bind(window);
 
+    // Codes the mocked discount endpoint knows about. Enough to walk every
+    // branch the form has: a discount that applies, a second one so switching
+    // codes can be seen to reprice, a refusal, and a failure to check at all -
+    // which the form must NOT treat as a refusal.
+    var MOCK_CODES = {
+      PREVIEW25: { valid: true, code: "PREVIEW25", percentOff: 25, label: "Preview partner" },
+      PREVIEW10: { valid: true, code: "PREVIEW10", percentOff: 10, label: "Preview conference rate" },
+      EXPIRED: { valid: false, code: "EXPIRED", reason: "expired", message: "That code has expired." }
+    };
+
     window.fetch = function (url, options) {
       var isPayment = typeof url === "string" && url.indexOf("/api/transaction") !== -1;
+      var isDiscount = typeof url === "string" && url.indexOf("/api/form/discount-code") !== -1;
+
+      if (isDiscount && !document.getElementById("use-real-discounts").checked) {
+        var typed = "";
+        try { typed = new URL(url, window.location.href).searchParams.get("code") || ""; } catch (e) { typed = ""; }
+        typed = typed.toUpperCase();
+        console.log("[preview] intercepted discount code check for " + typed);
+
+        if (typed === "BROKEN") {
+          return Promise.resolve({
+            ok: false,
+            status: 502,
+            text: function () {
+              return Promise.resolve(JSON.stringify({ error: "Discount code could not be checked" }));
+            }
+          });
+        }
+
+        var answer = MOCK_CODES[typed] || {
+          valid: false,
+          code: typed,
+          reason: "not_found",
+          message: "That code was not recognised."
+        };
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: function () { return Promise.resolve(JSON.stringify(answer)); }
+        });
+      }
+      if (isDiscount) return realFetch(url, options);
+
       // The form service is mocked on the same terms as the payment service, and
       // for a sharper reason: a real call here creates a Form__c record in
       // production Salesforce and emails the admin recipients. A preview must
