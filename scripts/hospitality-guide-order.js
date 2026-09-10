@@ -312,6 +312,42 @@ const TAX_CERTIFICATE_COMPLETE = "Complete";
 const TAX_CERTIFICATE_PENDING = "Pending";
 const TAX_CERTIFICATE_NOT_APPLICABLE = "Not Applicable";
 
+// The forms service endpoint that records a certificate. Same Function App as
+// the order record and the discount code check, so there is nothing new to
+// deploy or configure to reach it.
+//
+// The exemption is recorded BEFORE the buyer is sent to Stripe, and the tax
+// only comes off once the service has said it landed. That ordering is the
+// point: a certificate recorded after payment would leave an untaxed order with
+// nothing behind it if the write failed, and the six percent would be the
+// organisation's own to pay. Taxing a buyer who is genuinely exempt is a
+// refund; failing to tax one who is not is a debt to the Commonwealth.
+const TAX_EXEMPTION_API = submitFormAPI + "/tax-exemption-certificate";
+
+// Short, for the same reason the discount lookup is: the buyer is sitting there
+// watching the button, and an exemption that cannot be recorded is simply not
+// applied - the order is taxed and they are told to try again.
+const TAX_EXEMPTION_TIMEOUT_MS = 12000;
+
+// The bases for exemption Kentucky Form 51A126 offers. Kept identical to the
+// forms service's own list and to the Salesforce picklist, which is restricted:
+// a value those two do not know fails the write after the buyer has been told
+// their certificate was accepted.
+const TAX_EXEMPTION_ORG_TYPES = [
+  "Resident nonprofit educational institution",
+  "Resident nonprofit charitable institution",
+  "Resident nonprofit religious institution",
+  "Government agency",
+  "Resale",
+  "Other"
+];
+
+// Only this state asks the exemption question, because only this state charges
+// the tax - see HOSPITALITY_GUIDE_TAX_RULES above. Asking a buyer in Tennessee
+// whether they are exempt from a tax they were not charged is a question with
+// no right answer.
+const TAX_EXEMPTION_STATE = "KY";
+
 // Shipping is included in the prices above. If the printer starts billing
 // freight separately, set this to the flat amount in cents and it is added to
 // every order, quoted on its own line. Left at 0 there is no shipping line at
@@ -444,6 +480,30 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     /* Says why there is no total yet on step 1. */
     .hg-await-address { margin-top:10px; font-size:13px; color:#555; text-align:center; line-height:1.45; }
     .hg-await-address[hidden] { display:none; }
+
+    /* Kentucky sales tax exemption - the checkbox, and the 51A126 it opens. */
+    .hg-exempt { margin-top:18px; }
+    .hg-exempt[hidden] { display:none; }
+    .hg-exempt-note { font-size:13px; color:#555; line-height:1.5; margin-top:8px; }
+    .hg-cert { margin-top:14px; padding-top:14px; border-top:1px solid #e6e6e6; }
+    .hg-cert[hidden] { display:none; }
+    .hg-cert-legal { font-size:12px; color:#666; line-height:1.5; margin:10px 0 12px; }
+    .hg-cert-row { display:flex; gap:8px; align-items:stretch; margin-top:12px; }
+    .hg-cert-btn { flex:0 0 auto; padding:12px 20px; }
+    /* The signature is meant to look like one: this is an attestation signed
+       under penalty of perjury, and a box that looks like every other box
+       invites it to be filled in like every other box. */
+    .hg-cert-signature { font-family:"Brush Script MT","Segoe Script",cursive; font-size:22px; }
+    .hg-cert-status { font-size:13px; font-weight:600; margin-top:6px; min-height:18px; }
+    .hg-cert-status.hg-cert-error { color:${BRAND_PRIMARY}; }
+    .hg-cert-status.hg-cert-working { color:#555; font-weight:500; }
+    .hg-cert-applied { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:12px; background:#f1f7f2; border:1.5px solid #2f7d4f; margin-top:12px; }
+    .hg-cert-applied[hidden] { display:none; }
+    .hg-cert-applied-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .hg-cert-applied-badge { font-weight:800; color:#2f7d4f; }
+    .hg-cert-applied-label { font-size:13px; color:#444; overflow-wrap:anywhere; }
+    .hg-cert-remove { flex:0 0 auto; background:none; border:none; color:#666; font-weight:700; font-size:13px; cursor:pointer; text-decoration:underline; padding:0; }
+    .hg-cert-file { font-size:13px; }
 
     /* Discount code entry */
     .hg-code { margin-bottom:14px; }
@@ -642,6 +702,26 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     var pct = Number(discount.percentOff);
     if (!isFinite(pct) || pct < 1 || pct > 100) return 0;
     return Math.round(pct);
+  }
+
+  // Today's date in Eastern time, as YYYY-MM-DD, for the certificate's date box.
+  //
+  // Asked of Intl rather than taken from the browser's own clock, because a
+  // buyer in Phoenix signing at nine in the evening would otherwise date the
+  // certificate the day before Louisville is on - and the forms service checks
+  // the signing date against Eastern time, so that certificate would be
+  // refused as signed in the future. en-CA formats as YYYY-MM-DD.
+  function todayInEastern() {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "2-digit", day: "2-digit"
+      }).format(new Date());
+    } catch (e) {
+      // Somewhere without Intl. An empty box the buyer fills in themselves is
+      // better than a wrong date they do not notice.
+      return "";
+    }
   }
 
   // What tax applies to a destination, given the state of the exemption
@@ -873,6 +953,95 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
                 <select class="hg-select" id="${prefix}-country"></select>
                 <div id="${prefix}-country-error" class="hg-error-message">Please choose your country</div>
               </div>
+            </div>
+          </div>
+
+          <!--
+            The exemption question sits here, after the address and before the
+            tax line on the review step, because it is a question about the
+            address: only a Kentucky destination is taxed, so only a Kentucky
+            destination is asked. Hidden entirely otherwise - see
+            paintExemption - rather than shown and disabled, because a question
+            that cannot apply to you is noise, not information.
+          -->
+          <div class="hg-card hg-card-inner hg-exempt" id="${prefix}-exempt-block" hidden>
+            <label class="hg-checkbox-container">
+              <input type="checkbox" id="${prefix}-exempt" class="hg-checkbox">
+              <span style="font-weight:600;">My organization is exempt from Kentucky sales tax</span>
+            </label>
+            <div class="hg-exempt-note">
+              Kentucky charges 6% sales tax on orders shipped in state. If your organization holds a
+              purchase exemption, complete Form 51A126 below and the tax comes off. Ticking the box
+              on its own does not remove it.
+            </div>
+
+            <div class="hg-cert" id="${prefix}-cert" hidden>
+              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-id">Exemption number</label>
+                  <input class="hg-input" id="${prefix}-cert-id" autocomplete="off" spellcheck="false" placeholder="From your exemption letter">
+                </div>
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-org">Exempt organization</label>
+                  <input class="hg-input" id="${prefix}-cert-org" autocomplete="organization">
+                </div>
+              </div>
+
+              <div style="margin-bottom:12px;">
+                <label class="hg-label" for="${prefix}-cert-type">Type of organization</label>
+                <select class="hg-select" id="${prefix}-cert-type">
+                  <option value="">Choose one</option>
+                  ${TAX_EXEMPTION_ORG_TYPES.map(function (t) {
+                    return '<option value="' + t + '">' + t + '</option>';
+                  }).join("")}
+                </select>
+              </div>
+
+              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-signer">Name of person signing</label>
+                  <input class="hg-input" id="${prefix}-cert-signer" autocomplete="name">
+                </div>
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-title">Title (optional)</label>
+                  <input class="hg-input" id="${prefix}-cert-title">
+                </div>
+              </div>
+
+              <div class="hg-grid hg-grid-2" style="margin-bottom:12px;">
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-signature">Signature</label>
+                  <input class="hg-input hg-cert-signature" id="${prefix}-cert-signature" autocomplete="off" placeholder="Type your name">
+                </div>
+                <div>
+                  <label class="hg-label" for="${prefix}-cert-date">Date</label>
+                  <input class="hg-input" type="date" id="${prefix}-cert-date">
+                </div>
+              </div>
+
+              <div style="margin-bottom:12px;">
+                <label class="hg-label" for="${prefix}-cert-file">Upload your signed 51A126 (optional)</label>
+                <input class="hg-input hg-cert-file" type="file" id="${prefix}-cert-file" accept="application/pdf,image/jpeg,image/png">
+              </div>
+
+              <div class="hg-cert-legal">
+                By signing above you certify, under penalty of perjury, that the organization named
+                holds the exemption number given and that this purchase is exempt from Kentucky
+                sales and use tax. We keep this certificate on file as required by the Commonwealth.
+              </div>
+
+              <div class="hg-cert-row">
+                <button type="button" class="hg-btn hg-cert-btn" id="${prefix}-cert-apply">Apply exemption</button>
+              </div>
+              <div id="${prefix}-cert-status" class="hg-cert-status" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="hg-cert-applied" id="${prefix}-cert-applied" hidden>
+              <div class="hg-cert-applied-text">
+                <span class="hg-cert-applied-badge" id="${prefix}-cert-applied-badge"></span>
+                <span class="hg-cert-applied-label" id="${prefix}-cert-applied-label"></span>
+              </div>
+              <button type="button" class="hg-cert-remove" id="${prefix}-cert-remove">Change</button>
             </div>
           </div>
 
@@ -1221,14 +1390,319 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       return sel ? (sel.value || "").split(" - ")[0].trim().toUpperCase() : "";
     }
 
-    // Where the exemption paperwork stands. Stage 1 has no certificate capture,
-    // so nothing can be exempt yet and every Kentucky order is taxed. The
-    // 51A126 form lands here next, and this is the only place that has to
-    // change for it: taxFor already refuses to zero the tax on anything short
-    // of Complete.
-    function certificateStatus() {
-      return TAX_CERTIFICATE_NOT_APPLICABLE;
+    // --- exemption certificate ----------------------------------------------
+    //
+    // The buyer fills in Kentucky Form 51A126 and presses Apply; the forms
+    // service records it and says whether it landed. Only then does the tax
+    // come off.
+    //
+    // This is deliberately the same shape as the discount code above, and for a
+    // stronger reason. A discount applied optimistically costs the organisation
+    // a few dollars if it turns out to be wrong. An exemption applied
+    // optimistically means an order shipped untaxed with no certificate behind
+    // it, and the six percent becomes the organisation's own money.
+
+    var exemptBox = el("exempt");
+    var exemptBlock = el("exempt-block");
+    var certBlock = el("cert");
+    var certApplyBtn = el("cert-apply");
+    var certStatus = el("cert-status");
+    var certApplied = el("cert-applied");
+    var certAppliedBadge = el("cert-applied-badge");
+    var certAppliedLabel = el("cert-applied-label");
+    var certRemoveBtn = el("cert-remove");
+    var certFile = el("cert-file");
+
+    var certFieldIds = ["cert-id", "cert-org", "cert-type", "cert-signer",
+      "cert-title", "cert-signature", "cert-date"];
+
+    // The certificate the SERVICE has confirmed, or null. Not what is typed in
+    // the boxes - what has actually been recorded. Nothing else may zero the
+    // tax.
+    var appliedCertificate = null;
+
+    // True while a recording is in flight, so a double-press cannot file the
+    // certificate twice or let the slower answer overwrite the faster one.
+    var recordingCertificate = false;
+
+    function certValue(id) {
+      var field = el(id);
+      return field ? field.value.trim() : "";
     }
+
+    // Are all six parts of Form 51A126 present?
+    //
+    // The forms service decides whether a certificate is good, and this does
+    // not try to second-guess it - no format checks, no date arithmetic, just
+    // "is anything obviously still empty". It exists so a buyer who has filled
+    // in half the form is not sent a round trip to be told so, and so the Apply
+    // button says what it is waiting for by being unavailable. The title is not
+    // here because the title is optional.
+    function certificateFilledIn() {
+      return certValue("cert-id") !== "" &&
+        certValue("cert-org") !== "" &&
+        certValue("cert-type") !== "" &&
+        certValue("cert-signer") !== "" &&
+        certValue("cert-signature") !== "" &&
+        certValue("cert-date") !== "";
+    }
+
+    // Where the exemption paperwork stands, for taxFor and for the payload.
+    //
+    // Three states, and the middle one is the one that matters: a ticked box
+    // with no recorded certificate is Pending, and Pending is TAXED. The buyer
+    // pays and the exemption is sorted out afterwards, because refunding
+    // over-collected tax is an inconvenience and under-collecting it is a debt.
+    function certificateStatus() {
+      if (destinationState() !== TAX_EXEMPTION_STATE) return TAX_CERTIFICATE_NOT_APPLICABLE;
+      if (!exemptBox || !exemptBox.checked) return TAX_CERTIFICATE_NOT_APPLICABLE;
+      return appliedCertificate ? TAX_CERTIFICATE_COMPLETE : TAX_CERTIFICATE_PENDING;
+    }
+
+    /** The exemption number on the recorded certificate, or "" - for the payload. */
+    function certificateExemptionId() {
+      return certificateStatus() === TAX_CERTIFICATE_COMPLETE ? appliedCertificate.exemptionId : "";
+    }
+
+    /** The Salesforce id of the recorded certificate, or "" - for the payload. */
+    function certificateRecordId() {
+      return certificateStatus() === TAX_CERTIFICATE_COMPLETE ? appliedCertificate.id : "";
+    }
+
+    function setCertStatus(message, kind) {
+      if (!certStatus) return;
+      certStatus.textContent = message || "";
+      certStatus.classList.toggle("hg-cert-error", kind === "error");
+      certStatus.classList.toggle("hg-cert-working", kind === "working");
+    }
+
+    // Shown only where the tax it is about is charged. A buyer who fills in a
+    // certificate and then changes the destination to Tennessee keeps the
+    // recorded certificate - it is a real document they signed - but the
+    // question disappears, because out of state there is no tax to exempt.
+    function paintExemption() {
+      if (!exemptBlock) return;
+      exemptBlock.hidden = destinationState() !== TAX_EXEMPTION_STATE;
+
+      var claimed = !!(exemptBox && exemptBox.checked);
+      var recorded = !!appliedCertificate;
+
+      if (certBlock) certBlock.hidden = !claimed || recorded;
+      if (certApplied) certApplied.hidden = !claimed || !recorded;
+
+      if (recorded && certAppliedBadge && certAppliedLabel) {
+        certAppliedBadge.textContent = "Exemption on file";
+        certAppliedLabel.textContent = appliedCertificate.organizationName +
+          " - " + appliedCertificate.exemptionId +
+          (appliedCertificate.fileAttached ? " - certificate uploaded" : "");
+      }
+
+      if (claimed && !recorded && certApplyBtn) {
+        certApplyBtn.disabled = recordingCertificate || !certificateFilledIn();
+        certApplyBtn.textContent = recordingCertificate ? "Recording..." : "Apply exemption";
+      }
+    }
+
+    /**
+     * Read the optional upload, if there is one.
+     *
+     * Resolves to null when there is no file, and to null again when the file
+     * cannot be read - never rejects. The scan is corroboration, not the
+     * certificate itself: a browser that will not hand over the bytes is not a
+     * reason to charge a buyer tax they do not owe.
+     */
+    function readCertificateFile() {
+      return new Promise(function (resolve) {
+        var file = certFile && certFile.files && certFile.files[0];
+        if (!file || typeof FileReader !== "function") return resolve(null);
+
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            // readAsDataURL gives "data:<type>;base64,<payload>". The service
+            // wants the payload, and it wants the type declared separately.
+            var comma = String(reader.result).indexOf(",");
+            resolve(comma < 0 ? null : {
+              fileName: file.name,
+              contentType: file.type || "application/pdf",
+              base64: String(reader.result).slice(comma + 1)
+            });
+          } catch (e) {
+            resolve(null);
+          }
+        };
+        reader.onerror = function () { resolve(null); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /**
+     * Send the certificate to the forms service.
+     *
+     * Resolves to { ok: true, certificate } when it is recorded, to
+     * { ok: false, message } when the service refused it, and to
+     * { ok: false, unavailable: true, message } when the call could not be made
+     * at all. The third case is kept separate for the same reason as the
+     * discount lookup: "we could not record it" and "your certificate is no
+     * good" are different things to tell a buyer, and only one of them is
+     * something they can fix.
+     */
+    function recordCertificate() {
+      return readCertificateFile().then(function (file) {
+        var controller = typeof AbortController === "function" ? new AbortController() : null;
+        var timedOut = false;
+        var timeoutId = setTimeout(function () {
+          timedOut = true;
+          if (controller) controller.abort();
+        }, TAX_EXEMPTION_TIMEOUT_MS);
+
+        var payload = {
+          exemptionId: certValue("cert-id"),
+          organizationName: certValue("cert-org"),
+          organizationType: certValue("cert-type"),
+          signerName: certValue("cert-signer"),
+          signerTitle: certValue("cert-title"),
+          signature: certValue("cert-signature"),
+          signedDate: certValue("cert-date"),
+          source: "Hospitality Guide order form"
+        };
+        if (file) payload.file = file;
+
+        var options = {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload)
+        };
+        if (controller) options.signal = controller.signal;
+
+        return fetch(TAX_EXEMPTION_API, options)
+          .then(function (r) {
+            clearTimeout(timeoutId);
+            return r.text().then(function (text) {
+              var data = null;
+              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+
+              if (r.ok && data && data.recorded === true && data.id) {
+                return {
+                  ok: true,
+                  certificate: {
+                    id: String(data.id),
+                    exemptionId: String(data.exemptionId || payload.exemptionId),
+                    organizationName: payload.organizationName,
+                    fileAttached: data.fileAttached === true
+                  }
+                };
+              }
+
+              // 400 and 409 are the service telling the buyer something they can
+              // act on - a missing field, or a number that is already on file
+              // for somebody else. Passed through verbatim.
+              if ((r.status === 400 || r.status === 409) && data && data.message) {
+                return { ok: false, message: data.message };
+              }
+
+              if (r.status === 429) {
+                return {
+                  ok: false,
+                  unavailable: true,
+                  message: (data && data.message) || "Too many attempts. Please wait a moment and try again."
+                };
+              }
+
+              console.error("[Hospitality Guide] Certificate could not be recorded: HTTP " + r.status + " " + text);
+              return {
+                ok: false,
+                unavailable: true,
+                message: "We could not record your certificate just now. Please try again."
+              };
+            });
+          })
+          .catch(function (err) {
+            clearTimeout(timeoutId);
+            console.error("[Hospitality Guide] Certificate request failed:", err);
+            return {
+              ok: false,
+              unavailable: true,
+              message: timedOut
+                ? "That took too long. Please try again."
+                : "We could not record your certificate just now. Please try again."
+            };
+          });
+      });
+    }
+
+    if (certApplyBtn) {
+      certApplyBtn.addEventListener("click", function () {
+        if (recordingCertificate) return;
+
+        recordingCertificate = true;
+        setCertStatus("Recording your certificate...", "working");
+        paintExemption();
+        updateTotals();
+
+        recordCertificate().then(function (result) {
+          recordingCertificate = false;
+
+          if (result.ok) {
+            appliedCertificate = result.certificate;
+            setCertStatus("");
+          } else {
+            appliedCertificate = null;
+            setCertStatus(result.message, "error");
+          }
+
+          paintExemption();
+          updateTotals();
+        });
+      });
+    }
+
+    if (certRemoveBtn) {
+      certRemoveBtn.addEventListener("click", function () {
+        // Reopens the form for editing and puts the tax back. The record in
+        // Salesforce stays - it is a signed attestation, and deleting one
+        // because a buyer clicked Change is not something a public form should
+        // be able to do.
+        appliedCertificate = null;
+        setCertStatus("");
+        paintExemption();
+        updateTotals();
+      });
+    }
+
+    if (exemptBox) {
+      exemptBox.addEventListener("change", function () {
+        if (!exemptBox.checked) setCertStatus("");
+        // Prefill from what the buyer has already typed. The organisation
+        // claiming exemption is almost always the one placing the order, and
+        // asking for it twice invites the two to disagree.
+        var orgField = el("cert-org");
+        var orgName = el("organization-name");
+        if (orgField && !orgField.value && orgName) orgField.value = orgName.value.trim();
+
+        var dateField = el("cert-date");
+        if (dateField && !dateField.value) dateField.value = todayInEastern();
+
+        paintExemption();
+        updateTotals();
+      });
+    }
+
+    // Repainted on every keystroke, so the Apply button unlocks the moment the
+    // last empty box is filled.
+    //
+    // There is no "editing un-applies it" here, the way there is for a discount
+    // code, because there is nothing to edit: applying closes the form behind
+    // the certificate, and Change is the only way back to the boxes. Change
+    // un-applies it, so what is on screen and what has been recorded cannot
+    // disagree - the tax is back on before the first keystroke.
+    certFieldIds.concat(["cert-file"]).forEach(function (id) {
+      var field = el(id);
+      if (!field) return;
+      ["input", "change"].forEach(function (ev) {
+        field.addEventListener(ev, paintExemption);
+      });
+    });
 
     // --- discount code ------------------------------------------------------
     //
@@ -1901,6 +2375,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       var awaiting = el("await-address");
       if (awaiting) awaiting.hidden = order.taxBaseCents <= 0;
 
+      // The exemption question follows the destination, so it is repainted on
+      // the same pass as the numbers rather than only when the box is ticked.
+      paintExemption();
+
       // Step 3 lines
       el("review-guides-label").textContent = guidesLabel;
       el("review-guides").textContent = money(order.subtotalCents);
@@ -1950,6 +2428,10 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
       // live through that is how a buyer pays the undiscounted total a moment
       // before the discount lands.
       if (checkingCode) return false;
+      // Same reason: a certificate being recorded is six percent about to come
+      // off. Letting the button stay live through that is how a buyer pays the
+      // taxed total a moment before the exemption lands.
+      if (recordingCertificate) return false;
       return orderStepValid(false) && buyerStepValid(false);
     }
 
@@ -1974,6 +2456,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
     submitBtn.addEventListener("click", function () {
       if (submitting) return;
       if (checkingCode) return;
+      if (recordingCertificate) return;
       if (!orderStepValid(true) || !buyerStepValid(true)) return;
 
       // A code applied ten minutes ago is not necessarily a code that is still
@@ -2131,7 +2614,12 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           tax_state: order.taxState || "",
           tax_amount: money(order.taxCents),
           tax_certificate_status: certificateStatus(),
-          tax_exemption_id: "",
+          // Both only ever set alongside a Complete status - see
+          // certificateExemptionId. The id is what the buyer typed; the record
+          // id is the certificate in Salesforce that evidences it, and the
+          // payment service uses it to point Transaction__c at that record.
+          tax_exemption_id: certificateExemptionId(),
+          tax_certificate_id: certificateRecordId(),
           order_total: money(order.orderCents),
           order_summary: summary,
           fulfillment: fulfillment.id,
@@ -2172,7 +2660,11 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
         // another at the same percentage is a different order, and should not
         // reuse the abandoned one's reference.
         discount ? discount.code : "",
-        order.percentOff
+        order.percentOff,
+        // An order that was taxed and an order that was not are different
+        // orders, and must not share an abandoned attempt's reference.
+        order.taxCents,
+        certificateRecordId()
       ].join("|");
 
       if (!clientReferenceId || referenceSignature !== clientReferenceSignature) {
@@ -2251,6 +2743,7 @@ const HG_STRIPE_AMEX_FEE_LABEL = hgFeeChipLabel(HG_STRIPE_AMEX_RATE_BPS, HG_STRI
           TaxRate: (order.taxRateBps / 100) + "%",
           TaxAmount: money(order.taxCents),
           TaxCertificateStatus: certificateStatus(),
+          TaxExemptionId: certificateExemptionId() || "none",
           OrderTotal: money(order.orderCents),
           CoveredProcessingFee: totals.coveredFeeCents ? money(totals.coveredFeeCents) : "not covered",
           TotalCharged: money(totals.totalCents),

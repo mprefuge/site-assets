@@ -174,6 +174,62 @@
       }
       if (isDiscount) return realFetch(url, options);
 
+      // The certificate endpoint is mocked for the same reason as the form
+      // service below - a real call writes a Tax_Exemption_Certificate__c into
+      // production Salesforce - and it has to be checked BEFORE the generic
+      // /api/form branch, whose URL test would otherwise swallow it and answer
+      // with a form record, which the form would read as "could not record".
+      var isCertificate = typeof url === "string" && url.indexOf("/api/form/tax-exemption-certificate") !== -1;
+
+      if (isCertificate && !realApiToggle.checked) {
+        var certBody = {};
+        try { certBody = JSON.parse(options.body); } catch (e) { certBody = {}; }
+        var certId = String(certBody.exemptionId || "").toUpperCase();
+        console.log("[preview] intercepted certificate recording for " + certId);
+
+        // TAKEN and BROKEN walk the two branches the form has to handle
+        // differently: a refusal the buyer can act on, and a failure they can
+        // only retry. Neither may remove the tax.
+        if (certId === "TAKEN") {
+          return Promise.resolve({
+            ok: false,
+            status: 409,
+            text: function () {
+              return Promise.resolve(JSON.stringify({
+                recorded: false,
+                reason: "exemption_id_belongs_to_another_organization",
+                message: "That exemption number is already on file for a different organization. Please check the number, or contact us."
+              }));
+            }
+          });
+        }
+
+        if (certId === "BROKEN") {
+          return Promise.resolve({
+            ok: false,
+            status: 502,
+            text: function () {
+              return Promise.resolve(JSON.stringify({ recorded: false, reason: "unavailable" }));
+            }
+          });
+        }
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: function () {
+            return Promise.resolve(JSON.stringify({
+              recorded: true,
+              id: "a1YPREVIEW000001",
+              exemptionId: certId,
+              status: "Complete",
+              fileAttached: !!certBody.file
+            }));
+          }
+        });
+      }
+      if (isCertificate) return realFetch(url, options);
+
       // The form service is mocked on the same terms as the payment service, and
       // for a sharper reason: a real call here creates a Form__c record in
       // production Salesforce and emails the admin recipients. A preview must
