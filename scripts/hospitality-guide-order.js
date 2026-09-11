@@ -127,14 +127,32 @@ const HOSPITALITY_GUIDE_CONTACT_EMAIL = "info@refugeintl.org";
 //
 // Available variables include FirstName, FormCode__c, orgName, and every
 // Form__c field on the payload.
-// Brand marks, out here so the email and the form cannot drift apart. The logo
-// is the same asset the form header uses - hosted, because an email client will
-// not load a data URI reliably and will not load anything at all until the
-// reader says so, which is why nothing below depends on it rendering.
+// Brand marks, out here so the email and the form cannot drift apart. Hosted
+// rather than inlined, because an email client will not load a data URI
+// reliably - and nothing below depends on the image rendering at all, since
+// most clients block remote images until the reader asks.
 const HOSPITALITY_GUIDE_BRAND_RED = "#BD2135";
+
+// THE CIRCULAR MARK ONLY, FLATTENED ONTO WHITE, SERVED FROM OUR OWN REPO.
+// Each of those three is a bug that reached a buyer's inbox:
+//
+//   - The Squarespace asset is the mark PLUS the words "Refuge International",
+//     which the header already prints as text underneath. The name appeared
+//     twice.
+//   - It is a transparent PNG whose ink is 88% near-black. A client that
+//     composites transparency onto black rather than onto the container - and
+//     they do - turns the whole thing into a black rectangle with a faint ring
+//     in it, which is exactly how it arrived. An email logo has to be FLATTENED
+//     onto the background it will sit on; transparency is not a thing to rely
+//     on in mail.
+//   - The Squarespace CDN content-negotiates that URL to image/webp, which
+//     Outlook does not render at all.
+//
+// Changing this image means a NEW FILENAME, not a new file at this path:
+// jsDelivr serves @main with a seven-day max-age, so a replacement at the same
+// path is invisible to anyone who has already loaded it.
 const HOSPITALITY_GUIDE_BRAND_LOGO =
-  "https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/" +
-  "c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png";
+  "https://cdn.jsdelivr.net/gh/mprefuge/site-assets@main/images/refuge-mark.png";
 
 /**
  * The buyer's confirmation, built from the order rather than templated by the
@@ -217,7 +235,8 @@ function hospitalityGuideOrderEmail(lines) {
       '<tr><td style="background:#ffffff;border-bottom:4px solid ' + red + ';' +
       'border-radius:12px 12px 0 0;padding:18px;text-align:center;">' +
       '<img src="' + HOSPITALITY_GUIDE_BRAND_LOGO + '" alt="" ' +
-      'width="150" style="max-width:150px;height:auto;border:0;display:block;margin:0 auto 6px;">' +
+      'width="58" height="57" ' +
+      'style="width:58px;height:57px;border:0;display:block;margin:0 auto 8px;">' +
       // The wordmark is TEXT, and it is what carries the branding when the
       // image does not. Most clients block remote images until the reader asks,
       // and a header that is only a logo is a blank box to most of them. The
