@@ -368,16 +368,29 @@ function check(name, actual, expected) {
     (await $('submit').textContent()).trim(),
     'Place order and send a check for $855.00'
   );
-  check(
-    'the fineprint no longer promises a redirect to Stripe',
-    (await $('submit-fineprint').textContent()).includes('Stripe'),
-    false
-  );
+  check('the fineprint under the button goes away entirely', await $('submit-fineprint').isHidden(), true);
+
+  // And comes back if they change their mind. Hiding it is a toggle, not a
+  // one-way door: a card buyer still needs telling they are about to leave.
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="now"]`).click();
+  await page.waitForTimeout(150);
+  check('switching back restores the Stripe warning', await $('submit-fineprint').isVisible(), true);
+  check('and the trust line', await $('trust').isVisible(), true);
+  check('and the total is charged again', (await $('review-total-label').textContent()).trim(), 'Total charged today');
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
   check('the Stripe trust line is gone', await $('trust').isHidden(), true);
   check(
     'the pre-order note stops saying the card is charged today',
-    (await $('fulfillment-note').textContent()).includes("You won't be charged today"),
-    true
+    /card is charged/.test(await $('fulfillment-note').textContent()),
+    false
+  );
+  // What ships is workbooks. "Guides and printed discussion workbooks" read as
+  // two things when there is only one.
+  check(
+    'what ships is workbooks, not guides and workbooks',
+    (await $('fulfillment-note').textContent()).trim(),
+    'Workbooks ship when the resource releases (target: mid-October 2026).'
   );
 
   await $('submit').click();
