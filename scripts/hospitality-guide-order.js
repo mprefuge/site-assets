@@ -1550,14 +1550,25 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     var clientReferenceId = null;
     var clientReferenceSignature = null;
 
-    // The Form__c record this attempt already created, and the order it was
-    // created for. Both live out here rather than inside beginSubmission,
-    // because a buyer whose card is declined presses Pay again - and a fresh
-    // record per attempt means a second row in Salesforce and a second
-    // confirmation email in their inbox for one order. Reset when the order
-    // itself changes, which is exactly what the reference signature tracks.
+    // The Form__c record this order already has, the confirmation code it came
+    // back with, and the exact body that produced it.
+    //
+    // These live out here rather than inside beginSubmission because a buyer
+    // whose card is declined presses Pay again, and a fresh record per attempt
+    // means a second row in Salesforce and a second confirmation email for one
+    // order.
+    //
+    // KEYED ON THE BODY, NOT ON clientReferenceSignature. That signature answers
+    // "is this the same charge" and deliberately leaves out everything that
+    // cannot move the total - the payment choice, the name, the phone, the
+    // shipping address. Reusing it here meant a buyer who switched to Pay by
+    // check after a failed card, or who corrected a typo'd address, got the
+    // cached record back and their correction never left the browser. On the
+    // check path that is somebody posting a cheque for an order the office has
+    // recorded as Card, with no transaction record anywhere to catch it.
     var formRecord = null;
-    var formRecordSignature = null;
+    var formRecordCode = "";
+    var formRecordBody = "";
 
     // HG-YYMMDD-XXXXXX rather than a UUID. This is only ever an idempotency key
     // now - a buyer paying by check quotes their form confirmation code, not
@@ -2076,10 +2087,26 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // actually lost if this fails. It resolves to the created record, or to
       // null - it never rejects.
       function createFormRecord() {
-        // Already created for this exact order. Handing back the same record
-        // keeps a retry to one row and one email.
-        if (formRecord && formRecordSignature === clientReferenceSignature) {
+        var body = JSON.stringify(formPayload);
+
+        // Byte-identical to what we already sent. One row, one email, no
+        // request at all.
+        if (formRecord && formRecordBody === body) {
           return Promise.resolve(formRecord);
+        }
+
+        // Something the buyer can change after a failure has changed - the
+        // payment choice, an address, a name. UPDATE the record we have rather
+        // than writing a second one: the service treats a payload carrying
+        // FormCode__c as an update, and dropping the email keys keeps it to the
+        // one confirmation they were already sent.
+        var updating = Boolean(formRecord && formRecordCode);
+        var sending = formPayload;
+        if (updating) {
+          sending = Object.assign({}, formPayload, { FormCode__c: formRecordCode });
+          delete sending.__sendEmail;
+          delete sending.__emailTemplates;
+          body = JSON.stringify(sending);
         }
 
         var formController = typeof AbortController === "function" ? new AbortController() : null;
@@ -2092,7 +2119,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         var options = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formPayload)
+          body: body
         };
         if (formController) options.signal = formController.signal;
 
@@ -2113,11 +2140,17 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
                 );
                 return null;
               }
-              // Remembered here rather than at the call sites, so a retry cannot
-              // mint a second record because one of them forgot to record it.
-              formRecord = data;
-              formRecordSignature = clientReferenceSignature;
-              return data;
+              // Remembered here and only here, so a retry cannot mint a second
+              // record because one of the call sites forgot to record it.
+              //
+              // The update branch answers { id, message } with NO formCode, so
+              // the code is carried forward from the create rather than read
+              // back off a response that does not carry one.
+              var code = updating ? formRecordCode : readFormField(data, "code");
+              formRecord = updating ? Object.assign({}, data, { formCode: code }) : data;
+              formRecordCode = code;
+              formRecordBody = JSON.stringify(formPayload);
+              return formRecord;
             });
           })
           .catch(function (err) {
@@ -2216,7 +2249,6 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // never blocks: a null record just means the payment carries no code.
       createFormRecord()
         .then(function (record) {
-          formRecord = record;
           var code = readFormField(record, "code");
           var id = readFormField(record, "id");
           if (code) payload.metadata.form_code = code;
@@ -2384,7 +2416,6 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       function submitCheckOrder(order, totals, originalButtonText) {
         createFormRecord()
           .then(function (record) {
-            formRecord = record;
             var code = readFormField(record, "code");
 
             // On the card path a failed form submission is bad bookkeeping and
