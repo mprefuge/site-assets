@@ -363,13 +363,22 @@ function check(name, actual, expected) {
     (await $('check-note').textContent()).includes('Refuge International'),
     true
   );
-  check('the button no longer says pay', (await $('submit').textContent()).trim(), 'Place order - $855.00 by check');
+  check(
+    'the button no longer says pay',
+    (await $('submit').textContent()).trim(),
+    'Place order and send a check for $855.00'
+  );
   check(
     'the fineprint no longer promises a redirect to Stripe',
     (await $('submit-fineprint').textContent()).includes('Stripe'),
     false
   );
   check('the Stripe trust line is gone', await $('trust').isHidden(), true);
+  check(
+    'the pre-order note stops saying the card is charged today',
+    (await $('fulfillment-note').textContent()).includes("You won't be charged today"),
+    true
+  );
 
   await $('submit').click();
   await page.waitForTimeout(900);
@@ -390,6 +399,9 @@ function check(name, actual, expected) {
     false
   );
   check('it carries the buyer so the office can chase them', checkPayload.email, 'pat@example.org');
+  check('it carries the name a contact would be created from', checkPayload.lastname, 'Buyer');
+  check('it carries the organisation so the account can be linked', checkPayload.organization, 'Test Church');
+  check('it carries the address for that contact', checkPayload.address.city, 'Louisville');
   check('it names the campaign', checkPayload.category, 'Hospitality Guide');
   check('it carries the code so the server can reprice it', checkPayload.metadata.discount_code, 'PREVIEW25');
 
@@ -421,9 +433,16 @@ function check(name, actual, expected) {
     (await $('done-ref').textContent()).trim(),
     checkPayload.clientReferenceId
   );
+  // The buyer is not told that somebody will chase them in a week. That is the
+  // office's business, and saying it turns a thank-you into a warning.
   check(
-    'the confirmation says when somebody will chase it',
-    (await $('done-note').textContent()).includes('7 days'),
+    'the confirmation does not threaten a follow-up',
+    /follow|chase|get in touch|7 days/i.test(await $('check-done').textContent()),
+    false
+  );
+  check(
+    'it says what happens next instead',
+    (await $('done-note').textContent()).includes("hold your order until your check arrives"),
     true
   );
 
@@ -476,7 +495,7 @@ function check(name, actual, expected) {
   );
   check(
     'and told not to send a check yet',
-    (await $('submit-error').textContent()).includes('do not send a check yet'),
+    (await $('submit-error').textContent()).includes("don't send a check yet"),
     true
   );
   check('the button comes back so they can retry', await $('submit').isEnabled(), true);
