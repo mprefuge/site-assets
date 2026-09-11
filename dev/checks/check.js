@@ -319,6 +319,168 @@ function check(name, actual, expected) {
     true
   );
 
+  // --- paying by check ------------------------------------------------------
+  //
+  // A different endpoint and a different outcome: nothing is charged, no Stripe
+  // session is created, and the order is recorded as pending for somebody to
+  // reconcile when the check arrives.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('code').fill('PREVIEW25');
+  await $('code-apply').click();
+  await page.waitForTimeout(300);
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.waitForTimeout(200);
+
+  check('paying now is the default', await $('check-note').isHidden(), true);
+  check('the default button offers to pay', (await $('submit').textContent()).trim(), 'Pay $855.00');
+
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+
+  check('choosing check shows where to send it', await $('check-note').isVisible(), true);
+  check(
+    'the address is on screen before they commit',
+    (await $('check-note').textContent()).includes('5590 Bruce Avenue'),
+    true
+  );
+  check(
+    'and who to make it out to',
+    (await $('check-note').textContent()).includes('Refuge International'),
+    true
+  );
+  check('the button no longer says pay', (await $('submit').textContent()).trim(), 'Place order - $855.00 by check');
+  check(
+    'the fineprint no longer promises a redirect to Stripe',
+    (await $('submit-fineprint').textContent()).includes('Stripe'),
+    false
+  );
+  check('the Stripe trust line is gone', await $('trust').isHidden(), true);
+
+  await $('submit').click();
+  await page.waitForTimeout(900);
+
+  const checkPayload = postedBody('/api/transaction/check');
+  check('a check order was recorded', !!checkPayload, true);
+  check('the amount is the discounted total in cents', checkPayload.amount, 85500);
+  // The reference is not opaque here the way it is on the card path: the buyer
+  // has to copy it onto a check, and the office matches the two by eye.
+  check(
+    'the reference is short enough to write on a check',
+    /^HG-\d{6}-[0-9A-HJ-NP-Z]{6}$/.test(checkPayload.clientReferenceId || ''),
+    true
+  );
+  check(
+    'it has no I or O to be misread as 1 or 0',
+    /[IO]/.test((checkPayload.clientReferenceId || '').slice(10)),
+    false
+  );
+  check('it carries the buyer so the office can chase them', checkPayload.email, 'pat@example.org');
+  check('it names the campaign', checkPayload.category, 'Hospitality Guide');
+  check('it carries the code so the server can reprice it', checkPayload.metadata.discount_code, 'PREVIEW25');
+
+  // The one that matters: no Stripe session was ever asked for.
+  check(
+    'no Stripe checkout session was requested',
+    posted.some((r) => r.url.indexOf('/api/transaction') !== -1 && r.url.indexOf('/check') === -1),
+    false
+  );
+  check(
+    'the order was still recorded in Salesforce',
+    posted.some((r) => r.url.indexOf('/api/form') !== -1 && r.url.indexOf('discount-code') === -1),
+    true
+  );
+
+  check('the confirmation replaces the review step', await $('check-done').isVisible(), true);
+  check(
+    'the confirmation names the amount owed',
+    (await $('done-lead').textContent()).includes('$855.00'),
+    true
+  );
+  check(
+    'the confirmation repeats the address',
+    (await $('check-done').textContent()).includes('5590 Bruce Avenue'),
+    true
+  );
+  check(
+    'the confirmation shows the reference the service stored',
+    (await $('done-ref').textContent()).trim(),
+    checkPayload.clientReferenceId
+  );
+  check(
+    'the confirmation says when somebody will chase it',
+    (await $('done-note').textContent()).includes('7 days'),
+    true
+  );
+
+  // --- a check order whose total does not match the price --------------------
+  //
+  // Nothing is charged on this path, so the price check is the only thing
+  // standing between an edited total and a pending record in the financial
+  // object. A refusal must reach the buyer BEFORE they post a check.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+
+  // Edit the total the way a buyer with devtools would.
+  await page.evaluate(() => {
+    const inner = window.fetch;
+    window.fetch = function (url, options) {
+      if (typeof url === 'string' && url.indexOf('/api/transaction/check') !== -1) {
+        const body = JSON.parse(options.body);
+        body.amount = 100;
+        return inner(url, { ...options, body: JSON.stringify(body) });
+      }
+      return inner(url, options);
+    };
+  });
+
+  await $('submit').click();
+  await page.waitForTimeout(900);
+
+  check('a tampered total is refused', await $('check-done').isHidden(), true);
+  check(
+    'the buyer is told the price moved',
+    (await $('submit-error').textContent()).includes('does not match the current price'),
+    true
+  );
+  check(
+    'and told not to send a check yet',
+    (await $('submit-error').textContent()).includes('do not send a check yet'),
+    true
+  );
+  check('the button comes back so they can retry', await $('submit').isEnabled(), true);
+
   check('no uncaught page errors', errors.length, 0);
   if (errors.length) console.log(errors);
 

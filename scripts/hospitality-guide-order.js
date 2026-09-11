@@ -1,5 +1,10 @@
 const processOrderAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';
 
+// The same service, for an order nobody is paying online. It writes a PENDING
+// transaction and returns; no Stripe session is created and no money moves. A
+// person reconciles the record when the check arrives.
+const checkOrderAPI = processOrderAPI + '/check';
+
 // The forms service, which records the order as a Form__c record in Salesforce:
 // who ordered, for how many participants, where it ships. The payment service
 // above records the money; this records the order. Same endpoint the volunteer,
@@ -269,6 +274,17 @@ const HOSPITALITY_GUIDE_PREORDER_NOTE =
 const HOSPITALITY_GUIDE_INSTOCK_NOTE =
   "Guides and printed discussion workbooks ship after your order is placed.";
 
+// The same two promises for a buyer paying by check, where nothing is charged
+// today and the order is held until the money arrives. Kept as separate strings
+// rather than patched at render time: what a buyer is agreeing to should be
+// readable in one piece, not assembled from a conditional.
+const HOSPITALITY_GUIDE_PREORDER_NOTE_CHECK =
+  "Nothing is charged today. Your order is held until your check arrives, and guides and printed " +
+  "discussion workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
+
+const HOSPITALITY_GUIDE_INSTOCK_NOTE_CHECK =
+  "Nothing is charged today. Guides and printed discussion workbooks ship once your check arrives.";
+
 // The campaign every order is filed under, in Stripe, Salesforce and
 // QuickBooks - and the product name shown on the Stripe payment page.
 //
@@ -291,6 +307,17 @@ const HOSPITALITY_GUIDE_SHIPPING_CENTS = 0;
 // How close to the next tier a buyer has to be before the form points out that
 // ordering a few more copies would drop their per-person price.
 const TIER_NUDGE_WITHIN = 10;
+
+// Where a check goes, and who it is made out to. Printed on the review step
+// before the buyer commits and again on the confirmation, because a buyer who
+// has to go looking for the address is a check that never gets posted.
+const HOSPITALITY_GUIDE_CHECK_PAYEE = "Refuge International";
+const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40214"];
+
+// How long an order paid by check waits before the office is asked to chase it.
+// Stated here only so the confirmation and the Salesforce flow tell the buyer
+// and the office the same number; the flow is what actually counts the days.
+const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
 
 // ---------------------------------------------------------------------------
 // PROCESSING FEE CONFIGURATION - set the rate once, here.
@@ -445,6 +472,16 @@ const TIER_NUDGE_WITHIN = 10;
     .hg-cta:hover { background:#a81c2d; }
     .hg-cta:disabled { opacity:.5; cursor:not-allowed; }
     .hg-trust { text-align:center; font-size:12px; color:#555; margin-top:10px; }
+    .hg-pay-when-label { margin-top:22px; }
+    .hg-pay-when { margin:10px 0 4px; }
+    .hg-pay-chip { flex:1 1 160px; max-width:240px; }
+    .hg-check-note { border:1.5px solid #eee; border-radius:12px; padding:14px 16px; margin:12px 0 4px; font-size:13px; color:#333; line-height:1.5; }
+    .hg-check-note strong { display:block; font-size:14px; margin-bottom:4px; }
+    .hg-check-address { margin:8px 0; font-weight:600; white-space:pre-line; }
+    .hg-done-title { font-weight:800; font-size:22px; text-align:center; margin-bottom:6px; }
+    .hg-done-lead { text-align:center; font-size:14px; color:#555; margin-bottom:16px; }
+    .hg-done-ref { text-align:center; font-size:13px; color:#555; margin-top:14px; }
+    .hg-done-ref code { font-weight:700; color:#1a1a1a; }
     .hg-fineprint { text-align:center; font-size:13px; color:#666; margin:12px 0 4px; line-height:1.45; }
     .hg-error-message { color:${BRAND_PRIMARY}; font-size:12px; font-weight:600; margin-top:4px; display:none; }
     .hg-error-message.hg-center { text-align:center; }
@@ -524,8 +561,16 @@ const TIER_NUDGE_WITHIN = 10;
 
   function fulfillmentAt(nowMs) {
     return releasedAt(nowMs)
-      ? { id: HOSPITALITY_GUIDE_FULFILLMENT, note: HOSPITALITY_GUIDE_INSTOCK_NOTE }
-      : { id: "ships-at-release", note: HOSPITALITY_GUIDE_PREORDER_NOTE };
+      ? {
+          id: HOSPITALITY_GUIDE_FULFILLMENT,
+          note: HOSPITALITY_GUIDE_INSTOCK_NOTE,
+          checkNote: HOSPITALITY_GUIDE_INSTOCK_NOTE_CHECK
+        }
+      : {
+          id: "ships-at-release",
+          note: HOSPITALITY_GUIDE_PREORDER_NOTE,
+          checkNote: HOSPITALITY_GUIDE_PREORDER_NOTE_CHECK
+        };
   }
 
   // Reduce whatever was typed to the redeemable character set, exactly as the
@@ -757,15 +802,45 @@ const TIER_NUDGE_WITHIN = 10;
             <div class="hg-line"><span id="${prefix}-review-guides-label">Guides</span><span id="${prefix}-review-guides">$0.00</span></div>
             <div class="hg-line hg-line-discount" id="${prefix}-review-discount-line" hidden><span id="${prefix}-review-discount-label">Discount</span><span id="${prefix}-review-discount">$0.00</span></div>
             <div class="hg-line hg-line-muted" id="${prefix}-review-shipping-line" hidden><span>Shipping</span><span id="${prefix}-review-shipping">$0.00</span></div>
-            <div class="hg-line hg-line-total"><span>Total charged today</span><span id="${prefix}-review-total">$0.00</span></div>
+            <div class="hg-line hg-line-total"><span id="${prefix}-review-total-label">Total charged today</span><span id="${prefix}-review-total">$0.00</span></div>
+          </div>
+
+          <label class="hg-label hg-pay-when-label">How would you like to pay?</label>
+          <div class="hg-row hg-pay-when" id="${prefix}-pay-when-row">
+            <button type="button" class="hg-chip hg-pay-chip selected" data-pay-when="now">Pay now</button>
+            <button type="button" class="hg-chip hg-pay-chip" data-pay-when="check">Pay by check</button>
+          </div>
+
+          <div class="hg-check-note" id="${prefix}-check-note" hidden>
+            <strong>Your order is placed now; the check follows.</strong>
+            Make the check payable to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and post it to:
+            <div class="hg-check-address">${HOSPITALITY_GUIDE_CHECK_ADDRESS.join("\n")}</div>
+            We record the order straight away and mark it as awaiting payment. Please write the order reference on the check, or on a note with it, so we can match the two up. If we have not received it in ${HOSPITALITY_GUIDE_CHECK_CHASE_DAYS} days somebody from the office will get in touch.
           </div>
 
           <div class="hg-fineprint" id="${prefix}-fulfillment-note"></div>
 
           <button type="button" id="${prefix}-submit" class="hg-cta" disabled>Enter the number of participants</button>
           <div id="${prefix}-submit-error" class="hg-error-message hg-center" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-          <div class="hg-fineprint">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
-          <div class="hg-trust">Secure payment powered by Stripe</div>
+          <div class="hg-fineprint" id="${prefix}-submit-fineprint">After clicking pay, you will be taken to Stripe to enter your payment information.</div>
+          <div class="hg-trust" id="${prefix}-trust">Secure payment powered by Stripe</div>
+        </div>
+
+        <div class="hg-card" id="${prefix}-check-done" hidden>
+          <div class="hg-done-title">Order placed</div>
+          <div class="hg-done-lead" id="${prefix}-done-lead"></div>
+
+          <div class="hg-check-note">
+            <strong>Where to send the check</strong>
+            Make it payable to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and post it to:
+            <div class="hg-check-address">${HOSPITALITY_GUIDE_CHECK_ADDRESS.join("\n")}</div>
+            Please write the order reference below on the check, or on a note with it.
+          </div>
+
+          <div class="hg-done-ref">
+            Order reference <code id="${prefix}-done-ref"></code>
+          </div>
+          <div class="hg-fineprint" id="${prefix}-done-note"></div>
         </div>
       </div>`;
   }
@@ -1233,6 +1308,26 @@ const TIER_NUDGE_WITHIN = 10;
       });
     }
 
+    // --- how they intend to pay ---------------------------------------------
+    //
+    // "now" hands off to Stripe and the money moves. "check" does not: the order
+    // is recorded as pending and somebody posts a check. Two different endpoints
+    // and two different outcomes, so the buyer is asked once, plainly, rather
+    // than discovering it after a redirect.
+    var payWhen = "now";
+    var payWhenRow = el("pay-when-row");
+
+    if (payWhenRow) {
+      payWhenRow.addEventListener("click", function (e) {
+        var t = e.target.closest(".hg-pay-chip");
+        if (!t) return;
+        payWhen = t.getAttribute("data-pay-when") === "check" ? "check" : "now";
+        payWhenRow.querySelectorAll(".hg-pay-chip").forEach(function (c) { c.classList.remove("selected"); });
+        t.classList.add("selected");
+        updateTotals();
+      });
+    }
+
     // --- address ------------------------------------------------------------
     populateSelect(prefix + "-state", states);
     populateSelect(prefix + "-country", countries);
@@ -1444,13 +1539,34 @@ const TIER_NUDGE_WITHIN = 10;
     var clientReferenceId = null;
     var clientReferenceSignature = null;
 
+    // HG-YYMMDD-XXXXXX. Short enough for a human to copy onto a check, which is
+    // the whole reason it is not a UUID any more: on the check path this is the
+    // only thing tying the money that arrives to the order it pays for, and the
+    // buyer has to write it down. Six characters from a 34-letter alphabet is
+    // 1.5 billion per day against an order volume in the tens, and the field it
+    // lands in is unique, so a collision is refused rather than quietly merging
+    // two orders. I and O are left out so nobody reads a handwritten 1 or 0 back
+    // as a letter.
+    //
+    // Same id on both paths. Stripe takes it as client_reference_id, which
+    // accepts this alphabet, and an opaque key does not care how long it is.
     function makeReferenceId() {
-      if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
+      var now = new Date();
+      var stamp = String(now.getFullYear()).slice(2) +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        String(now.getDate()).padStart(2, "0");
+
+      var alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+      var suffix = "";
+      if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+        var bytes = new Uint8Array(6);
+        window.crypto.getRandomValues(bytes);
+        for (var i = 0; i < bytes.length; i++) suffix += alphabet.charAt(bytes[i] % alphabet.length);
+      } else {
+        for (var j = 0; j < 6; j++) suffix += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
       }
-      return "ref-" + Date.now().toString(16) +
-        "-" + Math.random().toString(16).slice(2, 10) +
-        "-" + Math.random().toString(16).slice(2, 10);
+
+      return "HG-" + stamp + "-" + suffix;
     }
 
     // --- test-mode indicator ------------------------------------------------
@@ -1575,14 +1691,35 @@ const TIER_NUDGE_WITHIN = 10;
         shipTo.textContent = cityValue && stateValue ? "Shipping to " + cityValue + ", " + stateValue : "";
       }
 
+      // Everything from the total down changes with how they mean to pay: what
+      // the total is called, what the button promises, where it says they are
+      // going, and whether the check address is on screen before they commit
+      // rather than after.
+      var payingByCheck = payWhen === "check";
+
+      var totalLabel = el("review-total-label");
+      // "Charged today" is simply untrue of a check, and this is the line the
+      // buyer reads hardest.
+      if (totalLabel) totalLabel.textContent = payingByCheck ? "Total due" : "Total charged today";
+
       var fulfillmentNote = el("fulfillment-note");
-      if (fulfillmentNote) fulfillmentNote.textContent = fulfillment.note;
+      if (fulfillmentNote) fulfillmentNote.textContent = payingByCheck ? fulfillment.checkNote : fulfillment.note;
+      var checkNote = el("check-note");
+      if (checkNote) checkNote.hidden = !payingByCheck;
+      var submitFineprint = el("submit-fineprint");
+      if (submitFineprint) {
+        submitFineprint.textContent = payingByCheck
+          ? "Nothing is charged now. We record the order and wait for your check."
+          : "After clicking pay, you will be taken to Stripe to enter your payment information.";
+      }
+      var trust = el("trust");
+      if (trust) trust.hidden = payingByCheck;
 
       // Leave the button label alone while a submission is in flight, so a
       // keystroke cannot wipe out the "Transferring to Stripe..." message.
       if (!submitting) {
         submitBtn.textContent = t.totalCents > 0
-          ? "Pay " + money(t.totalCents)
+          ? (payingByCheck ? "Place order - " + money(t.totalCents) + " by check" : "Pay " + money(t.totalCents))
           : "Enter the number of participants";
         submitBtn.disabled = !readyToSubmit();
       }
@@ -1804,14 +1941,23 @@ const TIER_NUDGE_WITHIN = 10;
         payload.testKey = testModeKey();
       }
 
+      var payingByCheck = payWhen === "check";
+
       submitting = true;
       // Derived from the total rather than read off the button, because the
       // button may currently say "Checking your code..." - restoring that on a
       // failure would leave the buyer looking at a stale message and no price.
-      var originalButtonText = "Pay " + money(totals.totalCents);
+      var originalButtonText = payingByCheck
+        ? "Place order - " + money(totals.totalCents) + " by check"
+        : "Pay " + money(totals.totalCents);
       submitBtn.disabled = true;
-      submitBtn.textContent = "Transferring to Stripe...";
+      submitBtn.textContent = payingByCheck ? "Recording your order..." : "Transferring to Stripe...";
       hideSubmitError();
+
+      if (payingByCheck) {
+        submitCheckOrder(payload, order, totals, originalButtonText);
+        return;
+      }
 
       // The Salesforce side of the order: who ordered, how many participants,
       // and where it ships.
@@ -2131,6 +2277,139 @@ const TIER_NUDGE_WITHIN = 10;
           submitBtn.textContent = originalButtonText;
           submitBtn.disabled = false;
         });
+
+      /**
+       * Place an order nobody is paying online.
+       *
+       * No Stripe session, no redirect, and no money. The forms service records
+       * the order exactly as it does on the card path - same Form__c record, same
+       * confirmation email - and then the payment service writes a PENDING
+       * transaction keyed on this order's reference, so the money owed exists in
+       * the financial object from the moment the buyer commits rather than from
+       * the moment a check turns up.
+       *
+       * THE ORDER OF THE TWO CALLS MATTERS. The forms service creates the buyer's
+       * Contact; the check endpoint only ever LOOKS ONE UP, never creates one. So
+       * the form record goes first, and its confirmation code travels into the
+       * transaction metadata the same way it does on the card path.
+       *
+       * A failure here is reported plainly and the button comes back. There is no
+       * half-success to paper over: either we are expecting a check or we are not,
+       * and a buyer about to walk to the post box needs to know which.
+       */
+      function submitCheckOrder(payload, order, totals, originalButtonText) {
+        var checkPayload = {
+          amount: payload.amount,
+          clientReferenceId: payload.clientReferenceId,
+          email: payload.email,
+          firstname: payload.firstname,
+          lastname: payload.lastname,
+          phone: payload.phone,
+          category: payload.category,
+          metadata: payload.metadata
+        };
+        if (payload.organization) checkPayload.organization = payload.organization;
+
+        var controller = typeof AbortController === "function" ? new AbortController() : null;
+        var timedOut = false;
+        var timeoutId = setTimeout(function () {
+          timedOut = true;
+          if (controller) controller.abort();
+        }, SUBMIT_TIMEOUT_MS);
+
+        createFormRecord()
+          .then(function (record) {
+            formRecord = record;
+            var code = readFormField(record, "FormCode__c");
+            var id = readFormField(record, "Id");
+            if (code) checkPayload.metadata.form_code = code;
+            if (id) checkPayload.metadata.form_id = id;
+
+            var options = {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(checkPayload)
+            };
+            if (controller) options.signal = controller.signal;
+            return fetch(checkOrderAPI, options);
+          })
+          .then(function (r) {
+            clearTimeout(timeoutId);
+            return r.text().then(function (text) {
+              var data = null;
+              if (text) {
+                try { data = JSON.parse(text); } catch (e) { data = null; }
+              }
+              if (!r.ok) {
+                console.error("Check order service error body:", text);
+                // A 4xx says something the buyer can act on - a stale price, most
+                // likely. A 5xx is ours and its detail stays in the console.
+                var detail = (r.status < 500 && data && (data.message || data.error)) || "";
+                throw new Error(
+                  "We could not record your order (error " + r.status + ")." + (detail ? " " + detail : "")
+                );
+              }
+              if (!data || data.recorded !== true) {
+                throw new Error("The order service did not confirm your order.");
+              }
+              return data;
+            });
+          })
+          .then(function (result) {
+            showCheckConfirmation(result, order, totals);
+          })
+          .catch(function (err) {
+            clearTimeout(timeoutId);
+
+            if (timedOut) {
+              console.error("Check order error: no response within " + SUBMIT_TIMEOUT_MS + "ms, request aborted");
+            } else {
+              console.error("Check order error:", err);
+            }
+
+            showSubmitError(
+              (timedOut
+                ? "The order service did not respond in time."
+                : (err && err.message ? err.message : "Something went wrong while recording your order.")) +
+              " Nothing has been recorded, so please do not send a check yet. Please try again."
+            );
+
+            submitting = false;
+            submitBtn.textContent = originalButtonText;
+            submitBtn.disabled = false;
+          });
+      }
+
+      /** Swap the review card for the confirmation, and say what happens next. */
+      function showCheckConfirmation(result, order, totals) {
+        var reviewCard = document.querySelector("#" + prefix + "-step3 .hg-card");
+        var done = el("check-done");
+        if (!done) return;
+
+        var lead = el("done-lead");
+        if (lead) {
+          lead.textContent =
+            "Thank you. We have recorded your order for " + order.qty +
+            (order.qty === 1 ? " participant" : " participants") +
+            ", and we are expecting " + money(totals.totalCents) + " by check.";
+        }
+
+        var ref = el("done-ref");
+        // The service returns the reference it actually stored, which is the one
+        // the office will search on. Show that, never the local copy.
+        if (ref) ref.textContent = (result && result.reference) || clientReferenceId || "";
+
+        var note = el("done-note");
+        if (note) {
+          note.textContent =
+            "A confirmation email is on its way. Your order is held as awaiting payment until the check arrives - " +
+            "if we have not received it in " + HOSPITALITY_GUIDE_CHECK_CHASE_DAYS + " days, somebody from the office will get in touch.";
+        }
+
+        if (reviewCard) reviewCard.hidden = true;
+        done.hidden = false;
+        try { done.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) { /* older browsers */ }
+      }
     }
 
     // --- initial paint ------------------------------------------------------

@@ -13,6 +13,12 @@ payload. The step-1 layout is asserted too — the discount code box below the
 participants section, no per-line "Guides" figure — along with the circular back
 arrow in the top-left corner of the review step.
 
+And the pay-by-check path, which is a different endpoint and a different
+outcome: the order is recorded as pending, no Stripe session is ever requested,
+the confirmation carries the mailing address and a reference short enough to
+write on a check, and a total that does not match the price is refused before
+the buyer goes anywhere near a post box.
+
 It is here rather than in a scratchpad because a regression guard that does not
 survive the session is not a guard. Nothing runs it automatically — this repo
 has no CI — so run it by hand before changing

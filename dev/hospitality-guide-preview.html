@@ -141,6 +141,10 @@
 
     window.fetch = function (url, options) {
       var isPayment = typeof url === "string" && url.indexOf("/api/transaction") !== -1;
+      // Checked before isPayment is used, because /api/transaction/check matches
+      // the payment prefix too and answers something completely different: it
+      // records a pending order and returns, and there is no session to hand back.
+      var isCheckOrder = typeof url === "string" && url.indexOf("/api/transaction/check") !== -1;
       var isDiscount = typeof url === "string" && url.indexOf("/api/form/discount-code") !== -1;
 
       if (isDiscount && !document.getElementById("use-real-discounts").checked) {
@@ -195,6 +199,54 @@
           status: 200,
           text: function () {
             return Promise.resolve(JSON.stringify({ Id: 'a0XPREVIEW000001', FormCode__c: 'PRV01' }));
+          }
+        });
+      }
+
+      if (isCheckOrder && !realApiToggle.checked) {
+        var checkBody = {};
+        try { checkBody = JSON.parse(options.body); } catch (e) { checkBody = {}; }
+        log.textContent = JSON.stringify(checkBody, null, 2);
+        console.log("[preview] intercepted a pay-by-check order; no Stripe session");
+
+        // The real endpoint refuses a total it cannot reproduce, so the preview
+        // does too - otherwise the one behaviour that keeps an anonymous
+        // financial write honest is the one the harness cannot exercise.
+        var participants = Number(checkBody.metadata && checkBody.metadata.participants);
+        var TIERS = [[1,9,4500],[10,24,4000],[25,49,3800],[50,74,3500],[75,99,3000],[100,null,2500]];
+        var unit = 0;
+        for (var ti = 0; ti < TIERS.length; ti++) {
+          if (participants >= TIERS[ti][0] && (TIERS[ti][1] === null || participants <= TIERS[ti][1])) unit = TIERS[ti][2];
+        }
+        var code = (checkBody.metadata && checkBody.metadata.discount_code) || "none";
+        var pct = MOCK_CODES[String(code).toUpperCase()] && MOCK_CODES[String(code).toUpperCase()].valid
+          ? MOCK_CODES[String(code).toUpperCase()].percentOff
+          : 0;
+        var subtotal = participants * unit;
+        var expected = subtotal - Math.round((subtotal * pct) / 100);
+
+        if (unit > 0 && checkBody.amount !== expected) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            text: function () {
+              return Promise.resolve(JSON.stringify({
+                error: "That order total does not match the current price. Please reload and try again."
+              }));
+            }
+          });
+        }
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: function () {
+            return Promise.resolve(JSON.stringify({
+              recorded: true,
+              reference: checkBody.clientReferenceId,
+              status: "pending",
+              amountCents: checkBody.amount
+            }));
           }
         });
       }
