@@ -2082,12 +2082,40 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // so the payment can name them and the record can be updated afterwards.
       var formRecord = null;
 
-      function readFormField(record, name) {
+      // THE SERVICE ANSWERS IN ITS OWN CASE, NOT SALESFORCE'S. A successful
+      // POST /api/form returns `{ id, formCode }` - camelCase, not the
+      // `Id`/`FormCode__c` field names the request is written in. Reading only
+      // the Salesforce names found nothing, silently: the card path treats a
+      // missing code as "no code" and carries on, so for as long as this was
+      // wrong no order carried its confirmation code into Stripe metadata and no
+      // checkout session id was ever written back to the form record.
+      //
+      // Both spellings are accepted rather than just the right one, because the
+      // update branch of that endpoint answers differently again and a form is
+      // not the place to be precious about which.
+      function readFormField(record, which) {
+        // Inside the function on purpose. Everything in beginSubmission is
+        // reachable from the check branch, which returns from the middle of it -
+        // and `var` hoists the declaration without the assignment, so a table
+        // declared out here reads as undefined from anything that ran earlier.
+        // That has now cost two bugs in this one function; a literal cannot.
+        var aliases = {
+          code: ["formCode", "FormCode__c", "FormCode"],
+          id: ["id", "Id"]
+        };
+
         if (!record || typeof record !== "object") return "";
-        var direct = record[name];
-        if (typeof direct === "string" && direct) return direct;
-        var nested = record.form || record.record || record.data;
-        if (nested && typeof nested === "object" && typeof nested[name] === "string") return nested[name];
+        var names = aliases[which] || [which];
+        var sources = [record, record.form, record.record, record.data];
+
+        for (var s = 0; s < sources.length; s++) {
+          var source = sources[s];
+          if (!source || typeof source !== "object") continue;
+          for (var n = 0; n < names.length; n++) {
+            var value = source[names[n]];
+            if (typeof value === "string" && value) return value;
+          }
+        }
         return "";
       }
 
@@ -2096,7 +2124,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // redirect takes the page away, and never awaited: this is bookkeeping,
       // and the buyer should not wait a round trip for it.
       function linkCheckoutSession(session) {
-        var code = readFormField(formRecord, "FormCode__c");
+        var code = readFormField(formRecord, "code");
         if (!code || !session || !session.id) return;
         try {
           fetch(submitFormAPI, {
@@ -2141,8 +2169,8 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       createFormRecord()
         .then(function (record) {
           formRecord = record;
-          var code = readFormField(record, "FormCode__c");
-          var id = readFormField(record, "Id");
+          var code = readFormField(record, "code");
+          var id = readFormField(record, "id");
           if (code) payload.metadata.form_code = code;
           if (id) payload.metadata.form_id = id;
           if (code || id) {
@@ -2310,7 +2338,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         createFormRecord()
           .then(function (record) {
             formRecord = record;
-            var code = readFormField(record, "FormCode__c");
+            var code = readFormField(record, "code");
 
             // On the card path a failed form submission is bad bookkeeping and
             // the payment goes ahead anyway - Stripe still has the money, and

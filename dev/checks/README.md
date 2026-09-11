@@ -25,6 +25,15 @@ merely that one was sent. An earlier version branched to the check path above
 `undefined` as the body — and the preview harness answered with a cheerful
 canned success.
 
+**Keep the mocks honest.** `POST /api/form` answers `{ id, formCode }`, and the
+harness must answer the same. It used to reply `{ Id, FormCode__c }` — the
+Salesforce field names the *request* is written in — which is what the form was
+reading. The form found nothing, treated it as "no code", and carried on, so no
+order ever carried its confirmation code into Stripe metadata and no checkout
+session id was ever written back. The suite passed throughout, because the
+harness was agreeing with the form instead of with production. A mock kinder
+than the service it stands in for is worse than no mock at all.
+
 It is here rather than in a scratchpad because a regression guard that does not
 survive the session is not a guard. Nothing runs it automatically — this repo
 has no CI — so run it by hand before changing
