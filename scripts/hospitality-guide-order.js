@@ -279,11 +279,11 @@ const HOSPITALITY_GUIDE_INSTOCK_NOTE =
 // rather than patched at render time: what a buyer is agreeing to should be
 // readable in one piece, not assembled from a conditional.
 const HOSPITALITY_GUIDE_PREORDER_NOTE_CHECK =
-  "Nothing is charged today. Your order is held until your check arrives, and guides and printed " +
-  "discussion workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
+  "You won't be charged today. Guides and printed discussion workbooks ship when the resource " +
+  "releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
 
 const HOSPITALITY_GUIDE_INSTOCK_NOTE_CHECK =
-  "Nothing is charged today. Guides and printed discussion workbooks ship once your check arrives.";
+  "You won't be charged today. Guides and printed discussion workbooks ship once your check arrives.";
 
 // The campaign every order is filed under, in Stripe, Salesforce and
 // QuickBooks - and the product name shown on the Stripe payment page.
@@ -313,11 +313,6 @@ const TIER_NUDGE_WITHIN = 10;
 // has to go looking for the address is a check that never gets posted.
 const HOSPITALITY_GUIDE_CHECK_PAYEE = "Refuge International";
 const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40214"];
-
-// How long an order paid by check waits before the office is asked to chase it.
-// Stated here only so the confirmation and the Salesforce flow tell the buyer
-// and the office the same number; the flow is what actually counts the days.
-const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
 
 // ---------------------------------------------------------------------------
 // PROCESSING FEE CONFIGURATION - set the rate once, here.
@@ -812,10 +807,10 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
           </div>
 
           <div class="hg-check-note" id="${prefix}-check-note" hidden>
-            <strong>Your order is placed now; the check follows.</strong>
-            Make the check payable to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and post it to:
+            <strong>Where to send your check</strong>
+            Make it out to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and mail it to:
             <div class="hg-check-address">${HOSPITALITY_GUIDE_CHECK_ADDRESS.join("\n")}</div>
-            We record the order straight away and mark it as awaiting payment. Please write the order reference on the check, or on a note with it, so we can match the two up. If we have not received it in ${HOSPITALITY_GUIDE_CHECK_CHASE_DAYS} days somebody from the office will get in touch.
+            We'll hold your order until your check arrives. Write your order number on the check so we know what it's for.
           </div>
 
           <div class="hg-fineprint" id="${prefix}-fulfillment-note"></div>
@@ -827,18 +822,18 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
         </div>
 
         <div class="hg-card" id="${prefix}-check-done" hidden>
-          <div class="hg-done-title">Order placed</div>
+          <div class="hg-done-title">Thanks for your order</div>
           <div class="hg-done-lead" id="${prefix}-done-lead"></div>
 
           <div class="hg-check-note">
-            <strong>Where to send the check</strong>
-            Make it payable to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and post it to:
+            <strong>Where to send your check</strong>
+            Make it out to <strong style="display:inline;">${HOSPITALITY_GUIDE_CHECK_PAYEE}</strong> and mail it to:
             <div class="hg-check-address">${HOSPITALITY_GUIDE_CHECK_ADDRESS.join("\n")}</div>
-            Please write the order reference below on the check, or on a note with it.
+            Write your order number on the check so we know what it's for.
           </div>
 
           <div class="hg-done-ref">
-            Order reference <code id="${prefix}-done-ref"></code>
+            Order number <code id="${prefix}-done-ref"></code>
           </div>
           <div class="hg-fineprint" id="${prefix}-done-note"></div>
         </div>
@@ -1709,7 +1704,7 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
       var submitFineprint = el("submit-fineprint");
       if (submitFineprint) {
         submitFineprint.textContent = payingByCheck
-          ? "Nothing is charged now. We record the order and wait for your check."
+          ? "You won't be charged now. Just mail us a check."
           : "After clicking pay, you will be taken to Stripe to enter your payment information.";
       }
       var trust = el("trust");
@@ -1719,7 +1714,7 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
       // keystroke cannot wipe out the "Transferring to Stripe..." message.
       if (!submitting) {
         submitBtn.textContent = t.totalCents > 0
-          ? (payingByCheck ? "Place order - " + money(t.totalCents) + " by check" : "Pay " + money(t.totalCents))
+          ? (payingByCheck ? "Place order and send a check for " + money(t.totalCents) : "Pay " + money(t.totalCents))
           : "Enter the number of participants";
         submitBtn.disabled = !readyToSubmit();
       }
@@ -1948,10 +1943,10 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
       // button may currently say "Checking your code..." - restoring that on a
       // failure would leave the buyer looking at a stale message and no price.
       var originalButtonText = payingByCheck
-        ? "Place order - " + money(totals.totalCents) + " by check"
+        ? "Place order and send a check for " + money(totals.totalCents)
         : "Pay " + money(totals.totalCents);
       submitBtn.disabled = true;
-      submitBtn.textContent = payingByCheck ? "Recording your order..." : "Transferring to Stripe...";
+      submitBtn.textContent = payingByCheck ? "Placing your order..." : "Transferring to Stripe...";
       hideSubmitError();
 
       if (payingByCheck) {
@@ -2306,6 +2301,8 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
           lastname: payload.lastname,
           phone: payload.phone,
           category: payload.category,
+          // Only ever used to fill in a contact the service has to create.
+          address: payload.address,
           metadata: payload.metadata
         };
         if (payload.organization) checkPayload.organization = payload.organization;
@@ -2371,7 +2368,7 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
               (timedOut
                 ? "The order service did not respond in time."
                 : (err && err.message ? err.message : "Something went wrong while recording your order.")) +
-              " Nothing has been recorded, so please do not send a check yet. Please try again."
+              " Nothing was saved, so don't send a check yet. Please try again."
             );
 
             submitting = false;
@@ -2389,9 +2386,9 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
         var lead = el("done-lead");
         if (lead) {
           lead.textContent =
-            "Thank you. We have recorded your order for " + order.qty +
+            "We've got your order for " + order.qty +
             (order.qty === 1 ? " participant" : " participants") +
-            ", and we are expecting " + money(totals.totalCents) + " by check.";
+            ". Your total is " + money(totals.totalCents) + ".";
         }
 
         var ref = el("done-ref");
@@ -2402,8 +2399,7 @@ const HOSPITALITY_GUIDE_CHECK_CHASE_DAYS = 7;
         var note = el("done-note");
         if (note) {
           note.textContent =
-            "A confirmation email is on its way. Your order is held as awaiting payment until the check arrives - " +
-            "if we have not received it in " + HOSPITALITY_GUIDE_CHECK_CHASE_DAYS + " days, somebody from the office will get in touch.";
+            "We've emailed you a copy of this. We'll hold your order until your check arrives.";
         }
 
         if (reviewCard) reviewCard.hidden = true;
