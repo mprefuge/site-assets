@@ -78,7 +78,17 @@ const HOSPITALITY_GUIDE_FORM_CONFIG = {
       "FormCode__c",
       // Written after Stripe answers, so the Salesforce record points at the
       // checkout session it became.
-      "Stripe_Checkout_Session_Id__c"
+      "Stripe_Checkout_Session_Id__c",
+      // How the buyer said they would pay, as a picklist rather than only as a
+      // line inside Custom__c, so it can be filtered and rolled up. A check
+      // order creates no payment record anywhere, so this is what makes those
+      // orders countable at all.
+      "Payment_Method__c",
+      // The exact Discount_Code__c window this order was priced from. A code may
+      // now have several windows at different percentages, so the link has to be
+      // to the window, not to the code string. This is what the redemption
+      // rollup counts.
+      "Discount_Code__c"
     ],
     queryFields: ["Id", "FormCode__c", "FirstName__c", "LastName__c", "Email__c", "CreatedDate"],
     updateFields: [],
@@ -117,11 +127,124 @@ const HOSPITALITY_GUIDE_CONTACT_EMAIL = "info@refugeintl.org";
 //
 // Available variables include FirstName, FormCode__c, orgName, and every
 // Form__c field on the payload.
-const HOSPITALITY_GUIDE_ORDER_EMAIL = {
-  subject: "Your Hospitality Guide order",
-  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Workbooks ship at release.\n\nIf you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL + " and quote your order reference.\n\n{{orgName}}",
-  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Workbooks ship at release.</p><p>If you have any questions, please email <a href=\"mailto:" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "\">" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order reference.</p><p>{{orgName}}</p>"
-};
+// Brand marks, out here so the email and the form cannot drift apart. The logo
+// is the same asset the form header uses - hosted, because an email client will
+// not load a data URI reliably and will not load anything at all until the
+// reader says so, which is why nothing below depends on it rendering.
+const HOSPITALITY_GUIDE_BRAND_RED = "#BD2135";
+const HOSPITALITY_GUIDE_BRAND_LOGO =
+  "https://images.squarespace-cdn.com/content/v1/5af0bc3a96d45593d7d7e55b/" +
+  "c8c56eb8-9c50-4540-822a-5da3f5d0c268/refuge-logo-edit+%28circle+with+horizontal+RI+name%29+-+small.png";
+
+/**
+ * The buyer's confirmation, built from the order rather than templated by the
+ * forms service.
+ *
+ * WHY BUILT HERE. The service interpolates `{{Field}}` from the Form__c payload,
+ * and everything an order summary needs - the tier price, the discount, the
+ * total - lives in Custom__c as a JSON string. `{{Custom__c}}` would render the
+ * raw JSON. The numbers are already computed in this file to the cent, so the
+ * summary is baked in and only the two things the service knows better than we
+ * do are left as placeholders: the buyer's first name and the confirmation code
+ * it is about to mint.
+ *
+ * TABLES AND INLINE STYLES, no stylesheet and no flexbox. Outlook renders this.
+ *
+ * It must not claim the order is paid for. The email goes out when the record is
+ * created, which is BEFORE a card buyer has been handed to Stripe and long
+ * before a cheque has been opened.
+ */
+function hospitalityGuideOrderEmail(lines) {
+  var red = HOSPITALITY_GUIDE_BRAND_RED;
+
+  var rows = lines.rows.map(function (row) {
+    return '<tr>' +
+      '<td style="padding:8px 0;border-bottom:1px solid #eeeeee;font-size:15px;color:' +
+      (row.muted ? "#666666" : "#1a1a1a") + ';">' + row.label + '</td>' +
+      '<td align="right" style="padding:8px 0;border-bottom:1px solid #eeeeee;font-size:15px;color:' +
+      (row.muted ? "#666666" : "#1a1a1a") + ';white-space:nowrap;">' + row.value + '</td>' +
+      '</tr>';
+  }).join("");
+
+  var checkBlockHtml = lines.payingByCheck
+    ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+      'style="margin:24px 0;border:1.5px solid ' + red + ';border-radius:12px;background:#fdf1f3;">' +
+      '<tr><td style="padding:18px 20px;font-size:15px;line-height:1.6;color:#1a1a1a;">' +
+      '<div style="font-weight:700;margin-bottom:8px;">Where to send your check</div>' +
+      'Make it out to <strong>' + lines.payee + '</strong> and mail it to:' +
+      '<div style="font-weight:700;margin:10px 0;">' + lines.address.join("<br>") + '</div>' +
+      'Write your order number on the check so we know what it is for. ' +
+      'We will hold your order until it arrives.' +
+      "</td></tr></table>"
+    : "";
+
+  var statusHtml = lines.payingByCheck
+    ? "Nothing has been charged. Your order is confirmed once your check reaches us."
+    : "If you have just been taken to our payment page, your order is confirmed once that payment completes.";
+
+  var checkBlockText = lines.payingByCheck
+    ? "\n\nWHERE TO SEND YOUR CHECK\nMake it out to " + lines.payee + " and mail it to:\n" +
+      lines.address.join("\n") +
+      "\n\nWrite your order number on the check so we know what it is for. " +
+      "We will hold your order until it arrives."
+    : "";
+
+  // Stripped here rather than carried as a second field on every row. A caller
+  // that has to supply both spellings is a caller that will one day supply only
+  // one, and the plain-text part is the half nobody looks at until it is wrong.
+  var plain = function (value) {
+    return String(value).replace(/<[^>]+>/g, "").replace(/&mdash;/g, "-").replace(/&amp;/g, "&");
+  };
+
+  var textRows = lines.rows.map(function (row) {
+    return "  " + plain(row.label) + ": " + plain(row.value);
+  }).join("\n");
+
+  return {
+    subject: "Your Hospitality Guide order",
+    text:
+      "Hello {{FirstName}},\n\n" +
+      "Thank you - we have your order for the Hospitality Guide.\n\n" +
+      "Your order number is: {{FormCode__c}}\n\n" +
+      "YOUR ORDER\n" + textRows + "\n\n" +
+      statusHtml + checkBlockText + "\n\n" +
+      lines.shipping + "\n\n" +
+      "If you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL +
+      " and quote your order number.\n\n{{orgName}}",
+    html:
+      '<div style="background:#f4f4f5;padding:24px 12px;font-family:Helvetica,Arial,sans-serif;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;">' +
+      '<tr><td style="background:#ffffff;border-bottom:4px solid ' + red + ';' +
+      'border-radius:12px 12px 0 0;padding:18px;text-align:center;">' +
+      '<img src="' + HOSPITALITY_GUIDE_BRAND_LOGO + '" alt="" ' +
+      'width="150" style="max-width:150px;height:auto;border:0;display:block;margin:0 auto 6px;">' +
+      // The wordmark is TEXT, and it is what carries the branding when the
+      // image does not. Most clients block remote images until the reader asks,
+      // and a header that is only a logo is a blank box to most of them. The
+      // alt attribute is empty for the same reason: with the name already here
+      // as text, alt text would just say it twice.
+      '<div style="font-weight:700;font-size:15px;letter-spacing:.08em;' +
+      'text-transform:uppercase;color:' + red + ';">Refuge International</div>' +
+      "</td></tr>" +
+      '<tr><td style="background:#ffffff;border-radius:0 0 12px 12px;padding:28px 24px;' +
+      'font-size:15px;line-height:1.6;color:#1a1a1a;">' +
+      "<p>Hello {{FirstName}},</p>" +
+      "<p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p>" +
+      '<p style="margin-bottom:24px;">Your order number is: ' +
+      '<strong style="font-family:monospace;font-size:16px;">{{FormCode__c}}</strong></p>' +
+      '<div style="font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;' +
+      'color:#666666;margin-bottom:4px;">Your order</div>' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + rows + "</table>" +
+      checkBlockHtml +
+      "<p>" + statusHtml + "</p>" +
+      '<p style="color:#666666;">' + lines.shipping + "</p>" +
+      '<p style="color:#666666;font-size:14px;">Any questions, email ' +
+      '<a href="mailto:' + HOSPITALITY_GUIDE_CONTACT_EMAIL + '" style="color:' + red + ';">' +
+      HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order number.</p>" +
+      "<p>{{orgName}}</p>" +
+      "</td></tr></table></div>"
+  };
+}
 
 // How long to wait for the forms service before giving up on it and going to
 // payment anyway. Deliberately shorter than the payment timeout: this call is
@@ -593,6 +716,18 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     return String(raw).toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 40);
   }
 
+  // A Salesforce record id, or "" if it is not one.
+  //
+  // Anything that reaches a Salesforce lookup field has to be an id, because an
+  // id that is not one fails the whole INSERT - and the record that fails is
+  // somebody's order. This is the last check before that: 15 or 18 alphanumeric
+  // characters, nothing else, and if the service ever answers with something
+  // strange the order simply files without the link.
+  function salesforceId(raw) {
+    var text = String(raw === null || raw === undefined ? "" : raw).trim();
+    return /^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$/.test(text) ? text : "";
+  }
+
   // The percentage a discount is worth, or 0 for no discount.
   //
   // Anything outside 1-100 counts for nothing rather than being clamped. The
@@ -1015,8 +1150,8 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     }
 
     // The discount the buyer has successfully applied, as the service returned
-    // it: { code, percentOff, label }. Null until a code is applied, and back to
-    // null the moment one is removed or stops being valid.
+    // it: { code, percentOff, label, id }. Null until a code is applied, and
+    // back to null the moment one is removed or stops being valid.
     var appliedDiscount = null;
 
     // --- quantity -----------------------------------------------------------
@@ -1222,7 +1357,14 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
               discount: {
                 code: normalizeDiscountCode(data.code) || code,
                 percentOff: Math.round(percentOff),
-                label: typeof data.label === "string" ? data.label : ""
+                label: typeof data.label === "string" ? data.label : "",
+                // Which WINDOW answered, not which code. A partner keeps their
+                // code year after year and the offer behind it changes, so the
+                // order has to be filed against the window whose price it was
+                // actually quoted - a buyer who applies at 25% and submits after
+                // midnight is still a 25% redemption. Re-resolving the string at
+                // submission time would count them against the wrong one.
+                id: salesforceId(data.id)
               }
             };
           });
@@ -2014,6 +2156,39 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // summed and filtered in a report. Custom__c carries it again, along with
       // everything Form__c has nowhere else to put, because that is what the
       // notification email is built from.
+      // The order, as the buyer's confirmation will show it. Built from the
+      // same integers the review step was priced from, so the email and the
+      // screen cannot disagree.
+      var emailRows = [
+        {
+          label: participantsLabel(order.qty, order.unitCents),
+          value: money(order.subtotalCents)
+        }
+      ];
+      if (discount && order.discountCents > 0) {
+        emailRows.push({
+          label: discount.code + " (" + order.percentOff + "% off)",
+          value: "-" + money(order.discountCents)
+        });
+      }
+      if (order.shippingCents > 0) {
+        emailRows.push({ label: "Shipping", value: money(order.shippingCents), muted: true });
+      }
+      emailRows.push({
+        label: "<strong>" + (payingByCheck ? "Total due" : "Total") + "</strong>",
+        value: "<strong>" + money(totals.totalCents) + "</strong>"
+      });
+
+      var orderEmail = hospitalityGuideOrderEmail({
+        rows: emailRows,
+        payingByCheck: payingByCheck,
+        payee: HOSPITALITY_GUIDE_CHECK_PAYEE,
+        address: HOSPITALITY_GUIDE_CHECK_ADDRESS,
+        shipping: fulfillment.note === HOSPITALITY_GUIDE_INSTOCK_NOTE
+          ? "Workbooks ship after your order is placed."
+          : "Workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ")."
+      });
+
       var formPayload = {
         __formConfig: HOSPITALITY_GUIDE_FORM_CONFIG,
         // Asks the service to send its notification, so an order lands in
@@ -2024,7 +2199,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         // "Copy" for the service to recognise it - and omitting it fails the
         // whole submission, not just the email.
         __sendEmail: true,
-        __emailTemplates: { orderCopy: HOSPITALITY_GUIDE_ORDER_EMAIL },
+        __emailTemplates: { orderCopy: orderEmail },
         FirstName__c: firstname,
         LastName__c: lastname,
         Email__c: payload.email,
@@ -2041,6 +2216,11 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         WillPay__c: true,
         Source__c: "Hospitality Guide order form",
         Quantity__c: order.qty,
+        // A picklist beside the same answer inside Custom__c. Custom__c is a
+        // text blob that reads well in an email and cannot be reported on; this
+        // is what a list view filters and what the check-redemption rollup
+        // counts.
+        Payment_Method__c: payingByCheck ? "Check" : "Card",
         Custom__c: JSON.stringify({
           Product: "Hospitality Guide",
           Participants: order.qty,
@@ -2069,6 +2249,13 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
 
       if (buyerType === "organization") {
         formPayload.Church__c = organization;
+      }
+
+      // Only when a code was actually applied AND the service told us which
+      // window answered. An order with no code, or one placed against a service
+      // too old to send the id, leaves the lookup empty rather than guessing.
+      if (discount && discount.id) {
+        formPayload.Discount_Code__c = discount.id;
       }
 
       // BELOW formPayload, not above it, and that is load bearing. `var` hoists
