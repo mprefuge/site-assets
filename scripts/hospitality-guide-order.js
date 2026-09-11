@@ -231,6 +231,20 @@ const discountCodeAPI = submitFormAPI + "/discount-code";
 // they can retry, and the form says so rather than pretending.
 const DISCOUNT_LOOKUP_TIMEOUT_MS = 10000;
 
+// The same lookup, when the code arrived in the link rather than being typed.
+//
+// That one lands on a COLD Function App: somebody has clicked an advert and is
+// the first visitor in a while, so the very first request of the session pays
+// the whole start-up cost. Ten seconds is generous for a warm service and not
+// always enough for a cold one, and the buyer sees "We could not check that
+// code just now" on a code we issued them - on the one path where we know the
+// code is real, because we put it in the link.
+//
+// Nothing is warmed up on page load to fix this. That would put a request on
+// every view of the form to spare the few that carry a code, and it would still
+// race the lookup it was meant to help.
+const DISCOUNT_LOOKUP_FROM_LINK_TIMEOUT_MS = 25000;
+
 // ---------------------------------------------------------------------------
 // FULFILMENT
 //
@@ -514,8 +528,12 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
   // the figure on the pay button and the figure in the payload are the same
   // integer rather than two roundings of one float.
 
+  // Grouped, because a hundred-guide order is $24,975.00 and reading that as
+  // $2497500 at a glance is exactly the kind of misread that stops a sale.
   function money(cents) {
-    return "$" + (Math.round(cents) / 100).toFixed(2);
+    var fixed = (Math.round(cents) / 100).toFixed(2);
+    var parts = fixed.split(".");
+    return "$" + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + parts[1];
   }
 
   // Whole-dollar prices read better without the ".00" in the tier table.
@@ -629,7 +647,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       <div class="hg-step-content active" id="${prefix}-step1">
         <div class="hg-card">
           <div class="hg-title">Order the Hospitality Guide</div>
-          <div class="hg-subtitle">Pricing is per participant, and the price per person drops as your group grows. Every order includes a printed discussion workbook for each participant.</div>
+          <div class="hg-subtitle">Pricing is per participant, and the price per person drops as your group grows. Every order includes a workbook for each participant.</div>
 
           <div class="hg-notice" id="${prefix}-notice" hidden>
             <div class="hg-notice-badge" id="${prefix}-notice-badge"></div>
@@ -1147,13 +1165,14 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
      * to try again rather than quietly charged full price, which is exactly what
      * folding the two together would do.
      */
-    function lookupDiscountCode(code) {
+    function lookupDiscountCode(code, fromLink) {
+      var budget = fromLink ? DISCOUNT_LOOKUP_FROM_LINK_TIMEOUT_MS : DISCOUNT_LOOKUP_TIMEOUT_MS;
       var controller = typeof AbortController === "function" ? new AbortController() : null;
       var timedOut = false;
       var timeoutId = setTimeout(function () {
         timedOut = true;
         if (controller) controller.abort();
-      }, DISCOUNT_LOOKUP_TIMEOUT_MS);
+      }, budget);
 
       var url = discountCodeAPI +
         "?code=" + encodeURIComponent(code) +
@@ -1211,7 +1230,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         .catch(function (err) {
           clearTimeout(timeoutId);
           console.error(timedOut
-            ? "Discount code check did not respond within " + DISCOUNT_LOOKUP_TIMEOUT_MS + "ms"
+            ? "Discount code check did not respond within " + budget + "ms"
             : "Discount code check failed", err);
           return {
             ok: false,
@@ -1221,7 +1240,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         });
     }
 
-    function applyTypedCode() {
+    function applyTypedCode(fromLink) {
       if (checkingCode) return;
 
       var code = normalizeDiscountCode(codeInput ? codeInput.value : "");
@@ -1237,7 +1256,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // price that is about to change.
       updateTotals();
 
-      lookupDiscountCode(code).then(function (result) {
+      lookupDiscountCode(code, fromLink).then(function (result) {
         checkingCode = false;
         codeApplyBtn.disabled = false;
 
@@ -1531,6 +1550,15 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     var clientReferenceId = null;
     var clientReferenceSignature = null;
 
+    // The Form__c record this attempt already created, and the order it was
+    // created for. Both live out here rather than inside beginSubmission,
+    // because a buyer whose card is declined presses Pay again - and a fresh
+    // record per attempt means a second row in Salesforce and a second
+    // confirmation email in their inbox for one order. Reset when the order
+    // itself changes, which is exactly what the reference signature tracks.
+    var formRecord = null;
+    var formRecordSignature = null;
+
     // HG-YYMMDD-XXXXXX rather than a UUID. This is only ever an idempotency key
     // now - a buyer paying by check quotes their form confirmation code, not
     // this - but it reaches Stripe as client_reference_id and shows up in the
@@ -1540,7 +1568,10 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     // I and O are left out of the alphabet so a 1 or a 0 read back from a screen
     // cannot be mistaken for a letter.
     function makeReferenceId() {
-      var now = new Date();
+      // nowMs(), not new Date(): a ?asOf= QA run moves the whole form's clock,
+      // and a reference stamped with the real date would not match the order it
+      // belongs to.
+      var now = new Date(nowMs());
       var stamp = String(now.getFullYear()).slice(2) +
         String(now.getMonth() + 1).padStart(2, "0") +
         String(now.getDate()).padStart(2, "0");
@@ -1618,6 +1649,13 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       var discount = t.discount;
       var fulfillment = t.fulfillment;
 
+      // AT THE TOP, not beside the first line that reads it. `var` hoists the
+      // declaration and not the assignment, so declaring this halfway down left
+      // the pre-order banner above reading `undefined` and quietly telling a
+      // check buyer their card would be charged today. Everything from the
+      // banner down depends on it.
+      var payingByCheck = payWhen === "check";
+
       // Fulfilment banner. Shown only before release, where it is telling the
       // buyer something they need to know before paying - that the card is
       // charged today for something that ships later. After release there is
@@ -1627,7 +1665,9 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         var isPreorder = fulfillment.id === "ships-at-release";
         if (isPreorder) {
           el("notice-badge").textContent = "Pre-order";
-          el("notice-note").textContent = fulfillment.note;
+          // Same rule as the review step: a buyer paying by check is not having
+          // a card charged today, and the banner must not say they are.
+          el("notice-note").textContent = payingByCheck ? fulfillment.checkNote : fulfillment.note;
           noticeEl.hidden = false;
         } else {
           noticeEl.hidden = true;
@@ -1684,8 +1724,6 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // the total is called, what the button promises, where it says they are
       // going, and whether the check address is on screen before they commit
       // rather than after.
-      var payingByCheck = payWhen === "check";
-
       var totalLabel = el("review-total-label");
       // "Charged today" is simply untrue of a check, and this is the line the
       // buyer reads hardest.
@@ -1713,7 +1751,11 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // Leave the button label alone while a submission is in flight, so a
       // keystroke cannot wipe out the "Transferring to Stripe..." message.
       if (!submitting) {
-        submitBtn.textContent = t.totalCents > 0
+        // `quantity()` clamps, so a typed 5000 prices as 1000 and a typed 1.5
+        // prices as 1. Quoting either on the button contradicts the error
+        // message sitting right above it - the button is disabled anyway, so it
+        // should say what is wanted rather than a price nobody can pay.
+        submitBtn.textContent = t.totalCents > 0 && !problem
           ? (payingByCheck ? "Place order and send a check for " + money(t.totalCents) : "Pay " + money(t.totalCents))
           : "Enter the number of participants";
         submitBtn.disabled = !readyToSubmit();
@@ -2034,6 +2076,12 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       // actually lost if this fails. It resolves to the created record, or to
       // null - it never rejects.
       function createFormRecord() {
+        // Already created for this exact order. Handing back the same record
+        // keeps a retry to one row and one email.
+        if (formRecord && formRecordSignature === clientReferenceSignature) {
+          return Promise.resolve(formRecord);
+        }
+
         var formController = typeof AbortController === "function" ? new AbortController() : null;
         var formTimedOut = false;
         var formTimeoutId = setTimeout(function () {
@@ -2065,6 +2113,10 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
                 );
                 return null;
               }
+              // Remembered here rather than at the call sites, so a retry cannot
+              // mint a second record because one of them forgot to record it.
+              formRecord = data;
+              formRecordSignature = clientReferenceSignature;
               return data;
             });
           })
@@ -2077,10 +2129,6 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
             return null;
           });
       }
-
-      // The confirmation code and record id the forms service hands back, kept
-      // so the payment can name them and the record can be updated afterwards.
-      var formRecord = null;
 
       // THE SERVICE ANSWERS IN ITS OWN CASE, NOT SALESFORCE'S. A successful
       // POST /api/form returns `{ id, formCode }` - camelCase, not the
@@ -2318,17 +2366,16 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       /**
        * Place an order nobody is paying online.
        *
-       * No Stripe session, no redirect, and no money. The forms service records
-       * the order exactly as it does on the card path - same Form__c record, same
-       * confirmation email - and then the payment service writes a PENDING
-       * transaction keyed on this order's reference, so the money owed exists in
-       * the financial object from the moment the buyer commits rather than from
-       * the moment a check turns up.
+       * No Stripe session, no redirect, no money, AND NO TRANSACTION RECORD. The
+       * forms service records the order exactly as it does on the card path -
+       * same Form__c record, same confirmation email - carrying
+       * `PaymentMethod: "Check"` in Custom__c, and that is the whole of it.
        *
-       * THE ORDER OF THE TWO CALLS MATTERS. The forms service creates the buyer's
-       * Contact; the check endpoint only ever LOOKS ONE UP, never creates one. So
-       * the form record goes first, and its confirmation code travels into the
-       * transaction metadata the same way it does on the card path.
+       * An earlier version also posted a pending Transaction__c through
+       * `POST /api/transaction/check`. That endpoint has been removed: nothing
+       * should look like money received until somebody has the check in hand,
+       * and an anonymous route that writes to the financial object is not worth
+       * keeping for a caller that no longer exists.
        *
        * A failure here is reported plainly and the button comes back. There is no
        * half-success to paper over: either we are expecting a check or we are not,
@@ -2421,7 +2468,9 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       var linkedCode = normalizeDiscountCode(params.code);
       if (linkedCode && codeInput) {
         codeInput.value = linkedCode;
-        applyTypedCode();
+        // fromLink: this is the first request of a session that began with an
+        // advert click, so it gets the longer budget.
+        applyTypedCode(true);
       }
     }
 

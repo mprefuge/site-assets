@@ -77,7 +77,27 @@ function check(name, actual, expected) {
   await $('qty').fill('30');
   await page.waitForTimeout(120);
   check('no discount line without a code', await $('discount-line').isHidden(), true);
-  check('order total is 30 participants at $38 each', (await $('order-total').textContent()).trim(), '$1140.00');
+  // Grouped thousands: $24,975.00 read as $2497500 is the kind of misread that
+  // stops a sale.
+  check('thousands are separated', (await $('order-total').textContent()).includes(','), true);
+  check('order total is 30 participants at $38 each', (await $('order-total').textContent()).trim(), '$1,140.00');
+
+  // --- a quantity the form is refusing must not be quoted a price -----------
+  //
+  // quantity() clamps, so a typed 5000 prices as 1000 and a typed 1.5 prices as
+  // 1. Quoting either on the button contradicts the error above it.
+  await $('qty').fill('5000');
+  await page.waitForTimeout(150);
+  check('an over-limit quantity is refused', (await $('qty-error').textContent()).includes('please contact us'), true);
+  check('and no price is quoted for it', (await $('submit').textContent()).trim(), 'Enter the number of participants');
+
+  await $('qty').fill('1.5');
+  await page.waitForTimeout(150);
+  check('a fractional quantity is refused too', (await $('qty-error').textContent()).includes('whole number'), true);
+  check('and no price is quoted for that either', (await $('submit').textContent()).trim(), 'Enter the number of participants');
+
+  await $('qty').fill('30');
+  await page.waitForTimeout(150);
 
   // --- an unknown code ------------------------------------------------------
   await $('code').fill('NOPE');
@@ -119,13 +139,13 @@ function check(name, actual, expected) {
   // --- switching codes reprices --------------------------------------------
   await $('code-remove').click();
   await page.waitForTimeout(120);
-  check('removing the code restores the full subtotal', (await $('order-total').textContent()).trim(), '$1140.00');
+  check('removing the code restores the full subtotal', (await $('order-total').textContent()).trim(), '$1,140.00');
   check('entry field comes back', await $('code-block').isVisible(), true);
 
   await $('code').fill('PREVIEW10');
   await $('code-apply').click();
   await page.waitForTimeout(300);
-  check('second code reprices to 10% off', (await $('order-total').textContent()).trim(), '$1026.00');
+  check('second code reprices to 10% off', (await $('order-total').textContent()).trim(), '$1,026.00');
 
   // --- lower-case and spaced entry -----------------------------------------
   await $('code-remove').click();
@@ -309,8 +329,8 @@ function check(name, actual, expected) {
     true
   );
   // Repriced without the code, at the full list price.
-  check('the order is repriced to full price', (await $('review-total').textContent()).trim(), '$1140.00');
-  check('the pay button shows the new total', (await $('submit').textContent()).trim(), 'Pay $1140.00');
+  check('the order is repriced to full price', (await $('review-total').textContent()).trim(), '$1,140.00');
+  check('the pay button shows the new total', (await $('submit').textContent()).trim(), 'Pay $1,140.00');
   // Checked on the attribute, not on visibility: the buyer is on the review
   // step, so step 1 as a whole is off screen. What matters is that the field is
   // waiting for them when they go back.
@@ -522,6 +542,100 @@ function check(name, actual, expected) {
     true
   );
   check('the button comes back so they can retry', await $('submit').isEnabled(), true);
+
+  // --- the pre-order banner follows the payment choice ----------------------
+  //
+  // It sits above the fold on step 1 and used to read `payingByCheck` before it
+  // was assigned - var hoisting - so it always promised a card charge.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+  await $('prev3').click();
+  await page.waitForTimeout(150);
+  await $('prev2').click();
+  await page.waitForTimeout(200);
+  check('back on step 1', await $('step1').isVisible(), true);
+
+  check(
+    'the step-1 banner stops promising a card charge',
+    /card is charged/.test(await $('notice-note').textContent()),
+    false
+  );
+  check(
+    'and says exactly what a check buyer gets, nothing more',
+    (await $('notice-note').textContent()).trim(),
+    'Workbooks ship when the resource releases (target: mid-October 2026).'
+  );
+
+  // --- a retry must not mint a second order ---------------------------------
+  //
+  // A declined card means the buyer presses Pay again. A fresh form record per
+  // attempt is a second row in Salesforce and a second confirmation email for
+  // one order.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.waitForTimeout(200);
+
+  // The payment service refuses, twice.
+  await page.evaluate(() => {
+    const inner = window.fetch;
+    window.fetch = function (url, options) {
+      if (typeof url === 'string' && url.indexOf('/api/transaction') !== -1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          text: () => Promise.resolve(JSON.stringify({ error: 'upstream' }))
+        });
+      }
+      return inner(url, options);
+    };
+  });
+
+  await $('submit').click();
+  await page.waitForTimeout(700);
+  await $('submit').click();
+  await page.waitForTimeout(700);
+
+  const formPosts = posted.filter(
+    (r) =>
+      r.url.indexOf('/api/form') !== -1 &&
+      r.url.indexOf('discount-code') === -1 &&
+      r.body &&
+      r.body.indexOf('__formConfig') !== -1
+  );
+  check('two attempts, one order record', formPosts.length, 1);
+  check('and the buyer was told the payment failed', (await $('submit-error').textContent()).length > 0, true);
 
   check('no uncaught page errors', errors.length, 0);
   if (errors.length) console.log(errors);
