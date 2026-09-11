@@ -42,6 +42,17 @@ function check(name, actual, expected) {
   });
   await recordRequests();
 
+  const postedForms = (recorded) =>
+    recorded
+      .filter(
+        (r) =>
+          r.url.indexOf('/api/form') !== -1 &&
+          r.url.indexOf('discount-code') === -1 &&
+          r.body &&
+          r.body.indexOf('__formConfig') !== -1
+      )
+      .map((r) => JSON.parse(r.body));
+
   const postedBody = (match) => {
     const hits = posted.filter((r) => r.url.indexOf(match) !== -1 && r.body);
     return hits.length ? JSON.parse(hits[hits.length - 1].body) : null;
@@ -636,6 +647,72 @@ function check(name, actual, expected) {
   );
   check('two attempts, one order record', formPosts.length, 1);
   check('and the buyer was told the payment failed', (await $('submit-error').textContent()).length > 0, true);
+
+  // --- switching to check after a failed card must re-send the order --------
+  //
+  // The cache used to be keyed on the payment reference, which deliberately
+  // ignores anything that cannot move the total - including the payment choice.
+  // So a buyer who failed on card, switched to Pay by check and submitted got
+  // the check confirmation and the mailing address while the record the office
+  // reads still said Card. Nobody would be expecting that cheque, and the check
+  // path has no transaction record anywhere to catch it.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.waitForTimeout(200);
+
+  await page.evaluate(() => {
+    const inner = window.fetch;
+    window.fetch = function (url, options) {
+      if (typeof url === 'string' && url.indexOf('/api/transaction') !== -1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          text: () => Promise.resolve(JSON.stringify({ error: 'upstream' }))
+        });
+      }
+      return inner(url, options);
+    };
+  });
+
+  await $('submit').click();
+  await page.waitForTimeout(700);
+
+  const asCard = postedForms(posted);
+  check('the failed card attempt recorded the order as Card', JSON.parse(asCard[0].Custom__c).PaymentMethod, 'Card');
+
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+  await $('submit').click();
+  await page.waitForTimeout(900);
+
+  const allForms = postedForms(posted);
+  check('switching to check sent the order again', allForms.length, 2);
+  check('and the second one says Check', JSON.parse(allForms[1].Custom__c).PaymentMethod, 'Check');
+  // Updated in place rather than written twice: the second post carries the
+  // confirmation code, which is what the service treats as an update.
+  check('as an update to the same record', allForms[1].FormCode__c, 'prv01');
+  check('with no second confirmation email', allForms[1].__sendEmail, undefined);
+  check('and the buyer sees the check confirmation', await $('check-done').isVisible(), true);
+
+  // Submitting the very same thing again still changes nothing.
+  await $('submit').click().catch(() => {});
+  await page.waitForTimeout(500);
+  check('an identical resubmit sends nothing new', postedForms(posted).length, 2);
 
   check('no uncaught page errors', errors.length, 0);
   if (errors.length) console.log(errors);
