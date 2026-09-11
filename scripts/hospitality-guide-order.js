@@ -124,8 +124,8 @@ const HOSPITALITY_GUIDE_CONTACT_EMAIL = "info@refugeintl.org";
 // Form__c field on the payload.
 const HOSPITALITY_GUIDE_ORDER_EMAIL = {
   subject: "Your Hospitality Guide order",
-  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.\n\nIf you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL + " and quote your order reference.\n\n{{orgName}}",
-  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Guides and printed discussion workbooks ship at release.</p><p>If you have any questions, please email <a href=\"mailto:" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "\">" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order reference.</p><p>{{orgName}}</p>"
+  text: "Hello {{FirstName}},\n\nThank you - we have your order for the Hospitality Guide.\n\nYour order reference is: {{FormCode__c}}\n\nIf you have just been taken to our payment page, your order is confirmed once that payment completes. Workbooks ship at release.\n\nIf you have any questions, please email " + HOSPITALITY_GUIDE_CONTACT_EMAIL + " and quote your order reference.\n\n{{orgName}}",
+  html: "<p>Hello {{FirstName}},</p><p>Thank you &mdash; we have your order for the <strong>Hospitality Guide</strong>.</p><p>Your order reference is: <strong>{{FormCode__c}}</strong></p><p>If you have just been taken to our payment page, your order is confirmed once that payment completes. Workbooks ship at release.</p><p>If you have any questions, please email <a href=\"mailto:" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "\">" + HOSPITALITY_GUIDE_CONTACT_EMAIL + "</a> and quote your order reference.</p><p>{{orgName}}</p>"
 };
 
 // How long to wait for the forms service before giving up on it and going to
@@ -268,22 +268,24 @@ const HOSPITALITY_GUIDE_RELEASE_AT = "2026-10-15T00:00:00-04:00";
 // The promise made to a buyer ordering before the guide is out. This is what
 // they are agreeing to, so it says plainly that the card is charged today.
 const HOSPITALITY_GUIDE_PREORDER_NOTE =
-  "Your card is charged today to reserve your order. Guides and printed discussion workbooks ship when the resource releases (target: " +
-  HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
+  "Your card is charged today to reserve your order. Workbooks ship when the resource releases " +
+  "(target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
 
 const HOSPITALITY_GUIDE_INSTOCK_NOTE =
-  "Guides and printed discussion workbooks ship after your order is placed.";
+  "Workbooks ship after your order is placed.";
 
 // The same two promises for a buyer paying by check, where nothing is charged
 // today and the order is held until the money arrives. Kept as separate strings
 // rather than patched at render time: what a buyer is agreeing to should be
 // readable in one piece, not assembled from a conditional.
+// The check versions say nothing about not being charged. The box directly above
+// them is headed "Where to send your check" and spells out the whole
+// arrangement; repeating it underneath reads like a form letter.
 const HOSPITALITY_GUIDE_PREORDER_NOTE_CHECK =
-  "You won't be charged today. Guides and printed discussion workbooks ship when the resource " +
-  "releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
+  "Workbooks ship when the resource releases (target: " + HOSPITALITY_GUIDE_RELEASE_TARGET + ").";
 
 const HOSPITALITY_GUIDE_INSTOCK_NOTE_CHECK =
-  "You won't be charged today. Guides and printed discussion workbooks ship once your check arrives.";
+  "Workbooks ship once your check arrives.";
 
 // The campaign every order is filed under, in Stripe, Salesforce and
 // QuickBooks - and the product name shown on the Stripe payment page.
@@ -686,7 +688,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       <div class="hg-step-content" id="${prefix}-step2">
         <div class="hg-card">
           <div class="hg-title">Your Information</div>
-          <div class="hg-subtitle">Where should we ship the guides and workbooks?</div>
+          <div class="hg-subtitle">Where should we ship the workbooks?</div>
 
           <div style="margin-bottom:20px;">
             <div class="hg-row">
@@ -1703,9 +1705,15 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       if (checkNote) checkNote.hidden = !payingByCheck;
       var submitFineprint = el("submit-fineprint");
       if (submitFineprint) {
-        submitFineprint.textContent = payingByCheck
-          ? "You won't be charged now. Just mail us a check."
-          : "After clicking pay, you will be taken to Stripe to enter your payment information.";
+        // Nothing to add on the check path. The line under the pay button exists
+        // to warn a card buyer they are about to leave for Stripe; a buyer
+        // mailing a check is going nowhere, and the box above has already said
+        // everything there is to say.
+        submitFineprint.hidden = payingByCheck;
+        if (!payingByCheck) {
+          submitFineprint.textContent =
+            "After clicking pay, you will be taken to Stripe to enter your payment information.";
+        }
       }
       var trust = el("trust");
       if (trust) trust.hidden = payingByCheck;
