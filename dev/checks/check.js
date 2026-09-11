@@ -396,38 +396,37 @@ function check(name, actual, expected) {
   await $('submit').click();
   await page.waitForTimeout(900);
 
-  const checkPayload = postedBody('/api/transaction/check');
-  check('a check order was recorded', !!checkPayload, true);
-  check('the amount is the discounted total in cents', checkPayload.amount, 85500);
-  // The reference is not opaque here the way it is on the card path: the buyer
-  // has to copy it onto a check, and the office matches the two by eye.
-  check(
-    'the reference is short enough to write on a check',
-    /^HG-\d{6}-[0-9A-HJ-NP-Z]{6}$/.test(checkPayload.clientReferenceId || ''),
-    true
-  );
-  check(
-    'it has no I or O to be misread as 1 or 0',
-    /[IO]/.test((checkPayload.clientReferenceId || '').slice(10)),
-    false
-  );
-  check('it carries the buyer so the office can chase them', checkPayload.email, 'pat@example.org');
-  check('it carries the name a contact would be created from', checkPayload.lastname, 'Buyer');
-  check('it carries the organisation so the account can be linked', checkPayload.organization, 'Test Church');
-  check('it carries the address for that contact', checkPayload.address.city, 'Louisville');
-  check('it names the campaign', checkPayload.category, 'Hospitality Guide');
-  check('it carries the code so the server can reprice it', checkPayload.metadata.discount_code, 'PREVIEW25');
+  // A check order is a FORM SUBMISSION AND NOTHING ELSE. No payment record is
+  // created anywhere, so this form record is the only trace the order exists.
+  const checkForm = postedBody('/api/form?') || posted
+    .filter((r) => r.url.indexOf('/api/form') !== -1 && r.body && r.body.indexOf('__formConfig') !== -1)
+    .map((r) => JSON.parse(r.body))
+    .pop();
+  check('the order was recorded as a form submission', !!checkForm, true);
+  // The body, specifically. An earlier version branched to the check path above
+  // `var formPayload = ...`; hoisting meant the assignment had not run, so it
+  // posted `undefined` as the body and the harness answered with a canned
+  // success. Asserting the record exists was not enough - it has to carry the
+  // order.
+  check('and the submission actually carried the order', Object.keys(checkForm).length > 10, true);
 
-  // The one that matters: no Stripe session was ever asked for.
+  const checkCustom = JSON.parse(checkForm.Custom__c);
+  check('the record says they are paying by check', checkCustom.PaymentMethod, 'Check');
+  check('and what they owe', checkCustom.OrderTotal, '$855.00');
+  check('and how many participants', checkForm.Quantity__c, 30);
+  check('and who they are', checkForm.Email__c, 'pat@example.org');
+  check('and which organisation', checkForm.Church__c, 'Test Church');
+
+  // The two that matter most: nothing was asked of the payment service at all.
   check(
     'no Stripe checkout session was requested',
-    posted.some((r) => r.url.indexOf('/api/transaction') !== -1 && r.url.indexOf('/check') === -1),
+    posted.some((r) => r.url.indexOf('/api/transaction') !== -1),
     false
   );
   check(
-    'the order was still recorded in Salesforce',
-    posted.some((r) => r.url.indexOf('/api/form') !== -1 && r.url.indexOf('discount-code') === -1),
-    true
+    'no transaction record was created either',
+    posted.some((r) => r.url.indexOf('/transaction') !== -1),
+    false
   );
 
   check('the confirmation replaces the review step', await $('check-done').isVisible(), true);
@@ -441,10 +440,13 @@ function check(name, actual, expected) {
     (await $('check-done').textContent()).includes('5590 Bruce Avenue'),
     true
   );
+  // The number on the check, the number in their email and the number the office
+  // searches on all have to be the same number - so it is the confirmation code
+  // the forms service actually minted, not anything this page made up.
   check(
-    'the confirmation shows the reference the service stored',
+    'the order number is the code the forms service returned',
     (await $('done-ref').textContent()).trim(),
-    checkPayload.clientReferenceId
+    'PRV01'
   );
   // The buyer is not told that somebody will chase them in a week. That is the
   // office's business, and saying it turns a thank-you into a warning.
@@ -459,11 +461,12 @@ function check(name, actual, expected) {
     true
   );
 
-  // --- a check order whose total does not match the price --------------------
+  // --- a check order the forms service does not save -------------------------
   //
-  // Nothing is charged on this path, so the price check is the only thing
-  // standing between an edited total and a pending record in the financial
-  // object. A refusal must reach the buyer BEFORE they post a check.
+  // On the card path a failed form submission is bad bookkeeping and the payment
+  // goes ahead anyway. Here there is no payment and no transaction: this record
+  // is the only trace. Telling somebody to mail a check for an order nobody has
+  // is the worst outcome available, so it has to fail loudly.
   await page.goto(URL, { waitUntil: 'networkidle' });
   await recordRequests();
   clearPosted();
@@ -484,14 +487,15 @@ function check(name, actual, expected) {
   await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
   await page.waitForTimeout(150);
 
-  // Edit the total the way a buyer with devtools would.
   await page.evaluate(() => {
     const inner = window.fetch;
     window.fetch = function (url, options) {
-      if (typeof url === 'string' && url.indexOf('/api/transaction/check') !== -1) {
-        const body = JSON.parse(options.body);
-        body.amount = 100;
-        return inner(url, { ...options, body: JSON.stringify(body) });
+      if (typeof url === 'string' && url.indexOf('/api/form') !== -1 && url.indexOf('discount-code') === -1) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve(JSON.stringify({ error: 'Salesforce unavailable' }))
+        });
       }
       return inner(url, options);
     };
@@ -500,10 +504,10 @@ function check(name, actual, expected) {
   await $('submit').click();
   await page.waitForTimeout(900);
 
-  check('a tampered total is refused', await $('check-done').isHidden(), true);
+  check('a form submission that failed is not confirmed', await $('check-done').isHidden(), true);
   check(
-    'the buyer is told the price moved',
-    (await $('submit-error').textContent()).includes('does not match the current price'),
+    'the buyer is told nothing was saved',
+    (await $('submit-error').textContent()).includes('Nothing was saved'),
     true
   );
   check(

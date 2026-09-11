@@ -1,10 +1,5 @@
 const processOrderAPI = 'https://payment-processing-function.azurewebsites.net/api/transaction';
 
-// The same service, for an order nobody is paying online. It writes a PENDING
-// transaction and returns; no Stripe session is created and no money moves. A
-// person reconciles the record when the check arrives.
-const checkOrderAPI = processOrderAPI + '/check';
-
 // The forms service, which records the order as a Form__c record in Salesforce:
 // who ordered, for how many participants, where it ships. The payment service
 // above records the money; this records the order. Same endpoint the volunteer,
@@ -1536,17 +1531,14 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
     var clientReferenceId = null;
     var clientReferenceSignature = null;
 
-    // HG-YYMMDD-XXXXXX. Short enough for a human to copy onto a check, which is
-    // the whole reason it is not a UUID any more: on the check path this is the
-    // only thing tying the money that arrives to the order it pays for, and the
-    // buyer has to write it down. Six characters from a 34-letter alphabet is
-    // 1.5 billion per day against an order volume in the tens, and the field it
-    // lands in is unique, so a collision is refused rather than quietly merging
-    // two orders. I and O are left out so nobody reads a handwritten 1 or 0 back
-    // as a letter.
+    // HG-YYMMDD-XXXXXX rather than a UUID. This is only ever an idempotency key
+    // now - a buyer paying by check quotes their form confirmation code, not
+    // this - but it reaches Stripe as client_reference_id and shows up in the
+    // dashboard, where somebody reconciling a payment by eye would much rather
+    // read a date and six characters than thirty-six hex digits.
     //
-    // Same id on both paths. Stripe takes it as client_reference_id, which
-    // accepts this alphabet, and an opaque key does not care how long it is.
+    // I and O are left out of the alphabet so a 1 or a 0 read back from a screen
+    // cannot be mistaken for a letter.
     function makeReferenceId() {
       var now = new Date();
       var stamp = String(now.getFullYear()).slice(2) +
@@ -1957,11 +1949,6 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       submitBtn.textContent = payingByCheck ? "Placing your order..." : "Transferring to Stripe...";
       hideSubmitError();
 
-      if (payingByCheck) {
-        submitCheckOrder(payload, order, totals, originalButtonText);
-        return;
-      }
-
       // The Salesforce side of the order: who ordered, how many participants,
       // and where it ships.
       //
@@ -2015,6 +2002,11 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
           // Always zero on this form. Recorded as words rather than $0.00 so a
           // reader of the record cannot mistake it for a buyer who declined.
           CoveredProcessingFee: "absorbed by Refuge International",
+          // How they said they would pay. An order paid by check creates NO
+          // payment record anywhere - this form record is the only trace of it -
+          // so this is what tells the office a check is coming, and it travels
+          // into the notification email they get when the order arrives.
+          PaymentMethod: payWhen === "check" ? "Check" : "Card",
           TotalCharged: money(totals.totalCents),
           Fulfillment: fulfillment.id,
           OrderSummary: summary,
@@ -2024,6 +2016,15 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
 
       if (buyerType === "organization") {
         formPayload.Church__c = organization;
+      }
+
+      // BELOW formPayload, not above it, and that is load bearing. `var` hoists
+      // the declaration but not the assignment, so branching off any earlier
+      // left createFormRecord stringifying `undefined` and posting an empty body
+      // - which the preview harness answered with a cheerful canned success.
+      if (payingByCheck) {
+        submitCheckOrder(order, totals, originalButtonText);
+        return;
       }
 
       // Best effort, and deliberately so. A buyer who is ready to pay must not
@@ -2056,7 +2057,11 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
               if (!r.ok) {
                 console.error(
                   "[Hospitality Guide] The order was NOT recorded in Salesforce: the forms service " +
-                  "returned HTTP " + r.status + ". The payment still went ahead. Response: " + text
+                  "returned HTTP " + r.status + ". " +
+                  (payWhen === "check"
+                    ? "The buyer is being told so; nothing was saved anywhere."
+                    : "The payment still went ahead.") +
+                  " Response: " + text
                 );
                 return null;
               }
@@ -2066,8 +2071,9 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
           .catch(function (err) {
             clearTimeout(formTimeoutId);
             console.error(formTimedOut
-              ? "Form service did not respond within " + FORM_SUBMIT_TIMEOUT_MS + "ms; continuing to payment"
-              : "Form service call failed; continuing to payment", err);
+              ? "Form service did not respond within " + FORM_SUBMIT_TIMEOUT_MS + "ms"
+              : "Form service call failed",
+              payWhen === "check" ? "; nothing was saved" : "; continuing to payment", err);
             return null;
           });
       }
@@ -2300,82 +2306,30 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
        * half-success to paper over: either we are expecting a check or we are not,
        * and a buyer about to walk to the post box needs to know which.
        */
-      function submitCheckOrder(payload, order, totals, originalButtonText) {
-        var checkPayload = {
-          amount: payload.amount,
-          clientReferenceId: payload.clientReferenceId,
-          email: payload.email,
-          firstname: payload.firstname,
-          lastname: payload.lastname,
-          phone: payload.phone,
-          category: payload.category,
-          // Only ever used to fill in a contact the service has to create.
-          address: payload.address,
-          metadata: payload.metadata
-        };
-        if (payload.organization) checkPayload.organization = payload.organization;
-
-        var controller = typeof AbortController === "function" ? new AbortController() : null;
-        var timedOut = false;
-        var timeoutId = setTimeout(function () {
-          timedOut = true;
-          if (controller) controller.abort();
-        }, SUBMIT_TIMEOUT_MS);
-
+      function submitCheckOrder(order, totals, originalButtonText) {
         createFormRecord()
           .then(function (record) {
             formRecord = record;
             var code = readFormField(record, "FormCode__c");
-            var id = readFormField(record, "Id");
-            if (code) checkPayload.metadata.form_code = code;
-            if (id) checkPayload.metadata.form_id = id;
 
-            var options = {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(checkPayload)
-            };
-            if (controller) options.signal = controller.signal;
-            return fetch(checkOrderAPI, options);
-          })
-          .then(function (r) {
-            clearTimeout(timeoutId);
-            return r.text().then(function (text) {
-              var data = null;
-              if (text) {
-                try { data = JSON.parse(text); } catch (e) { data = null; }
-              }
-              if (!r.ok) {
-                console.error("Check order service error body:", text);
-                // A 4xx says something the buyer can act on - a stale price, most
-                // likely. A 5xx is ours and its detail stays in the console.
-                var detail = (r.status < 500 && data && (data.message || data.error)) || "";
-                throw new Error(
-                  "We could not record your order (error " + r.status + ")." + (detail ? " " + detail : "")
-                );
-              }
-              if (!data || data.recorded !== true) {
-                throw new Error("The order service did not confirm your order.");
-              }
-              return data;
-            });
-          })
-          .then(function (result) {
-            showCheckConfirmation(result, order, totals);
-          })
-          .catch(function (err) {
-            clearTimeout(timeoutId);
-
-            if (timedOut) {
-              console.error("Check order error: no response within " + SUBMIT_TIMEOUT_MS + "ms, request aborted");
-            } else {
-              console.error("Check order error:", err);
+            // On the card path a failed form submission is bad bookkeeping and
+            // the payment goes ahead anyway - Stripe still has the money, and
+            // the record can be rebuilt from it. Here there is no payment and no
+            // transaction record: this form record is the only trace the order
+            // ever existed. If it did not save there is nothing to confirm, and
+            // telling somebody to mail a check for an order we have no record of
+            // is the worst outcome on offer.
+            if (!code) {
+              throw new Error("We could not save your order.");
             }
 
+            showCheckConfirmation(code, order, totals);
+          })
+          .catch(function (err) {
+            console.error("Check order error:", err);
+
             showSubmitError(
-              (timedOut
-                ? "The order service did not respond in time."
-                : (err && err.message ? err.message : "Something went wrong while recording your order.")) +
+              (err && err.message ? err.message : "Something went wrong while saving your order.") +
               " Nothing was saved, so don't send a check yet. Please try again."
             );
 
@@ -2386,7 +2340,7 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
       }
 
       /** Swap the review card for the confirmation, and say what happens next. */
-      function showCheckConfirmation(result, order, totals) {
+      function showCheckConfirmation(orderCode, order, totals) {
         var reviewCard = document.querySelector("#" + prefix + "-step3 .hg-card");
         var done = el("check-done");
         if (!done) return;
@@ -2400,9 +2354,10 @@ const HOSPITALITY_GUIDE_CHECK_ADDRESS = ["5590 Bruce Avenue", "Louisville, KY 40
         }
 
         var ref = el("done-ref");
-        // The service returns the reference it actually stored, which is the one
-        // the office will search on. Show that, never the local copy.
-        if (ref) ref.textContent = (result && result.reference) || clientReferenceId || "";
+        // The confirmation code the forms service actually minted - the one on
+        // the record and in their email - so the number on the check, the number
+        // they were sent, and the number the office searches on are one number.
+        if (ref) ref.textContent = orderCode;
 
         var note = el("done-note");
         if (note) {
