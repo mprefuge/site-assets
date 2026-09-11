@@ -230,6 +230,12 @@ function check(name, actual, expected) {
     paymentPayload.amount + paymentPayload.metadata.discount_amount_cents,
     114000
   );
+  // Read back out of the forms service's response, which answers { id, formCode }
+  // and not { Id, FormCode__c }. Getting that wrong is silent on this path - a
+  // missing code is treated as "no code" and the payment goes ahead - so it is
+  // asserted rather than assumed.
+  check('the confirmation code reaches Stripe metadata', paymentPayload.metadata.form_code, 'prv01');
+  check('and so does the record id', paymentPayload.metadata.form_id, 'a0XPREVIEW000001');
   check('the code is checked against the order campaign', paymentPayload.category, 'Hospitality Guide');
   check('metadata fulfilment is ships-at-release', paymentPayload.metadata.fulfillment, 'ships-at-release');
   check('order summary names the code', paymentPayload.metadata.order_summary.includes('code PREVIEW25'), true);
@@ -446,7 +452,7 @@ function check(name, actual, expected) {
   check(
     'the order number is the code the forms service returned',
     (await $('done-ref').textContent()).trim(),
-    'PRV01'
+    'prv01'
   );
   // The buyer is not told that somebody will chase them in a week. That is the
   // office's business, and saying it turns a thank-you into a warning.
