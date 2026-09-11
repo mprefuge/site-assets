@@ -694,6 +694,8 @@ function check(name, actual, expected) {
 
   const asCard = postedForms(posted);
   check('the failed card attempt recorded the order as Card', JSON.parse(asCard[0].Custom__c).PaymentMethod, 'Card');
+  // The reportable field, not only the line inside the Custom__c blob.
+  check('and set the payment method picklist to Card', asCard[0].Payment_Method__c, 'Card');
 
   await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
   await page.waitForTimeout(150);
@@ -703,6 +705,9 @@ function check(name, actual, expected) {
   const allForms = postedForms(posted);
   check('switching to check sent the order again', allForms.length, 2);
   check('and the second one says Check', JSON.parse(allForms[1].Custom__c).PaymentMethod, 'Check');
+  // What the check-redemption rollup counts. If this stayed Card the order would
+  // never be counted as a claimed redemption at all.
+  check('and moved the payment method picklist to Check', allForms[1].Payment_Method__c, 'Check');
   // Updated in place rather than written twice: the second post carries the
   // confirmation code, which is what the service treats as an update.
   check('as an update to the same record', allForms[1].FormCode__c, 'prv01');
@@ -713,6 +718,67 @@ function check(name, actual, expected) {
   await $('submit').click().catch(() => {});
   await page.waitForTimeout(500);
   check('an identical resubmit sends nothing new', postedForms(posted).length, 2);
+
+  // --- the order links the discount WINDOW it was priced from ---------------
+  //
+  // A code may have several windows at different percentages, so counting
+  // redemptions means linking the record, not the string. Without the lookup a
+  // check order is invisible to the rollup and the code reads as unredeemed.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('code').fill('PREVIEW25');
+  await $('code-apply').click();
+  await page.waitForTimeout(400);
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.waitForTimeout(200);
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+  await $('submit').click();
+  await page.waitForTimeout(900);
+
+  const discounted = postedForms(posted);
+  check('a discounted check order links the window it was priced from', discounted[0].Discount_Code__c, 'a0XPREVIEW25001');
+  check('and still names the code in the order metadata', JSON.parse(discounted[0].Custom__c).DiscountCode, 'PREVIEW25');
+
+  // --- no code, no lookup ---------------------------------------------------
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await recordRequests();
+  clearPosted();
+  await $('qty').fill('30');
+  await $('next1').click();
+  await $('organization-name').fill('Test Church');
+  await $('firstname').fill('Pat');
+  await $('lastname').fill('Buyer');
+  await $('email').fill('pat@example.org');
+  await $('phone').fill('5025550123');
+  await $('enter-manually').click();
+  await $('addr1').fill('1 Main St');
+  await $('city').fill('Louisville');
+  await $('state').selectOption('KY - Kentucky');
+  await $('zip').fill('40202');
+  await $('country').selectOption('United States');
+  await $('next2').click();
+  await page.waitForTimeout(200);
+  await page.locator(`#${p}-pay-when-row .hg-pay-chip[data-pay-when="check"]`).click();
+  await page.waitForTimeout(150);
+  await $('submit').click();
+  await page.waitForTimeout(900);
+
+  check('an order with no code leaves the lookup empty', postedForms(posted)[0].Discount_Code__c, undefined);
 
   check('no uncaught page errors', errors.length, 0);
   if (errors.length) console.log(errors);
